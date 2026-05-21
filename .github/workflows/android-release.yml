@@ -1,0 +1,130 @@
+name: Android Release Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build & Release Android App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Configure Keystore and Signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Using production secrets to sign APK..."
+            echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
+            echo "storeFile=release.jks" > android/key.properties
+            echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+            echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+            echo "storePassword=$STORE_PASSWORD" >> android/key.properties
+            echo "SIGNED_STATUS=signed" >> $GITHUB_ENV
+          else
+            echo "Production secrets not found. Generating self-signed keystore for preview build..."
+            keytool -genkeypair -v \
+              -keystore android/app/release.jks \
+              -alias temp-alias \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass temp-storepass \
+              -keypass temp-keypass \
+              -dname "CN=Music Journal App, OU=Development, O=Seagomezar, C=US"
+            echo "storeFile=release.jks" > android/key.properties
+            echo "keyAlias=temp-alias" >> android/key.properties
+            echo "keyPassword=temp-keypass" >> android/key.properties
+            echo "storePassword=temp-storepass" >> android/key.properties
+            echo "SIGNED_STATUS=self-signed" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Build Signed APK & App Bundle
+        run: |
+          flutter build apk --release
+          flutter build appbundle --release
+
+      - name: Stage Signed Artifacts
+        run: |
+          mkdir -p outputs
+          cp build/app/outputs/flutter-apk/app-release.apk outputs/app-release-${{ env.SIGNED_STATUS }}.apk
+          cp build/app/outputs/bundle/release/app-release.aab outputs/app-release-${{ env.SIGNED_STATUS }}.aab
+        shell: bash
+
+      - name: Clean key.properties for Unsigned Build
+        run: rm -f android/key.properties
+
+      - name: Build Unsigned APK & App Bundle
+        env:
+          BUILD_UNSIGNED: "true"
+        run: |
+          flutter build apk --release
+          flutter build appbundle --release
+
+      - name: Stage Unsigned Artifacts
+        run: |
+          if [ -f build/app/outputs/flutter-apk/app-release-unsigned.apk ]; then
+            cp build/app/outputs/flutter-apk/app-release-unsigned.apk outputs/app-release-unsigned.apk
+          else
+            cp build/app/outputs/flutter-apk/app-release.apk outputs/app-release-unsigned.apk
+          fi
+          
+          if [ -f build/app/outputs/bundle/release/app-release-unsigned.aab ]; then
+            cp build/app/outputs/bundle/release/app-release-unsigned.aab outputs/app-release-unsigned.aab
+          else
+            cp build/app/outputs/bundle/release/app-release.aab outputs/app-release-unsigned.aab
+          fi
+        shell: bash
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-builds
+          path: outputs/
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Release v1.0.${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: |
+            outputs/app-release-signed.apk
+            outputs/app-release-self-signed.apk
+            outputs/app-release-unsigned.apk
+            outputs/app-release-signed.aab
+            outputs/app-release-self-signed.aab
+            outputs/app-release-unsigned.aab
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
