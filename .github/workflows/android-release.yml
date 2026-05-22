@@ -56,13 +56,13 @@ jobs:
               -keyalg RSA \
               -keysize 2048 \
               -validity 10000 \
-              -storepass temp-storepass \
-              -keypass temp-keypass \
+              -storepass temp-password \
+              -keypass temp-password \
               -dname "CN=Music Journal App, OU=Development, O=Seagomezar, C=US"
             echo "storeFile=release.jks" > android/key.properties
             echo "keyAlias=temp-alias" >> android/key.properties
-            echo "keyPassword=temp-keypass" >> android/key.properties
-            echo "storePassword=temp-storepass" >> android/key.properties
+            echo "keyPassword=temp-password" >> android/key.properties
+            echo "storePassword=temp-password" >> android/key.properties
             echo "SIGNED_STATUS=self-signed" >> $GITHUB_ENV
           fi
         shell: bash
