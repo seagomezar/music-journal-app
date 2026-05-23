@@ -192,6 +192,12 @@ class LocalizationProvider with ChangeNotifier {
     'enter_title_desc': 'Please enter a title and description',
     'enter_piece_details': 'Please fill out all piece details',
     'weekly_goal_target': '{}% of your weekly target accomplished!',
+    'page_label': 'Page',
+    'score_view': 'Navigation',
+    'annotate_score': 'Annotate',
+    'stop_metronome': 'Stop Metronome',
+    'start_metronome': 'Start Metronome',
+    'view_score_btn': 'View Score',
   };
 
   // --- SPANISH DICTIONARY ---
@@ -351,6 +357,12 @@ class LocalizationProvider with ChangeNotifier {
     'enter_title_desc': 'Por favor ingresa un título y una descripción',
     'enter_piece_details': 'Por favor completa todos los detalles de la pieza',
     'weekly_goal_target': '¡{}% de tu objetivo semanal cumplido!',
+    'page_label': 'Página',
+    'score_view': 'Navegación',
+    'annotate_score': 'Anotar',
+    'stop_metronome': 'Detener Metrónomo',
+    'start_metronome': 'Iniciar Metrónomo',
+    'view_score_btn': 'Ver Partitura',
   };
 }
 

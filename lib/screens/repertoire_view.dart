@@ -5,6 +5,7 @@ import '../models/piece.dart';
 import '../providers/repertoire_provider.dart';
 import '../providers/localization_provider.dart';
 import '../theme/app_theme.dart';
+import 'score_viewer_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 class RepertoireView extends StatefulWidget {
   const RepertoireView({super.key});
@@ -229,7 +230,7 @@ class _RepertoireViewState extends State<RepertoireView> {
                     const SizedBox(height: 6),
                     Text(context.translate('target_tempo_format', [piece.targetBpm.toString()]), style: const TextStyle(fontSize: 14)),
                     const SizedBox(height: 6),
-                    if (piece.pdfPath != null)
+                    if (piece.pdfPath != null) ...[
                       Row(
                         children: [
                           const Icon(Icons.insert_drive_file_outlined, size: 16, color: Colors.redAccent),
@@ -243,6 +244,35 @@ class _RepertoireViewState extends State<RepertoireView> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primary,
+                          side: const BorderSide(color: AppTheme.primary, width: 1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        icon: const Icon(Icons.menu_book_rounded, size: 16),
+                        label: Text(
+                          context.translate('view_score_btn'),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => ScoreViewerScreen(
+                                pdfPath: piece.pdfPath!,
+                                pieceTitle: piece.title,
+                                pieceBpm: piece.targetBpm,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                     const Divider(height: 24, color: AppTheme.border),
                     
                     // Progress Slider
