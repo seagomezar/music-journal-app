@@ -1,82 +1,83 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Brand Colors
-  static const Color background = Color(0xFF0F172A); // Slate 900
-  static const Color surface = Color(0xFF1E293B);    // Slate 800
-  static const Color cardBg = Color(0xCC1E293B);     // Slate 800 with transparency for glassmorphism
-  static const Color border = Color(0xFF334155);     // Slate 700
-  static const Color primary = Color(0xFF0D9488);    // Teal 600
-  static const Color primaryAccent = Color(0xFF10B981); // Emerald 500
-  static const Color secondary = Color(0xFF6366F1);  // Indigo 500
-  static const Color textPrimary = Color(0xFFF8FAFC); // Slate 50
-  static const Color textSecondary = Color(0xFF94A3B8); // Slate 400
+  // Stitch Brand Colors (Flute Practice Coach)
+  static const Color background = Color(0xFFFAF9F7);      // Warm paper background
+  static const Color surface = Color(0xFFFAF9F7);         // Warm paper surface
+  static const Color cardBg = Color(0xFFEFEEEC);          // Warm surface container
+  static const Color border = Color(0xFFC3C8C1);          // Outline border
+  static const Color primary = Color(0xFF061B0E);         // Forest green primary
+  static const Color primaryAccent = Color(0xFF775A19);   // Gold/Brass accent (secondary in Stitch)
+  static const Color secondary = Color(0xFF819986);       // Sage green secondary (for success states/badging)
+  static const Color textPrimary = Color(0xFF1A1C1B);     // Dark charcoal text
+  static const Color textSecondary = Color(0xFF434843);   // Medium gray-green text
   
   static const LinearGradient brandGradient = LinearGradient(
-    colors: [primary, primaryAccent],
+    colors: [primary, Color(0xFF1B3022)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient secondaryGradient = LinearGradient(
-    colors: [Color(0xFF4F46E5), Color(0xFF818CF8)],
+    colors: [primaryAccent, Color(0xFFFED488)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  static ThemeData get darkTheme {
+  static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: Brightness.light,
       primaryColor: primary,
       scaffoldBackgroundColor: background,
-      colorScheme: const ColorScheme.dark(
+      colorScheme: const ColorScheme.light(
         primary: primary,
         secondary: secondary,
         surface: surface,
         background: background,
-        error: Color(0xFFEF4444),
+        error: Color(0xFFBA1A1A),
       ),
       cardTheme: CardThemeData(
-        color: surface,
+        color: cardBg,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: border, width: 1),
         ),
       ),
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
+      textTheme: TextTheme(
+        headlineLarge: GoogleFonts.ebGaramond(
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: textPrimary,
           letterSpacing: -0.5,
         ),
-        headlineMedium: TextStyle(
+        headlineMedium: GoogleFonts.ebGaramond(
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: textPrimary,
           letterSpacing: -0.5,
         ),
-        titleLarge: TextStyle(
+        titleLarge: GoogleFonts.ebGaramond(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        titleMedium: TextStyle(
+        titleMedium: GoogleFonts.hankenGrotesk(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        bodyLarge: TextStyle(
+        bodyLarge: GoogleFonts.hankenGrotesk(
           fontSize: 16,
           color: textPrimary,
         ),
-        bodyMedium: TextStyle(
+        bodyMedium: GoogleFonts.hankenGrotesk(
           fontSize: 14,
           color: textSecondary,
         ),
-        labelLarge: TextStyle(
+        labelLarge: GoogleFonts.hankenGrotesk(
           fontSize: 14,
           fontWeight: FontWeight.bold,
           color: textPrimary,
@@ -84,7 +85,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surface.withOpacity(0.5),
+        fillColor: cardBg.withOpacity(0.5),
         labelStyle: const TextStyle(color: textSecondary),
         hintStyle: const TextStyle(color: textSecondary),
         border: OutlineInputBorder(
@@ -102,7 +103,7 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: background,
-        selectedItemColor: primaryAccent,
+        selectedItemColor: primary,
         unselectedItemColor: textSecondary,
         selectedLabelStyle: TextStyle(fontWeight: FontWeight.bold),
         type: BottomNavigationBarType.fixed,
@@ -110,7 +111,7 @@ class AppTheme {
     );
   }
 
-  // Helper Widget: Glassmorphic Container
+  // Helper Widget: Glassmorphic/Tonal Container Card
   static Widget glassCard({
     required Widget child,
     EdgeInsetsGeometry? padding,
@@ -123,13 +124,13 @@ class AppTheme {
         color: customColor ?? cardBg,
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
-          color: border.withOpacity(0.8),
+          color: border,
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
             offset: const Offset(0, 4),
           ),
         ],

@@ -113,7 +113,7 @@ class _DashboardViewState extends State<DashboardView> {
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: AppTheme.primary.withOpacity(0.2),
+                      backgroundColor: AppTheme.primary,
                       backgroundImage: user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
                       child: user?.photoUrl == null
                           ? Text(
@@ -414,7 +414,7 @@ class _DashboardViewState extends State<DashboardView> {
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                  color: AppTheme.textPrimary,
                 ),
               ),
               const SizedBox(height: 2),

@@ -321,7 +321,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                 if (session.notes.isNotEmpty) ...[
                                   Text(
                                     context.translate('practice_session_notes_title'),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white70),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textPrimary),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
@@ -344,7 +344,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                       children: [
                                         IconButton(
                                           style: IconButton.styleFrom(
-                                            backgroundColor: isSessionPlaying ? AppTheme.surface : AppTheme.primary,
+                                            backgroundColor: isSessionPlaying ? AppTheme.primary : AppTheme.primaryAccent,
                                             foregroundColor: Colors.white,
                                             minimumSize: const Size(36, 36),
                                           ),

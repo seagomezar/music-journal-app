@@ -7,7 +7,7 @@ import '../providers/history_provider.dart';
 import '../providers/localization_provider.dart';
 import '../models/piece.dart';
 import '../theme/app_theme.dart';
-
+import 'package:google_fonts/google_fonts.dart';
 class ActivePracticeView extends StatefulWidget {
   const ActivePracticeView({super.key});
 
@@ -205,11 +205,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> with SingleTick
                       children: [
                         Text(
                           _formatTime(practiceProv.secondsElapsed),
-                          style: const TextStyle(
+                          style: GoogleFonts.hankenGrotesk(
                             fontSize: 54,
-                            fontWeight: FontWeight.w900,
-                            fontFamily: 'monospace',
-                            color: Colors.white,
+                            fontWeight: FontWeight.w300,
+                            color: AppTheme.textPrimary,
                             letterSpacing: 2,
                           ),
                         ),
@@ -353,7 +352,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> with SingleTick
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                   decoration: isCompleted ? TextDecoration.lineThrough : null,
-                                  color: isCompleted ? AppTheme.textSecondary : Colors.white,
+                                  color: isCompleted ? AppTheme.textSecondary : AppTheme.textPrimary,
                                 ),
                               ),
                               subtitle: Text(

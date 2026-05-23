@@ -5,7 +5,7 @@ import '../models/piece.dart';
 import '../providers/repertoire_provider.dart';
 import '../providers/localization_provider.dart';
 import '../theme/app_theme.dart';
-
+import 'package:google_fonts/google_fonts.dart';
 class RepertoireView extends StatefulWidget {
   const RepertoireView({super.key});
 
@@ -146,7 +146,7 @@ class _RepertoireViewState extends State<RepertoireView> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: _selectedPdfName != null ? Colors.white : AppTheme.textSecondary,
+                                color: _selectedPdfName != null ? AppTheme.textPrimary : AppTheme.textSecondary,
                               ),
                             ),
                           ),
@@ -415,7 +415,7 @@ class _RepertoireViewState extends State<RepertoireView> {
                                 piece.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: GoogleFonts.ebGaramond(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
                               ),
                               const SizedBox(height: 2),
                               Text(

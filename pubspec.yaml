@@ -39,6 +39,7 @@ dependencies:
   provider: ^6.1.2
   intl: ^0.19.0
   flutter_spinkit: ^5.2.1
+  google_fonts: ^6.2.1
 
   # Local offline database
   hive: ^2.2.3
