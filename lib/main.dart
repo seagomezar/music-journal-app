@@ -9,6 +9,7 @@ import 'providers/practice_provider.dart';
 import 'providers/localization_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/main_shell.dart';
+import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
@@ -48,7 +49,7 @@ class MyApp extends StatelessWidget {
       title: context.translate('app_title'),
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
-      home: const AuthenticationWrapper(),
+      home: const SplashScreen(),
     );
   }
 }

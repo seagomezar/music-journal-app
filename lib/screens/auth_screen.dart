@@ -4,6 +4,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../providers/auth_provider.dart';
 import '../providers/localization_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -118,26 +119,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Icon Logo Header
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: AppTheme.brandGradient,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primary.withOpacity(0.4),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            )
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.music_note_rounded,
-                          size: 56,
-                          color: Colors.white,
-                        ),
+                    // Premium App Logo Header
+                    const Center(
+                      child: AppLogo(
+                        size: 110,
+                        showShadow: true,
                       ),
                     ),
                     const SizedBox(height: 24),
