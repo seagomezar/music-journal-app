@@ -304,6 +304,9 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _metronomeSoundSuppressed = suppressed;
     if (_metronomeOn && _metronomeSoundEnabled) {
       try {
+        if (!suppressed) {
+          await _metronomeAudio.setTempo(_metronomeBpm);
+        }
         await _metronomeAudio.setVolume(suppressed ? 0 : _metronomeVolume);
       } catch (error) {
         debugPrint('Unable to update metronome audio suppression: $error');
@@ -641,6 +644,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _timer?.cancel();
     _metronomeBeatTimer?.cancel();
     _metronomePulseTimer?.cancel();
+    _metronomeTempoTimer?.cancel();
     _activeStopwatch.stop();
     _metronomeStopwatch.stop();
     _metronomeAudio.onExternalPlayingChanged = null;
