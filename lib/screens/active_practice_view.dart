@@ -536,26 +536,28 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    context.translate('visual_metronome'),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      context.translate('visual_metronome'),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    context.translate('tempo', [
-                                      practiceProv.metronomeBpm.toString(),
-                                    ]),
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.textSecondary,
+                                    Text(
+                                      context.translate('tempo', [
+                                        practiceProv.metronomeBpm.toString(),
+                                      ]),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textSecondary,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                               Row(
                                 children: [
@@ -607,7 +609,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                             const SizedBox(height: 8),
                             Slider(
                               min: 40,
-                              max: 220,
+                              max: 240,
                               activeColor: AppTheme.primaryAccent,
                               inactiveColor: AppTheme.border,
                               value: practiceProv.metronomeBpm.toDouble(),
@@ -615,6 +617,110 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                 practiceProv.setMetronomeBpm(val.round());
                               },
                             ),
+                            const Divider(height: 16, color: AppTheme.border),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    context.translate('metronome_sound'),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: context.translate(
+                                    practiceProv.metronomeSoundEnabled
+                                        ? 'mute_metronome'
+                                        : 'enable_metronome_sound',
+                                  ),
+                                  onPressed: () async {
+                                    try {
+                                      await practiceProv
+                                          .setMetronomeSoundEnabled(
+                                            !practiceProv.metronomeSoundEnabled,
+                                          );
+                                    } catch (error) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              context.translate(
+                                                'preference_save_error',
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  icon: Icon(
+                                    practiceProv.metronomeSoundEnabled
+                                        ? Icons.volume_up_rounded
+                                        : Icons.volume_off_rounded,
+                                    color: practiceProv.metronomeSoundEnabled
+                                        ? AppTheme.primaryAccent
+                                        : AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (practiceProv.metronomeSoundEnabled)
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.volume_down_rounded,
+                                    size: 18,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                  Expanded(
+                                    child: Slider(
+                                      min: 0,
+                                      max: 1,
+                                      activeColor: AppTheme.primaryAccent,
+                                      inactiveColor: AppTheme.border,
+                                      value: practiceProv.metronomeVolume,
+                                      onChanged: (value) async {
+                                        try {
+                                          await practiceProv.setMetronomeVolume(
+                                            value,
+                                          );
+                                        } catch (error) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  context.translate(
+                                                    'preference_save_error',
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.volume_up_rounded,
+                                    size: 18,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ],
+                              ),
+                            if (practiceProv.isMetronomeSoundSuppressed)
+                              Text(
+                                context.translate('metronome_sound_suppressed'),
+                                style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 11,
+                                ),
+                              ),
                           ],
                         ],
                       ),
@@ -887,13 +993,13 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
 
                             const SizedBox(height: 10),
 
-                            // Close Recorder panel & resume global session clock
+                            // Closing the recorder does not change session time.
                             TextButton(
                               style: TextButton.styleFrom(
                                 foregroundColor: AppTheme.textSecondary,
                               ),
                               onPressed: () async {
-                                await practiceProv.resumeSession();
+                                await practiceProv.closeAudioRecorder();
                               },
                               child: Text(context.translate('close_recorder')),
                             ),

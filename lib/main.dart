@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'services/database_service.dart';
+import 'services/metronome_audio_service.dart';
+import 'services/screen_awake_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/routine_provider.dart';
 import 'providers/repertoire_provider.dart';
@@ -22,6 +24,13 @@ void main() async {
   final dbService = DatabaseService();
   await dbService.init();
 
+  final metronomeAudioService = MetronomeAudioService();
+  try {
+    await metronomeAudioService.initialize();
+  } catch (error) {
+    debugPrint('Background metronome initialization failed: $error');
+  }
+
   // Initialize Date Formatting for Calendar
   await initializeDateFormatting('es', null);
   await initializeDateFormatting('en', null);
@@ -36,7 +45,18 @@ void main() async {
         ChangeNotifierProvider(create: (_) => RoutineProvider()),
         ChangeNotifierProvider(create: (_) => RepertoireProvider()),
         ChangeNotifierProvider(create: (_) => HistoryProvider()),
-        ChangeNotifierProvider(create: (_) => PracticeProvider()),
+        ChangeNotifierProvider(
+          create: (_) => PracticeProvider(
+            metronomeAudioController: metronomeAudioService,
+            screenAwakeController: WakelockScreenAwakeController(),
+            keepScreenAwake: dbService.getKeepScreenAwake(),
+            metronomeSoundEnabled: dbService.getMetronomeSoundEnabled(),
+            metronomeVolume: dbService.getMetronomeVolume(),
+            persistKeepScreenAwake: dbService.setKeepScreenAwake,
+            persistMetronomeSound: dbService.setMetronomeSoundEnabled,
+            persistMetronomeVolume: dbService.setMetronomeVolume,
+          ),
+        ),
       ],
       child: const MyApp(),
     ),

@@ -246,6 +246,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final practiceProvider = context.watch<PracticeProvider>();
     return Scaffold(
       appBar: AppBar(title: Text(context.translate('settings'))),
       body: SafeArea(
@@ -267,6 +268,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
+                context.translate('practice_preferences'),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppTheme.primaryAccent,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            SwitchListTile(
+              secondary: const Icon(Icons.light_mode_outlined),
+              title: Text(context.translate('keep_screen_awake')),
+              subtitle: Text(context.translate('keep_screen_awake_subtitle')),
+              value: practiceProvider.keepScreenAwake,
+              onChanged: (enabled) async {
+                try {
+                  await practiceProvider.setKeepScreenAwake(enabled);
+                } catch (error) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          context.translate('preference_save_error'),
+                        ),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+            const Divider(height: 32),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Text(

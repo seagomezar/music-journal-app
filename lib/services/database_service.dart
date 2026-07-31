@@ -11,6 +11,9 @@ import 'file_storage_service.dart';
 class DatabaseService {
   static const int _currentSeedVersion = 1;
   static const String _seedVersionKey = 'seed_version';
+  static const String _keepScreenAwakeKey = 'keep_screen_awake';
+  static const String _metronomeSoundKey = 'metronome_sound';
+  static const String _metronomeVolumeKey = 'metronome_volume';
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
@@ -236,6 +239,31 @@ class DatabaseService {
 
   Future<void> setPreferredLocale(String locale) async {
     await _profileBox.put('preferred_locale', locale);
+  }
+
+  bool getKeepScreenAwake() {
+    return _profileBox.get(_keepScreenAwakeKey, defaultValue: false) as bool;
+  }
+
+  Future<void> setKeepScreenAwake(bool enabled) async {
+    await _profileBox.put(_keepScreenAwakeKey, enabled);
+  }
+
+  bool getMetronomeSoundEnabled() {
+    return _profileBox.get(_metronomeSoundKey, defaultValue: true) as bool;
+  }
+
+  Future<void> setMetronomeSoundEnabled(bool enabled) async {
+    await _profileBox.put(_metronomeSoundKey, enabled);
+  }
+
+  double getMetronomeVolume() {
+    final value = _profileBox.get(_metronomeVolumeKey, defaultValue: 0.7);
+    return (value as num).toDouble().clamp(0.0, 1.0);
+  }
+
+  Future<void> setMetronomeVolume(double volume) async {
+    await _profileBox.put(_metronomeVolumeKey, volume.clamp(0.0, 1.0));
   }
 
   Future<void> clearAllUserData() async {

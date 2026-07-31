@@ -15,6 +15,8 @@ import 'package:flute/providers/routine_provider.dart';
 import 'package:flute/screens/manual_session_screen.dart';
 import 'package:flute/services/audio_service.dart';
 import 'package:flute/services/file_storage_service.dart';
+import 'package:flute/services/metronome_audio_service.dart';
+import 'package:flute/services/screen_awake_service.dart';
 import 'package:provider/provider.dart';
 
 class FakeAudioService extends AudioService {
@@ -56,6 +58,89 @@ class FakeAudioService extends AudioService {
 
   @override
   Future<void> dispose() async {}
+}
+
+class FakeMetronomeAudioController implements MetronomeAudioController {
+  @override
+  ValueChanged<bool>? onExternalPlayingChanged;
+
+  int startCalls = 0;
+  int stopCalls = 0;
+  int? lastBpm;
+  final List<double> volumes = [];
+
+  @override
+  Future<void> start({required int bpm, required double volume}) async {
+    startCalls++;
+    lastBpm = bpm;
+    volumes.add(volume);
+  }
+
+  @override
+  Future<void> setTempo(int bpm) async {
+    lastBpm = bpm;
+  }
+
+  @override
+  Future<void> setVolume(double volume) async {
+    volumes.add(volume);
+  }
+
+  @override
+  Future<void> stop() async {
+    stopCalls++;
+  }
+}
+
+class FakeScreenAwakeController implements ScreenAwakeController {
+  final List<bool> states = [];
+
+  @override
+  Future<void> setEnabled(bool enabled) async {
+    states.add(enabled);
+  }
+}
+
+class FakeStopwatch extends Stopwatch {
+  Duration _elapsed = Duration.zero;
+  bool _isRunning = false;
+
+  void advance(Duration duration) {
+    if (_isRunning) _elapsed += duration;
+  }
+
+  @override
+  Duration get elapsed => _elapsed;
+
+  @override
+  int get elapsedMicroseconds => _elapsed.inMicroseconds;
+
+  @override
+  int get elapsedMilliseconds => _elapsed.inMilliseconds;
+
+  @override
+  int get elapsedTicks => _elapsed.inMicroseconds;
+
+  @override
+  int get frequency => Duration.microsecondsPerSecond;
+
+  @override
+  bool get isRunning => _isRunning;
+
+  @override
+  void reset() {
+    _elapsed = Duration.zero;
+  }
+
+  @override
+  void start() {
+    _isRunning = true;
+  }
+
+  @override
+  void stop() {
+    _isRunning = false;
+  }
 }
 
 class FakeHistoryProvider extends HistoryProvider {
@@ -195,19 +280,104 @@ void main() {
       provider.dispose();
     });
 
-    test('Closing the recorder stops capture before resuming', () async {
-      final audio = FakeAudioService();
-      final provider = PracticeProvider(audioService: audio);
+    test(
+      'Closing the recorder stops capture without changing the clock',
+      () async {
+        final audio = FakeAudioService();
+        final provider = PracticeProvider(audioService: audio);
+        provider.startSession(null);
+        provider.activateAudioRecorder();
+        await provider.startRecording();
+
+        expect(provider.isPaused, false);
+        await provider.closeAudioRecorder();
+
+        expect(audio.recording, false);
+        expect(audio.stopRecordingCalls, 1);
+        expect(provider.isAudioRecorderActive, false);
+        expect(provider.isPaused, false);
+        await provider.cancelSession();
+        provider.dispose();
+      },
+    );
+
+    test(
+      'Screen lock keeps logical time running and restores UI updates',
+      () async {
+        final stopwatch = FakeStopwatch();
+        final screenAwake = FakeScreenAwakeController();
+        final provider = PracticeProvider(
+          audioService: FakeAudioService(),
+          activeStopwatch: stopwatch,
+          screenAwakeController: screenAwake,
+          keepScreenAwake: true,
+        );
+        provider.startSession(null);
+        await Future<void>.delayed(Duration.zero);
+
+        provider.didChangeAppLifecycleState(AppLifecycleState.paused);
+        stopwatch.advance(const Duration(seconds: 37));
+        provider.didChangeAppLifecycleState(AppLifecycleState.resumed);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(provider.isPaused, false);
+        expect(provider.secondsElapsed, 37);
+        expect(stopwatch.isRunning, true);
+        expect(screenAwake.states, containsAllInOrder([true, false, true]));
+        await provider.cancelSession();
+        provider.dispose();
+      },
+    );
+
+    test('A manually paused clock stays paused across screen lock', () async {
+      final stopwatch = FakeStopwatch();
+      final provider = PracticeProvider(
+        audioService: FakeAudioService(),
+        activeStopwatch: stopwatch,
+      );
       provider.startSession(null);
-      provider.activateAudioRecorder();
+      stopwatch.advance(const Duration(seconds: 5));
+      provider.pauseSession();
+
+      provider.didChangeAppLifecycleState(AppLifecycleState.paused);
+      stopwatch.advance(const Duration(seconds: 20));
+      provider.didChangeAppLifecycleState(AppLifecycleState.resumed);
+
+      expect(provider.isPaused, true);
+      expect(provider.secondsElapsed, 5);
+      expect(stopwatch.isRunning, false);
+      await provider.cancelSession();
+      provider.dispose();
+    });
+
+    test('Metronome sound follows tempo and mutes during recording', () async {
+      final audio = FakeAudioService();
+      final metronome = FakeMetronomeAudioController();
+      final provider = PracticeProvider(
+        audioService: audio,
+        metronomeAudioController: metronome,
+        metronomeVolume: 0.6,
+      );
+      provider.startSession(null);
+
+      provider.toggleMetronome(96);
+      await Future<void>.delayed(Duration.zero);
+      expect(metronome.startCalls, 1);
+      expect(metronome.lastBpm, 96);
+      expect(metronome.volumes.last, 0.6);
+
       await provider.startRecording();
-
-      await provider.resumeSession();
-
-      expect(audio.recording, false);
-      expect(audio.stopRecordingCalls, 1);
-      expect(provider.isAudioRecorderActive, false);
+      expect(metronome.volumes.last, 0);
+      expect(provider.isMetronomeSoundSuppressed, true);
       expect(provider.isPaused, false);
+
+      await provider.stopRecording();
+      expect(metronome.volumes.last, 0.6);
+      expect(provider.isMetronomeSoundSuppressed, false);
+
+      provider.setMetronomeBpm(132);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(metronome.lastBpm, 132);
       await provider.cancelSession();
       provider.dispose();
     });
