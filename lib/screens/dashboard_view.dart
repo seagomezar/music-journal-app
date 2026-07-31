@@ -284,7 +284,7 @@ class _DashboardViewState extends State<DashboardView> {
                       crossAxisCount: useFourColumns ? 4 : 2,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
-                      childAspectRatio: useFourColumns ? 1.18 : 1,
+                      mainAxisExtent: 112,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
@@ -491,45 +491,48 @@ class _DashboardViewState extends State<DashboardView> {
     required Color iconColor,
   }) {
     return AppTheme.glassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
-          const SizedBox(height: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
+                const SizedBox(height: 6),
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.15,
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

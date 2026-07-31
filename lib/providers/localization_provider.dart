@@ -23,9 +23,17 @@ class LocalizationProvider with ChangeNotifier {
 
   Future<void> setLocale(String langCode) async {
     if (langCode != 'en' && langCode != 'es') return;
+    if (_localeCode == langCode) return;
+    final previousLocaleCode = _localeCode;
     _localeCode = langCode;
-    await _db.setPreferredLocale(langCode);
     notifyListeners();
+    try {
+      await _db.setPreferredLocale(langCode);
+    } catch (_) {
+      _localeCode = previousLocaleCode;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   String translate(String key, [List<String>? args]) {

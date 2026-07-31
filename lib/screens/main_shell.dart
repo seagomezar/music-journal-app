@@ -29,6 +29,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final practiceProv = Provider.of<PracticeProvider>(context);
+    final localizationProv = context.watch<LocalizationProvider>();
     final width = MediaQuery.sizeOf(context).width;
     final useDesktopNavigation = width >= 900;
     final extendDesktopNavigation = width >= 1180;
@@ -68,22 +69,22 @@ class _MainShellState extends State<MainShell> {
                 NavigationRailDestination(
                   icon: const Icon(Icons.dashboard_outlined),
                   selectedIcon: const Icon(Icons.dashboard_rounded),
-                  label: Text(context.translate('dashboard_nav')),
+                  label: Text(localizationProv.translate('dashboard_nav')),
                 ),
                 NavigationRailDestination(
                   icon: const Icon(Icons.playlist_add_check_circle_outlined),
                   selectedIcon: const Icon(Icons.playlist_add_check_circle),
-                  label: Text(context.translate('routines')),
+                  label: Text(localizationProv.translate('routines')),
                 ),
                 NavigationRailDestination(
                   icon: const Icon(Icons.library_music_outlined),
                   selectedIcon: const Icon(Icons.library_music),
-                  label: Text(context.translate('repertoire')),
+                  label: Text(localizationProv.translate('repertoire')),
                 ),
                 NavigationRailDestination(
                   icon: const Icon(Icons.calendar_month_outlined),
                   selectedIcon: const Icon(Icons.calendar_month),
-                  label: Text(context.translate('history')),
+                  label: Text(localizationProv.translate('history')),
                 ),
               ],
             ),
@@ -122,22 +123,22 @@ class _MainShellState extends State<MainShell> {
             BottomNavigationBarItem(
               icon: const Icon(Icons.dashboard_outlined),
               activeIcon: const Icon(Icons.dashboard_rounded),
-              label: context.translate('dashboard_nav'),
+              label: localizationProv.translate('dashboard_nav'),
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.playlist_add_check_circle_outlined),
               activeIcon: const Icon(Icons.playlist_add_check_circle),
-              label: context.translate('routines'),
+              label: localizationProv.translate('routines'),
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.library_music_outlined),
               activeIcon: const Icon(Icons.library_music),
-              label: context.translate('repertoire'),
+              label: localizationProv.translate('repertoire'),
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.calendar_month_outlined),
               activeIcon: const Icon(Icons.calendar_month),
-              label: context.translate('history'),
+              label: localizationProv.translate('history'),
             ),
           ],
         ),
