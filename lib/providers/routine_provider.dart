@@ -24,10 +24,24 @@ class RoutineProvider with ChangeNotifier {
   }
 
   Future<void> saveRoutine(Routine routine) async {
+    final previousRoutines = List<Routine>.from(_routines);
+    final updatedRoutines = List<Routine>.from(_routines);
+    final existingIndex = updatedRoutines.indexWhere(
+      (candidate) => candidate.id == routine.id,
+    );
+    if (existingIndex == -1) {
+      updatedRoutines.add(routine);
+    } else {
+      updatedRoutines[existingIndex] = routine;
+    }
+    _routines = updatedRoutines;
+    notifyListeners();
+
     try {
       await _db.saveRoutine(routine);
-      await loadRoutines();
     } catch (e) {
+      _routines = previousRoutines;
+      notifyListeners();
       debugPrint('Error saving routine: $e');
       rethrow;
     }

@@ -135,10 +135,19 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
     );
   }
 
-  void _showAddExerciseDialog(BuildContext context, Routine routine) {
-    _exNameController.clear();
-    _exBpmController.text = '80';
-    _exArticulation = 'Staccato';
+  void _showExerciseDialog(
+    BuildContext context,
+    Routine routine, {
+    Exercise? exercise,
+  }) {
+    final isEditing = exercise != null;
+    _exNameController.text = exercise?.name ?? '';
+    _exBpmController.text = (exercise?.targetBpm ?? 80).toString();
+    _exArticulation = exercise?.articulation ?? 'Staccato';
+    final articulationOptions = List<String>.from(_articulations);
+    if (!articulationOptions.contains(_exArticulation)) {
+      articulationOptions.add(_exArticulation);
+    }
     final locProv = Provider.of<LocalizationProvider>(context, listen: false);
 
     showDialog(
@@ -148,7 +157,10 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(
-                context.translate('add_exercise_to', [routine.title]),
+                context.translate(
+                  isEditing ? 'edit_exercise_title' : 'add_exercise_to',
+                  [routine.title],
+                ),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -175,10 +187,11 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       initialValue: _exArticulation,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: context.translate('articulation_label'),
                       ),
-                      items: _articulations.map((String art) {
+                      items: articulationOptions.map((String art) {
                         return DropdownMenuItem<String>(
                           value: art,
                           child: Text(art),
@@ -216,15 +229,33 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                         bpm != null &&
                         bpm >= 40 &&
                         bpm <= 240) {
-                      final newExercise = Exercise(
-                        id: 'ex_${const Uuid().v7()}',
-                        name: name,
-                        targetBpm: bpm,
-                        articulation: _exArticulation,
-                      );
+                      final updatedExercise = exercise != null
+                          ? exercise.copyWith(
+                              name: name,
+                              targetBpm: bpm,
+                              articulation: _exArticulation,
+                            )
+                          : Exercise(
+                              id: 'ex_${const Uuid().v7()}',
+                              name: name,
+                              targetBpm: bpm,
+                              articulation: _exArticulation,
+                            );
                       final updatedExercises = List<Exercise>.from(
                         routine.exercises,
-                      )..add(newExercise);
+                      );
+                      if (exercise != null) {
+                        final exerciseIndex = updatedExercises.indexWhere(
+                          (candidate) => candidate.id == exercise.id,
+                        );
+                        if (exerciseIndex == -1) {
+                          if (context.mounted) Navigator.of(context).pop();
+                          return;
+                        }
+                        updatedExercises[exerciseIndex] = updatedExercise;
+                      } else {
+                        updatedExercises.add(updatedExercise);
+                      }
                       final updatedRoutine = routine.copyWith(
                         exercises: updatedExercises,
                       );
@@ -255,7 +286,9 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                       );
                     }
                   },
-                  child: Text(context.translate('add_btn')),
+                  child: Text(
+                    context.translate(isEditing ? 'save' : 'add_btn'),
+                  ),
                 ),
               ],
             );
@@ -399,15 +432,20 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        context.translate(
-                                          'technical_checklist',
+                                      Expanded(
+                                        child: Text(
+                                          context.translate(
+                                            'technical_checklist',
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleSmall
+                                              ?.copyWith(fontSize: 13),
                                         ),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall
-                                            ?.copyWith(fontSize: 13),
                                       ),
+                                      const SizedBox(width: 8),
                                       TextButton.icon(
                                         style: TextButton.styleFrom(
                                           foregroundColor:
@@ -419,7 +457,7 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                           context.translate('add_exercise'),
                                           style: const TextStyle(fontSize: 12),
                                         ),
-                                        onPressed: () => _showAddExerciseDialog(
+                                        onPressed: () => _showExerciseDialog(
                                           context,
                                           routine,
                                         ),
@@ -444,17 +482,46 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                         ),
                                       ),
                                     )
-                                  else
-                                    ListView.separated(
+                                  else ...[
+                                    if (routine.exercises.length > 1)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: Text(
+                                          context.translate(
+                                            'reorder_exercises_hint',
+                                          ),
+                                          style: const TextStyle(
+                                            color: AppTheme.textSecondary,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                    ReorderableListView.builder(
                                       shrinkWrap: true,
                                       physics:
                                           const NeverScrollableScrollPhysics(),
+                                      buildDefaultDragHandles: false,
                                       itemCount: routine.exercises.length,
-                                      separatorBuilder: (_, _) =>
-                                          const SizedBox(height: 8),
+                                      onReorderItem:
+                                          (oldIndex, newIndex) async {
+                                            await _reorderExercises(
+                                              context,
+                                              routine,
+                                              oldIndex,
+                                              newIndex,
+                                            );
+                                          },
                                       itemBuilder: (context, idx) {
                                         final exercise = routine.exercises[idx];
                                         return Container(
+                                          key: ValueKey(
+                                            'exercise_${routine.id}_${exercise.id}',
+                                          ),
+                                          margin: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
                                             color: AppTheme.surface.withValues(
@@ -513,6 +580,45 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                                 ),
                                               ),
                                               IconButton(
+                                                key: ValueKey(
+                                                  'edit_exercise_${exercise.id}',
+                                                ),
+                                                constraints:
+                                                    const BoxConstraints.tightFor(
+                                                      width: 36,
+                                                      height: 36,
+                                                    ),
+                                                padding: const EdgeInsets.all(
+                                                  8,
+                                                ),
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                icon: const Icon(
+                                                  Icons.edit_outlined,
+                                                  color: AppTheme.primaryAccent,
+                                                  size: 18,
+                                                ),
+                                                tooltip: context.translate(
+                                                  'edit_exercise',
+                                                ),
+                                                onPressed: () =>
+                                                    _showExerciseDialog(
+                                                      context,
+                                                      routine,
+                                                      exercise: exercise,
+                                                    ),
+                                              ),
+                                              IconButton(
+                                                constraints:
+                                                    const BoxConstraints.tightFor(
+                                                      width: 36,
+                                                      height: 36,
+                                                    ),
+                                                padding: const EdgeInsets.all(
+                                                  8,
+                                                ),
+                                                visualDensity:
+                                                    VisualDensity.compact,
                                                 icon: const Icon(
                                                   Icons
                                                       .remove_circle_outline_rounded,
@@ -551,11 +657,40 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                                   }
                                                 },
                                               ),
+                                              ReorderableDragStartListener(
+                                                key: ValueKey(
+                                                  'exercise_drag_${exercise.id}',
+                                                ),
+                                                index: idx,
+                                                child: Tooltip(
+                                                  message: context.translate(
+                                                    'reorder_exercise',
+                                                  ),
+                                                  child: Semantics(
+                                                    button: true,
+                                                    label: context.translate(
+                                                      'reorder_exercise',
+                                                    ),
+                                                    child: const SizedBox(
+                                                      width: 36,
+                                                      height: 36,
+                                                      child: Icon(
+                                                        Icons
+                                                            .drag_handle_rounded,
+                                                        color: AppTheme
+                                                            .textSecondary,
+                                                        size: 22,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         );
                                       },
                                     ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -568,6 +703,32 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
               ),
       ),
     );
+  }
+
+  Future<void> _reorderExercises(
+    BuildContext context,
+    Routine routine,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    if (newIndex == oldIndex) return;
+
+    final updatedExercises = List<Exercise>.from(routine.exercises);
+    final movedExercise = updatedExercises.removeAt(oldIndex);
+    updatedExercises.insert(newIndex, movedExercise);
+
+    try {
+      await Provider.of<RoutineProvider>(
+        context,
+        listen: false,
+      ).saveRoutine(routine.copyWith(exercises: updatedExercises));
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.translate('routine_save_error'))),
+        );
+      }
+    }
   }
 
   void _showDeleteRoutineConfirm(BuildContext context, Routine routine) {
