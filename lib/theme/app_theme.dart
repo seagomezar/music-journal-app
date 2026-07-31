@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 
 class AppTheme {
   // Stitch Brand Colors (Flute Practice Coach)
-  static const Color background = Color(0xFFFAF9F7);      // Warm paper background
-  static const Color surface = Color(0xFFFAF9F7);         // Warm paper surface
-  static const Color cardBg = Color(0xFFEFEEEC);          // Warm surface container
-  static const Color border = Color(0xFFC3C8C1);          // Outline border
-  static const Color primary = Color(0xFF061B0E);         // Forest green primary
-  static const Color primaryAccent = Color(0xFF775A19);   // Gold/Brass accent (secondary in Stitch)
-  static const Color secondary = Color(0xFF819986);       // Sage green secondary (for success states/badging)
-  static const Color textPrimary = Color(0xFF1A1C1B);     // Dark charcoal text
-  static const Color textSecondary = Color(0xFF434843);   // Medium gray-green text
-  
+  static const Color background = Color(0xFFFAF9F7); // Warm paper background
+  static const Color surface = Color(0xFFFAF9F7); // Warm paper surface
+  static const Color cardBg = Color(0xFFEFEEEC); // Warm surface container
+  static const Color border = Color(0xFFC3C8C1); // Outline border
+  static const Color primary = Color(0xFF061B0E); // Forest green primary
+  static const Color primaryAccent = Color(
+    0xFF775A19,
+  ); // Gold/Brass accent (secondary in Stitch)
+  static const Color secondary = Color(
+    0xFF819986,
+  ); // Sage green secondary (for success states/badging)
+  static const Color textPrimary = Color(0xFF1A1C1B); // Dark charcoal text
+  static const Color textSecondary = Color(
+    0xFF434843,
+  ); // Medium gray-green text
+
   static const LinearGradient brandGradient = LinearGradient(
     colors: [primary, Color(0xFF1B3022)],
     begin: Alignment.topLeft,
@@ -35,7 +41,6 @@ class AppTheme {
         primary: primary,
         secondary: secondary,
         surface: surface,
-        background: background,
         error: Color(0xFFBA1A1A),
       ),
       cardTheme: CardThemeData(
@@ -46,38 +51,47 @@ class AppTheme {
           side: const BorderSide(color: border, width: 1),
         ),
       ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: background,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
+      ),
       textTheme: TextTheme(
-        headlineLarge: GoogleFonts.ebGaramond(
+        headlineLarge: const TextStyle(
+          fontFamily: 'serif',
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: textPrimary,
           letterSpacing: -0.5,
         ),
-        headlineMedium: GoogleFonts.ebGaramond(
+        headlineMedium: const TextStyle(
+          fontFamily: 'serif',
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: textPrimary,
           letterSpacing: -0.5,
         ),
-        titleLarge: GoogleFonts.ebGaramond(
+        titleLarge: const TextStyle(
+          fontFamily: 'serif',
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        titleMedium: GoogleFonts.hankenGrotesk(
+        titleMedium: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        bodyLarge: GoogleFonts.hankenGrotesk(
-          fontSize: 16,
-          color: textPrimary,
-        ),
-        bodyMedium: GoogleFonts.hankenGrotesk(
-          fontSize: 14,
-          color: textSecondary,
-        ),
-        labelLarge: GoogleFonts.hankenGrotesk(
+        bodyLarge: const TextStyle(fontSize: 16, color: textPrimary),
+        bodyMedium: const TextStyle(fontSize: 14, color: textSecondary),
+        labelLarge: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
           color: textPrimary,
@@ -85,7 +99,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: cardBg.withOpacity(0.5),
+        fillColor: cardBg.withValues(alpha: 0.5),
         labelStyle: const TextStyle(color: textSecondary),
         hintStyle: const TextStyle(color: textSecondary),
         border: OutlineInputBorder(
@@ -123,13 +137,10 @@ class AppTheme {
       decoration: BoxDecoration(
         color: customColor ?? cardBg,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(
-          color: border,
-          width: 1,
-        ),
+        border: Border.all(color: border, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),

@@ -18,36 +18,17 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<void> createLocalProfile(String name) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final profile = await _authService.signInWithGoogle();
-      if (profile != null) {
-        _user = profile;
-        notifyListeners();
-        return true;
-      }
-    } catch (e) {
-      debugPrint('Error signing in: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-    return false;
-  }
-
-  Future<void> signInGuest(String name) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final profile = await _authService.signInGuest(name);
+      final profile = await _authService.createLocalProfile(name);
       _user = profile;
       notifyListeners();
     } catch (e) {
-      debugPrint('Error signing in guest: $e');
+      debugPrint('Error creating local profile: $e');
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -56,21 +37,24 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> updateWeeklyGoal(int minutes) async {
     if (_user == null) return;
-    _user = _user!.copyWith(weeklyPracticeGoalMinutes: minutes);
+    _user = _user!.copyWith(
+      weeklyPracticeGoalMinutes: minutes.clamp(1, 10080).toInt(),
+    );
     await _db.saveUserProfile(_user!);
     notifyListeners();
   }
 
-  Future<void> signOut() async {
+  Future<void> eraseAllData() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      await _authService.signOut();
+      await _authService.eraseAllData();
       _user = null;
       notifyListeners();
     } catch (e) {
-      debugPrint('Error signing out: $e');
+      debugPrint('Error erasing local data: $e');
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();

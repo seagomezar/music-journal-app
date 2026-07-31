@@ -1,4 +1,4 @@
-package com.antigravity.flute.flute
+package com.seagomezar.flutepracticecoach
 
 import io.flutter.embedding.android.FlutterActivity
 

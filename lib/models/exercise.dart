@@ -2,7 +2,8 @@ class Exercise {
   final String id;
   final String name;
   final int targetBpm;
-  final String articulation; // e.g., 'Staccato', 'Legato', 'Double Tonguing', 'Triple Tonguing'
+  final String
+  articulation; // e.g., 'Staccato', 'Legato', 'Double Tonguing', 'Triple Tonguing'
 
   Exercise({
     required this.id,
@@ -12,24 +13,23 @@ class Exercise {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'targetBpm': targetBpm,
-        'articulation': articulation,
-      };
+    'id': id,
+    'name': name,
+    'targetBpm': targetBpm,
+    'articulation': articulation,
+  };
 
   factory Exercise.fromJson(Map<String, dynamic> json) => Exercise(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        targetBpm: json['targetBpm'] as int? ?? 120,
-        articulation: json['articulation'] as String? ?? 'Staccato',
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    targetBpm: (json['targetBpm'] as num? ?? 120)
+        .toInt()
+        .clamp(40, 240)
+        .toInt(),
+    articulation: json['articulation'] as String? ?? 'Staccato',
+  );
 
-  Exercise copyWith({
-    String? name,
-    int? targetBpm,
-    String? articulation,
-  }) {
+  Exercise copyWith({String? name, int? targetBpm, String? articulation}) {
     return Exercise(
       id: id,
       name: name ?? this.name,

@@ -1,14 +1,25 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../models/routine.dart';
 import '../models/exercise.dart';
 import '../models/piece.dart';
 import '../models/session_record.dart';
 import '../services/audio_service.dart';
 
-class PracticeProvider with ChangeNotifier {
-  final AudioService _audioService = AudioService();
-  
+class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
+  PracticeProvider({AudioService? audioService})
+    : _audioService = audioService ?? AudioService() {
+    _audioService.onPlaybackChanged = (_) {
+      if (!_isDisposed) notifyListeners();
+    };
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  final AudioService _audioService;
+  bool _isDisposed = false;
+
   // Active session variables
   Routine? _activeRoutine;
   DateTime? _startTime;
@@ -16,10 +27,11 @@ class PracticeProvider with ChangeNotifier {
   bool _isPaused = false;
   int _secondsElapsed = 0;
   Timer? _timer;
+  final Stopwatch _activeStopwatch = Stopwatch();
 
   // Active exercises completion
   final Set<String> _completedExerciseIds = {};
-  
+
   // Rehearsed pieces tracker (pieceId -> seconds)
   final Map<String, int> _rehearsedPiecesDuration = {};
   String? _activePieceId;
@@ -48,16 +60,17 @@ class PracticeProvider with ChangeNotifier {
   String? get activePieceId => _activePieceId;
   bool get isAudioRecorderActive => _isAudioRecorderActive;
   String? get recordedAudioPath => _recordedAudioPath;
-  
+
   bool get isRecording => _audioService.isRecording;
   bool get isPlayingPlayback => _audioService.isPlaying;
-  
+
   bool get metronomeOn => _metronomeOn;
   int get metronomeBpm => _metronomeBpm;
   bool get metronomePulse => _metronomePulse;
 
   // Action methods
   void startSession(Routine? routine) {
+    if (_isActive) return;
     _activeRoutine = routine;
     _startTime = DateTime.now();
     _isActive = true;
@@ -70,42 +83,58 @@ class PracticeProvider with ChangeNotifier {
     _isAudioRecorderActive = false;
     _recordedAudioPath = null;
     notesController.clear();
-    
+
+    _activeStopwatch
+      ..reset()
+      ..start();
     _startTimer();
     notifyListeners();
   }
 
   void _startTimer() {
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_isPaused) {
-        _secondsElapsed++;
-        
-        // Accumulate duration for the active piece if one is selected
-        if (_activePieceId != null) {
-          _rehearsedPiecesDuration[_activePieceId!] = (_rehearsedPiecesDuration[_activePieceId!] ?? 0) + 1;
-        }
-        
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (timer) {
+      if (!_isPaused && _syncElapsed()) {
         notifyListeners();
       }
     });
   }
 
+  bool _syncElapsed() {
+    final elapsed = _activeStopwatch.elapsed.inSeconds;
+    final delta = elapsed - _secondsElapsed;
+    if (delta <= 0) return false;
+    _secondsElapsed = elapsed;
+    if (_activePieceId != null) {
+      _rehearsedPiecesDuration[_activePieceId!] =
+          (_rehearsedPiecesDuration[_activePieceId!] ?? 0) + delta;
+    }
+    return true;
+  }
+
   void pauseSession() {
+    if (!_isActive || _isPaused) return;
+    _syncElapsed();
     _isPaused = true;
+    _activeStopwatch.stop();
     _timer?.cancel();
     _stopMetronome();
     notifyListeners();
   }
 
-  void resumeSession() {
+  Future<void> resumeSession() async {
+    if (!_isActive) return;
+    await stopRecording();
+    await stopPlayback();
     _isPaused = false;
-    _isAudioRecorderActive = false; // Stop audio record panel when resuming session
+    _isAudioRecorderActive = false;
+    _activeStopwatch.start();
     _startTimer();
     notifyListeners();
   }
 
   void selectActivePiece(Piece? piece) {
+    _syncElapsed();
     if (piece == null) {
       _activePieceId = null;
       _activePieceTitle = null;
@@ -135,13 +164,16 @@ class PracticeProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> startRecording() async {
+  Future<bool> startRecording() async {
     try {
       await _audioService.startRecording();
+      notifyListeners();
+      return true;
     } catch (e) {
       debugPrint('Error starting recording in provider: $e');
+      notifyListeners();
+      return false;
     }
-    notifyListeners();
   }
 
   Future<void> stopRecording() async {
@@ -168,7 +200,8 @@ class PracticeProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void deleteRecording() {
+  Future<void> deleteRecording() async {
+    await _audioService.deleteRecording(_recordedAudioPath);
     _recordedAudioPath = null;
     notifyListeners();
   }
@@ -178,13 +211,13 @@ class PracticeProvider with ChangeNotifier {
     if (_metronomeOn) {
       _stopMetronome();
     } else {
-      _metronomeBpm = defaultBpm > 0 ? defaultBpm : 80;
+      _metronomeBpm = defaultBpm.clamp(40, 240).toInt();
       _startMetronome();
     }
   }
 
   void setMetronomeBpm(int bpm) {
-    _metronomeBpm = bpm;
+    _metronomeBpm = bpm.clamp(40, 240).toInt();
     if (_metronomeOn) {
       _startMetronome(); // Restart timer with new tempo
     }
@@ -195,7 +228,9 @@ class PracticeProvider with ChangeNotifier {
     _metronomeTimer?.cancel();
     _metronomeOn = true;
     final intervalMs = (60000 / _metronomeBpm).round();
-    _metronomeTimer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
+    _metronomeTimer = Timer.periodic(Duration(milliseconds: intervalMs), (
+      timer,
+    ) {
       _metronomePulse = !_metronomePulse;
       notifyListeners();
     });
@@ -210,16 +245,19 @@ class PracticeProvider with ChangeNotifier {
   }
 
   // --- SAVE SESSION ---
-  SessionRecord? endAndSaveSession(List<Piece> allPieces) {
+  Future<SessionRecord?> prepareSessionRecord(List<Piece> allPieces) async {
     if (!_isActive) return null;
-    
+
+    pauseSession();
+    await stopRecording();
+    await stopPlayback();
     _timer?.cancel();
     _stopMetronome();
-    _audioService.stopPlayback();
-    
+
     final endTime = DateTime.now();
-    final startTime = _startTime ?? endTime.subtract(Duration(seconds: _secondsElapsed));
-    
+    final startTime =
+        _startTime ?? endTime.subtract(Duration(seconds: _secondsElapsed));
+
     // Resolve completed exercises
     final completedList = <Exercise>[];
     if (_activeRoutine != null) {
@@ -233,29 +271,56 @@ class PracticeProvider with ChangeNotifier {
     // Resolve rehearsed pieces
     final rehearsedList = <SessionPieceRecord>[];
     _rehearsedPiecesDuration.forEach((id, duration) {
-      final piece = allPieces.firstWhere((p) => p.id == id, 
-        orElse: () => Piece(id: id, title: _activePieceTitle ?? 'Untitled', composer: '', targetBpm: 80)
+      final piece = allPieces.firstWhere(
+        (p) => p.id == id,
+        orElse: () => Piece(
+          id: id,
+          title: _activePieceTitle ?? 'Untitled',
+          composer: '',
+          targetBpm: 80,
+        ),
       );
-      rehearsedList.add(SessionPieceRecord(
-        pieceId: id,
-        pieceTitle: piece.title,
-        durationInSeconds: duration,
-        measuresWorked: piece.measuresCompleted,
-      ));
+      rehearsedList.add(
+        SessionPieceRecord(
+          pieceId: id,
+          pieceTitle: piece.title,
+          durationInSeconds: duration,
+          measuresWorked: 0,
+        ),
+      );
     });
 
     final record = SessionRecord(
-      id: 'session_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'session_${const Uuid().v7()}',
       startTime: startTime,
       endTime: endTime,
       totalDurationInSeconds: _secondsElapsed,
       completedExercises: completedList,
       rehearsedPieces: rehearsedList,
       notes: notesController.text,
-      audioFilePath: _recordedAudioPath,
+      // Browser recorder URLs are tied to the current page and cannot be
+      // restored after a reload, so they must not be persisted to history.
+      audioFilePath: kIsWeb ? null : _recordedAudioPath,
     );
 
-    // Reset state
+    return record;
+  }
+
+  void completeSession() {
+    _resetSessionState();
+    notifyListeners();
+  }
+
+  Future<void> cancelSession() async {
+    _timer?.cancel();
+    _activeStopwatch.stop();
+    _stopMetronome();
+    await _audioService.deleteRecording(_recordedAudioPath);
+    _resetSessionState();
+    notifyListeners();
+  }
+
+  void _resetSessionState() {
     _isActive = false;
     _isPaused = false;
     _activeRoutine = null;
@@ -267,34 +332,39 @@ class PracticeProvider with ChangeNotifier {
     _isAudioRecorderActive = false;
     _recordedAudioPath = null;
     notesController.clear();
-
-    return record;
+    _activeStopwatch.reset();
+    _startTime = null;
   }
 
-  void cancelSession() {
-    _timer?.cancel();
-    _stopMetronome();
-    _audioService.stopPlayback();
-    
-    _isActive = false;
-    _isPaused = false;
-    _activeRoutine = null;
-    _secondsElapsed = 0;
-    _completedExerciseIds.clear();
-    _rehearsedPiecesDuration.clear();
-    _activePieceId = null;
-    _isAudioRecorderActive = false;
-    _recordedAudioPath = null;
-    notesController.clear();
-    
-    notifyListeners();
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_isActive) return;
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      pauseSession();
+      unawaited(stopRecording());
+      unawaited(stopPlayback());
+    }
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _metronomeTimer?.cancel();
-    _audioService.dispose();
+    _activeStopwatch.stop();
+    if (_isActive) {
+      unawaited(
+        _audioService
+            .deleteRecording(_recordedAudioPath)
+            .whenComplete(_audioService.dispose),
+      );
+    } else {
+      unawaited(_audioService.dispose());
+    }
     notesController.dispose();
     super.dispose();
   }

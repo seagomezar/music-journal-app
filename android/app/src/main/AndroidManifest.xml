@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <application
-        android:label="flute"
+        android:label="Flute Practice Coach"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'services/database_service.dart';
 import 'providers/auth_provider.dart';
@@ -16,7 +17,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Local Offline Database
   final dbService = DatabaseService();
   await dbService.init();
@@ -29,7 +30,9 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LocalizationProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()..checkAuthStatus()),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider()..checkAuthStatus(),
+        ),
         ChangeNotifierProvider(create: (_) => RoutineProvider()),
         ChangeNotifierProvider(create: (_) => RepertoireProvider()),
         ChangeNotifierProvider(create: (_) => HistoryProvider()),
@@ -49,6 +52,13 @@ class MyApp extends StatelessWidget {
       title: context.translate('app_title'),
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
+      locale: Locale(context.watch<LocalizationProvider>().localeCode),
+      supportedLocales: const [Locale('en'), Locale('es')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const SplashScreen(),
     );
   }
@@ -60,7 +70,7 @@ class AuthenticationWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProv = Provider.of<AuthProvider>(context);
-    
+
     // Redirect based on local authentication profile presence
     if (authProv.isAuthenticated) {
       return const MainShell();

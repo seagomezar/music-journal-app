@@ -29,6 +29,7 @@ class RoutineProvider with ChangeNotifier {
       await loadRoutines();
     } catch (e) {
       debugPrint('Error saving routine: $e');
+      rethrow;
     }
   }
 
@@ -38,6 +39,7 @@ class RoutineProvider with ChangeNotifier {
       await loadRoutines();
     } catch (e) {
       debugPrint('Error deleting routine: $e');
+      rethrow;
     }
   }
 }

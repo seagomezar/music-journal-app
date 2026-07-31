@@ -25,7 +25,7 @@ class AppLogo extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: (color ?? AppTheme.primary).withOpacity(0.12),
+                  color: (color ?? AppTheme.primary).withValues(alpha: 0.12),
                   blurRadius: 30,
                   offset: const Offset(0, 10),
                 ),
@@ -46,10 +46,7 @@ class _FluteLogoPainter extends CustomPainter {
   final Color color;
   final Color dotColor;
 
-  _FluteLogoPainter({
-    required this.color,
-    required this.dotColor,
-  });
+  _FluteLogoPainter({required this.color, required this.dotColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -91,7 +88,9 @@ class _FluteLogoPainter extends CustomPainter {
     final Paint keysPaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.04 // stroke-width = 4
+      ..strokeWidth =
+          w *
+          0.04 // stroke-width = 4
       ..strokeCap = StrokeCap.round;
 
     final Path keysPath = Path();

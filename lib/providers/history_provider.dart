@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/session_record.dart';
 import '../services/database_service.dart';
+import '../services/file_storage_service.dart';
 
 class HistoryProvider with ChangeNotifier {
   final DatabaseService _db = DatabaseService();
+  final FileStorageService _storage = FileStorageService();
   List<SessionRecord> _sessions = [];
   bool _isLoading = false;
 
@@ -29,15 +31,25 @@ class HistoryProvider with ChangeNotifier {
       await loadSessions();
     } catch (e) {
       debugPrint('Error saving session: $e');
+      rethrow;
     }
   }
 
   Future<void> deleteSession(String id) async {
     try {
+      SessionRecord? session;
+      for (final item in _sessions) {
+        if (item.id == id) {
+          session = item;
+          break;
+        }
+      }
       await _db.deleteSession(id);
+      await _storage.deleteManagedFile(session?.audioFilePath);
       await loadSessions();
     } catch (e) {
       debugPrint('Error deleting session: $e');
+      rethrow;
     }
   }
 
@@ -45,7 +57,12 @@ class HistoryProvider with ChangeNotifier {
   Map<DateTime, List<SessionRecord>> get sessionsByDay {
     final Map<DateTime, List<SessionRecord>> data = {};
     for (final session in _sessions) {
-      final dateOnly = DateTime(session.startTime.year, session.startTime.month, session.startTime.day);
+      final localStartTime = session.localStartTime;
+      final dateOnly = DateTime(
+        localStartTime.year,
+        localStartTime.month,
+        localStartTime.day,
+      );
       if (!data.containsKey(dateOnly)) {
         data[dateOnly] = [];
       }
@@ -63,43 +80,67 @@ class HistoryProvider with ChangeNotifier {
   int get totalSessionsCount => _sessions.length;
 
   int get totalMinutesPracticed {
-    final totalSeconds = _sessions.fold<int>(0, (sum, item) => sum + item.totalDurationInSeconds);
-    return (totalSeconds / 60).round();
+    final totalSeconds = _sessions.fold<int>(
+      0,
+      (sum, item) => sum + item.totalDurationInSeconds,
+    );
+    return totalSeconds ~/ 60;
   }
 
   int get totalExercisesCompleted {
-    return _sessions.fold<int>(0, (sum, item) => sum + item.completedExercises.length);
+    return _sessions.fold<int>(
+      0,
+      (sum, item) => sum + item.completedExercises.length,
+    );
   }
 
   int get thisWeekMinutesPracticed {
     final now = DateTime.now();
     // Find start of week (Monday)
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final startOfWeekDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
-    
-    final weeklySessions = _sessions.where((s) => s.startTime.isAfter(startOfWeekDate));
-    final totalSeconds = weeklySessions.fold<int>(0, (sum, item) => sum + item.totalDurationInSeconds);
-    return (totalSeconds / 60).round();
+    final startOfWeekDate = DateTime(
+      startOfWeek.year,
+      startOfWeek.month,
+      startOfWeek.day,
+    );
+
+    final weeklySessions = _sessions.where(
+      (s) => !s.localStartTime.isBefore(startOfWeekDate),
+    );
+    final totalSeconds = weeklySessions.fold<int>(
+      0,
+      (sum, item) => sum + item.totalDurationInSeconds,
+    );
+    return totalSeconds ~/ 60;
   }
 
   int get currentStreak {
     if (_sessions.isEmpty) return 0;
-    
+
     final sortedDates = _sessions
-        .map((s) => DateTime(s.startTime.year, s.startTime.month, s.startTime.day))
+        .map((s) {
+          final localStartTime = s.localStartTime;
+          return DateTime.utc(
+            localStartTime.year,
+            localStartTime.month,
+            localStartTime.day,
+          );
+        })
         .toSet()
         .toList();
-    sortedDates.sort((a, b) => b.compareTo(a)); // Descending order (today first)
-    
+    sortedDates.sort(
+      (a, b) => b.compareTo(a),
+    ); // Descending order (today first)
+
     final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
+    final todayDate = DateTime.utc(today.year, today.month, today.day);
     final yesterdayDate = todayDate.subtract(const Duration(days: 1));
-    
+
     // If the most recent practice was not today or yesterday, streak is broken (0)
     if (sortedDates.first != todayDate && sortedDates.first != yesterdayDate) {
       return 0;
     }
-    
+
     int streak = 1;
     for (int i = 0; i < sortedDates.length - 1; i++) {
       final diff = sortedDates[i].difference(sortedDates[i + 1]).inDays;

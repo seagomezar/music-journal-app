@@ -25,26 +25,39 @@ class Piece {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'composer': composer,
-        'pdfPath': pdfPath,
-        'targetBpm': targetBpm,
-        'measuresTotal': measuresTotal,
-        'measuresCompleted': measuresCompleted,
-        'notes': notes,
-      };
+    'id': id,
+    'title': title,
+    'composer': composer,
+    'pdfPath': pdfPath,
+    'targetBpm': targetBpm,
+    'measuresTotal': measuresTotal,
+    'measuresCompleted': measuresCompleted,
+    'notes': notes,
+  };
 
-  factory Piece.fromJson(Map<String, dynamic> json) => Piece(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        composer: json['composer'] as String? ?? 'Unknown',
-        pdfPath: json['pdfPath'] as String?,
-        targetBpm: json['targetBpm'] as int? ?? 120,
-        measuresTotal: json['measuresTotal'] as int? ?? 0,
-        measuresCompleted: json['measuresCompleted'] as int? ?? 0,
-        notes: json['notes'] as String? ?? '',
-      );
+  factory Piece.fromJson(Map<String, dynamic> json) {
+    final total = (json['measuresTotal'] as num? ?? 0)
+        .toInt()
+        .clamp(0, 10000)
+        .toInt();
+    final completed = (json['measuresCompleted'] as num? ?? 0)
+        .toInt()
+        .clamp(0, total)
+        .toInt();
+    return Piece(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      composer: json['composer'] as String? ?? 'Unknown',
+      pdfPath: json['pdfPath'] as String?,
+      targetBpm: (json['targetBpm'] as num? ?? 120)
+          .toInt()
+          .clamp(40, 240)
+          .toInt(),
+      measuresTotal: total,
+      measuresCompleted: completed,
+      notes: json['notes'] as String? ?? '',
+    );
+  }
 
   Piece copyWith({
     String? title,

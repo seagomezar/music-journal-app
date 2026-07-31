@@ -1,113 +1,76 @@
-# Flute Practice App 🎵
+# Flute Practice Coach
 
-[![Android Release Build](https://github.com/seagomezar/music-journal-app/actions/workflows/android-release.yml/badge.svg)](https://github.com/seagomezar/music-journal-app/actions/workflows/android-release.yml)
-[![Flutter](https://img.shields.io/badge/Flutter-v3.22+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
-[![Hive](https://img.shields.io/badge/Database-Hive-F48024?logo=hive&logoColor=white)](https://pub.dev/packages/hive)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Mobile quality and release](https://github.com/seagomezar/music-journal-app/actions/workflows/android-release.yml/badge.svg)](https://github.com/seagomezar/music-journal-app/actions/workflows/android-release.yml)
+[![Flutter 3.44.0](https://img.shields.io/badge/Flutter-3.44.0-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An AI-powered instrumental coach and practice journal designed to optimize study routines, structure technical exercises, organize repertoire, and provide visual progress feedback for flutists. Built with a robust offline-first architecture using Flutter.
+Flute Practice Coach is a private, local-only practice journal for flutists. It helps organize technical routines and repertoire, time practice sessions, use a visual metronome, review short self-evaluation recordings, and follow progress over time.
 
----
+## Features
 
-## 📸 App Mockups & Interface
+- Custom technical routines with validated 40–240 BPM targets
+- Repertoire catalog with app-managed PDF scores on mobile
+- Practice timer, visual metronome, notes, calendar, goals, and streaks
+- Manual logging for practice completed on a past date
+- Optional self-evaluation recordings stored in private app storage on mobile
+- Versioned JSON export/import for routines and practice history (media excluded)
+- English and Spanish interface
+- No online account, advertising, analytics, or cloud data collection
+- In-app privacy policy, support information, and permanent data erasure
 
-### Desktop / Web Layout
-| **Onboarding & Authentication** | **Dashboard & Routine Start** | **Active Rehearsal Suite** |
-|:---:|:---:|:---:|
-| ![Onboarding Screen](assets/screenshots/auth_screen.png) | ![Dashboard Screen](assets/screenshots/dashboard_screen.png) | ![Active Practice Screen](assets/screenshots/active_practice_screen.png) |
+## Architecture
 
-### Android Layout
-| **Multilingual Login (ES)** | **Dashboard Overview (EN)** | **Dynamic Binder Add Piece** |
-|:---:|:---:|:---:|
-| ![Android Onboarding](assets/screenshots/android_auth_screen.png) | ![Android Dashboard](assets/screenshots/android_dashboard_screen.png) | ![Android Add Piece](assets/screenshots/android_add_piece_screen.png) |
+Flutter widgets consume `ChangeNotifier` providers. Providers coordinate Hive persistence, app-owned file storage, recording/playback, localization, and session state. The app manages user content locally and does not upload it.
 
----
+## Development
 
-## ✨ Core Features
+The project is pinned to Flutter 3.44.0 in `.flutter-version` and requires Dart 3.11.5 or later.
 
-*   **📅 Technical Routines Configurator**: Create and manage detailed technical practice schedules, breaking down key exercises (scales, long tones, articulation drills) with target tempos (BPM) and key parameters.
-*   **📚 binder Repertoire Catalog**: Track your musical pieces by composer, measures worked, and upload PDFs of sheet music directly.
-*   **⏱️ Real-Time Rehearsal state-machine**: Integrated stopwatch chronometer, interactive metronome visualizer, self-assessment note-taking pane, and an inline audio recorder.
-*   **📊 Practice Analytics**: Dynamic streaks trackers, weekly practice goal progress meters, and session duration breakdowns populated in real-time.
-*   **🎙️ Smart Audio Practice Recorder**: record and playback practices directly within the calendar history player interface.
-*   **🌐 Real-Time Bilingual Toggle**: Dynamic, stateful transition between English and Spanish locales in a single tap without app restart.
-
----
-
-## 🛠️ Technical Architecture
-
-The application adopts a clean, decoupled MVVM architecture optimized for offline-first performance:
-
-```mermaid
-graph TD
-    UI[Flutter Widgets / Screens] -->|Listens & Dispatches| Providers[ChangeNotifier Providers]
-    Providers -->|Invokes CRUD| Services[Core Services: Audio, Auth]
-    Providers -->|Reads / Writes| Hive[Local Hive Box Storage]
-```
-
-### Stack Components
-*   **Storage**: [Hive](https://pub.dev/packages/hive) - A lightweight, ultra-fast NoSQL database written in pure Dart, ensuring zero cold-start delay.
-*   **Audio Recording & Playback**: [record](https://pub.dev/packages/record) for microphone capture and [audioplayers](https://pub.dev/packages/audioplayers) for localized audio playback.
-*   **State Management**: [Provider](https://pub.dev/packages/provider) architecture separates reactive UI states from localized persistence hooks.
-
----
-
-## 🚀 CI/CD Release Pipeline
-
-A fully-automated build pipeline is configured using GitHub Actions under `.github/workflows/android-release.yml`:
-
-*   **Triggers**: Fires on every Pull Request to `main` (for code verification) and every push/merge to `main` (for official builds).
-*   **Signing Strategy**:
-    *   **Signed Release**: Checks for GitHub Repository Secrets (`ANDROID_KEYSTORE_BASE64` etc.). If present, it compiles and signs with the production key. If absent, the runner dynamically compiles a **self-signed fallback key** via JDK's `keytool` ensuring the release APK is signed and immediately installable for staging.
-    *   **Unsigned Release**: The pipeline performs a clean build separating signing configurations to generate standard unsigned APKs & App Bundles (AAB).
-*   **Releases**: Automates draft releases and uploads the compiled APKs and AABs to the GitHub Releases page with matching incremental version tags (`v1.0.${{ github.run_number }}`).
-*   **Modern Environments**: Fully compliant with GitHub Actions Node.js 24 runner specifications.
-
----
-
-## 🌿 Gitflow Branching & Commits
-
-To ensure clean teamwork and version history, the project adheres to the standard **Gitflow Branching Model**:
-
-*   **`main`**: Production-ready code. Commits here automatically trigger Google Play Store/Draft releases.
-*   **`develop`**: Workspace integration branch. New features branch off here.
-
-### Conventional Commits
-All commits follow the Conventional Commits specification:
-*   `feat: ...` for new features (e.g. adding metronome widget).
-*   `fix: ...` for bug fixes (e.g. resolving layout constraints).
-*   `refactor: ...` for code enhancements.
-*   `ci: ...` for runner/release changes.
-
----
-
-## 💻 Getting Started
-
-### Prerequisites
-*   Flutter SDK: `v3.22.0` or higher.
-*   Android Studio / Xcode (for mobile deployments).
-
-### Install Dependencies
 ```bash
-flutter pub get
-```
-
-### Run Locally
-```bash
+flutter pub get --enforce-lockfile
+dart format --output=none --set-exit-if-changed lib test integration_test
+flutter analyze
+flutter test
 flutter run
 ```
 
-### Build Releases Locally
-To compile release bundles locally:
-```bash
-# Build APK
-flutter build apk --release
+Run the repeatable iOS simulator journey (onboarding through recording,
+history, legal pages, and local-data erasure) with:
 
-# Build App Bundle (AAB)
-flutter build appbundle --release
+```bash
+flutter devices
+flutter test integration_test/app_smoke_test.dart -d <ios-simulator-id>
 ```
 
----
+Run or build the browser version with:
 
-## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```bash
+flutter run -d chrome
+flutter build web --release
+```
+
+The browser version keeps profile and journal data in browser storage. PDF importing/viewing is mobile-only, and browser recordings are available only during the active practice session; they are not retained in history. Clearing site data or using private browsing can remove browser-stored journal data.
+
+Android release builds require a configured upload key. Unsigned previews must explicitly set `BUILD_UNSIGNED=true`; release builds never fall back to the debug key.
+
+```bash
+flutter build appbundle --release --build-name=1.0.0 --build-number=1
+flutter build ios --release --no-codesign
+```
+
+The GitHub workflow runs formatting, analysis, tests, an unsigned Android preview, and an unsigned iOS build check. Signed Android store bundles are created only by a manually dispatched workflow with permanent signing secrets and explicit version/build inputs.
+
+## Store preparation
+
+- [Store listing copy](docs/store-listing.md)
+- [Submission checklist](docs/store-submission-checklist.md)
+- [Privacy policy](docs/privacy-policy.html)
+- [Terms and conditions](docs/terms-and-conditions.html)
+- [Support page](docs/support.html)
+- [Landing page](docs/index.html)
+- [Journal backup JSON Schema](docs/journal-backup-schema-v1.json)
+- Generated store graphics under `assets/store/`
+
+## License
+
+Licensed under the [MIT License](LICENSE).

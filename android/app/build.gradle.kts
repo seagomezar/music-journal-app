@@ -9,6 +9,10 @@ plugins {
 
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
+val isUnsignedRelease = project.hasProperty("unsigned") || System.getenv("BUILD_UNSIGNED") == "true"
+val isReleaseRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("release", ignoreCase = true)
+}
 if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { input ->
         keystoreProperties.load(input)
@@ -16,7 +20,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.antigravity.flute.flute"
+    namespace = "com.seagomezar.flutepracticecoach"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -30,8 +34,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.antigravity.flute.flute"
+        applicationId = "com.seagomezar.flutepracticecoach"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -53,16 +56,21 @@ android {
 
     buildTypes {
         release {
-            val isUnsigned = project.hasProperty("unsigned") || System.getenv("BUILD_UNSIGNED") == "true"
-            signingConfig = if (isUnsigned) {
+            signingConfig = if (isUnsignedRelease) {
                 null
             } else if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
-                signingConfigs.getByName("debug")
+                null
             }
         }
     }
+}
+
+if (isReleaseRequested && !isUnsignedRelease && !keystorePropertiesFile.exists()) {
+    throw GradleException(
+        "Release signing is not configured. Provide android/key.properties or set BUILD_UNSIGNED=true."
+    )
 }
 
 flutter {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -5,7 +7,9 @@ import 'package:intl/intl.dart';
 import '../providers/history_provider.dart';
 import '../providers/localization_provider.dart';
 import '../services/audio_service.dart';
+import '../services/local_file_availability.dart';
 import '../theme/app_theme.dart';
+import 'manual_session_screen.dart';
 
 class CalendarHistoryView extends StatefulWidget {
   const CalendarHistoryView({super.key});
@@ -18,13 +22,22 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  final AudioService _playbackService = AudioService();
+  late final AudioService _playbackService;
   String? _currentlyPlayingPath;
   bool _isPlaying = false;
 
   @override
   void initState() {
     super.initState();
+    _playbackService = AudioService(
+      onPlaybackChanged: (isPlaying) {
+        if (!mounted) return;
+        setState(() {
+          _isPlaying = isPlaying;
+          if (!isPlaying) _currentlyPlayingPath = null;
+        });
+      },
+    );
     _selectedDay = _focusedDay;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<HistoryProvider>(context, listen: false).loadSessions();
@@ -33,12 +46,14 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
 
   @override
   void dispose() {
-    _playbackService.dispose();
+    unawaited(_playbackService.dispose());
     super.dispose();
   }
 
   String _formatDuration(BuildContext context, int seconds) {
-    if (seconds < 60) return context.translate('secs_format', [seconds.toString()]);
+    if (seconds < 60) {
+      return context.translate('secs_format', [seconds.toString()]);
+    }
     final minutes = seconds ~/ 60;
     return context.translate('mins_format', [minutes.toString()]);
   }
@@ -49,25 +64,91 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
 
   Future<void> _handleAudioPlayback(String path) async {
     try {
+      if (!await localFileExists(path)) {
+        throw StateError('Recording file not found.');
+      }
+      if (!mounted) return;
       if (_currentlyPlayingPath == path && _isPlaying) {
         await _playbackService.stopPlayback();
-        setState(() {
-          _isPlaying = false;
-        });
       } else {
         await _playbackService.stopPlayback();
+        if (!mounted) return;
         setState(() {
           _currentlyPlayingPath = path;
-          _isPlaying = true;
         });
         await _playbackService.startPlayback(path);
       }
     } catch (e) {
       debugPrint('Playback error: $e');
-      setState(() {
-        _isPlaying = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _currentlyPlayingPath = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.translate('audio_playback_error'))),
+        );
+      }
     }
+  }
+
+  Future<void> _deleteSession(
+    BuildContext context,
+    HistoryProvider provider,
+    String id,
+    String? audioPath,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.translate('delete_session_title')),
+        content: Text(dialogContext.translate('delete_session_confirm')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(dialogContext.translate('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(dialogContext.translate('delete_btn')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      if (_currentlyPlayingPath == audioPath) {
+        await _playbackService.stopPlayback();
+      }
+      await provider.deleteSession(id);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.translate('session_delete_error'))),
+        );
+      }
+    }
+  }
+
+  Future<void> _openManualSession() async {
+    final loggedDate = await Navigator.of(context).push<DateTime>(
+      MaterialPageRoute(
+        builder: (_) =>
+            ManualSessionScreen(initialDate: _selectedDay ?? _focusedDay),
+      ),
+    );
+    if (loggedDate == null || !mounted) return;
+    setState(() {
+      _selectedDay = DateTime(
+        loggedDate.year,
+        loggedDate.month,
+        loggedDate.day,
+      );
+      _focusedDay = _selectedDay!;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.translate('manual_session_saved'))),
+    );
   }
 
   @override
@@ -75,13 +156,24 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
     final historyProv = Provider.of<HistoryProvider>(context);
     final locProv = Provider.of<LocalizationProvider>(context);
     final localeCode = locProv.localeCode;
-    final selectedDaySessions = historyProv.getSessionsForDay(_selectedDay ?? _focusedDay);
+    final selectedDaySessions = historyProv.getSessionsForDay(
+      _selectedDay ?? _focusedDay,
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.translate('practice_history_title'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          context.translate('practice_history_title'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'log-past-session',
+        onPressed: _openManualSession,
+        icon: const Icon(Icons.add_rounded),
+        label: Text(context.translate('log_past_session')),
       ),
       body: SafeArea(
         child: Column(
@@ -93,8 +185,8 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                 padding: const EdgeInsets.all(8.0),
                 child: TableCalendar(
                   locale: localeCode,
-                  firstDay: DateTime.utc(2025, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
+                  firstDay: DateTime.utc(2000, 1, 1),
+                  lastDay: DateTime.utc(2100, 12, 31),
                   focusedDay: _focusedDay,
                   calendarFormat: _calendarFormat,
                   selectedDayPredicate: (day) {
@@ -114,7 +206,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                   onPageChanged: (focusedDay) {
                     _focusedDay = focusedDay;
                   },
-                  
+
                   // Dot Marker builders
                   eventLoader: (day) {
                     return historyProv.getSessionsForDay(day);
@@ -128,7 +220,9 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: events.map((event) {
                               return Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 1.5,
+                                ),
                                 width: 6,
                                 height: 6,
                                 decoration: const BoxDecoration(
@@ -143,22 +237,29 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                       return null;
                     },
                   ),
-                  
+
                   // Calendar Styling
                   headerStyle: HeaderStyle(
                     formatButtonVisible: true,
                     formatButtonDecoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.15),
+                      color: AppTheme.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: AppTheme.primary, width: 0.5),
                     ),
-                    formatButtonTextStyle: const TextStyle(color: AppTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 12),
+                    formatButtonTextStyle: const TextStyle(
+                      color: AppTheme.primaryAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                     titleCentered: true,
-                    titleTextStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    titleTextStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   calendarStyle: CalendarStyle(
                     todayDecoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.3),
+                      color: AppTheme.primary.withValues(alpha: 0.3),
                       shape: BoxShape.circle,
                       border: Border.all(color: AppTheme.primary, width: 1),
                     ),
@@ -172,52 +273,75 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Sessions Section Title
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Row(
                 children: [
-                  const Icon(Icons.history_edu_rounded, color: AppTheme.primaryAccent, size: 20),
+                  const Icon(
+                    Icons.history_edu_rounded,
+                    color: AppTheme.primaryAccent,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       context.translate('sessions_on_date', [
-                        DateFormat('MMMM d, yyyy', localeCode).format(_selectedDay ?? _focusedDay)
+                        DateFormat(
+                          'MMMM d, yyyy',
+                          localeCode,
+                        ).format(_selectedDay ?? _focusedDay),
                       ]),
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    context.translate('recorded_count_format', [selectedDaySessions.length.toString()]),
-                    style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    context.translate('recorded_count_format', [
+                      selectedDaySessions.length.toString(),
+                    ]),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // Intraday Multi-Session List
             Expanded(
               child: selectedDaySessions.isEmpty
                   ? Center(
                       child: Text(
                         context.translate('no_sessions_on_day'),
-                        style: TextStyle(color: AppTheme.textSecondary.withOpacity(0.7), fontSize: 13),
+                        style: TextStyle(
+                          color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                          fontSize: 13,
+                        ),
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       itemCount: selectedDaySessions.length,
                       itemBuilder: (context, index) {
                         final session = selectedDaySessions[index];
-                        final isSessionPlaying = _currentlyPlayingPath == session.audioFilePath && _isPlaying;
- 
+                        final isSessionPlaying =
+                            _currentlyPlayingPath == session.audioFilePath &&
+                            _isPlaying;
+
                         return Card(
                           margin: const EdgeInsets.only(bottom: 14),
                           color: AppTheme.surface,
@@ -228,51 +352,103 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                               children: [
                                 // Time & Duration Header
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.watch_later_outlined, size: 16, color: AppTheme.textSecondary),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          '${_formatTimeOfDay(session.startTime)} - ${_formatTimeOfDay(session.endTime)}',
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    const Icon(
+                                      Icons.watch_later_outlined,
+                                      size: 16,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        '${_formatTimeOfDay(session.localStartTime)} - ${_formatTimeOfDay(session.localEndTime)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
                                         ),
-                                      ],
+                                      ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primary.withOpacity(0.15),
+                                        color: AppTheme.primary.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        _formatDuration(context, session.totalDurationInSeconds),
-                                        style: const TextStyle(color: AppTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 11),
+                                        _formatDuration(
+                                          context,
+                                          session.totalDurationInSeconds,
+                                        ),
+                                        style: const TextStyle(
+                                          color: AppTheme.primaryAccent,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
                                       ),
-                                    )
+                                    ),
+                                    IconButton(
+                                      tooltip: context.translate(
+                                        'delete_session_title',
+                                      ),
+                                      icon: const Icon(
+                                        Icons.delete_outline_rounded,
+                                      ),
+                                      onPressed: () => _deleteSession(
+                                        context,
+                                        historyProv,
+                                        session.id,
+                                        session.audioFilePath,
+                                      ),
+                                    ),
                                   ],
                                 ),
-                                
-                                const Divider(height: 20, color: AppTheme.border),
- 
+
+                                const Divider(
+                                  height: 20,
+                                  color: AppTheme.border,
+                                ),
+
                                 // Exercises Done
                                 if (session.completedExercises.isNotEmpty) ...[
                                   Text(
-                                    context.translate('technical_exercises_completed_title'),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryAccent),
+                                    context.translate(
+                                      'technical_exercises_completed_title',
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: AppTheme.primaryAccent,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 6,
-                                    children: session.completedExercises.map((ex) {
+                                    children: session.completedExercises.map((
+                                      ex,
+                                    ) {
                                       return Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.border.withOpacity(0.4),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: AppTheme.border.withOpacity(0.5)),
+                                          color: AppTheme.border.withValues(
+                                            alpha: 0.4,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: AppTheme.border.withValues(
+                                              alpha: 0.5,
+                                            ),
+                                          ),
                                         ),
                                         child: Text(
                                           '${ex.name} (${ex.targetBpm} BPM ${ex.articulation})',
@@ -283,32 +459,58 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                   ),
                                   const SizedBox(height: 12),
                                 ],
- 
+
                                 // Pieces Rehearsed
                                 if (session.rehearsedPieces.isNotEmpty) ...[
                                   Text(
-                                    context.translate('repertoire_rehearsed_title'),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.secondary),
+                                    context.translate(
+                                      'repertoire_rehearsed_title',
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: AppTheme.secondary,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Column(
-                                    children: session.rehearsedPieces.map((piece) {
+                                    children: session.rehearsedPieces.map((
+                                      piece,
+                                    ) {
                                       return Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 2.0),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 2.0,
+                                        ),
                                         child: Row(
                                           children: [
-                                            const Icon(Icons.music_note_rounded, size: 14, color: AppTheme.textSecondary),
+                                            const Icon(
+                                              Icons.music_note_rounded,
+                                              size: 14,
+                                              color: AppTheme.textSecondary,
+                                            ),
                                             const SizedBox(width: 6),
                                             Expanded(
                                               child: Text(
                                                 piece.pieceTitle,
-                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
                                             Text(
-                                              context.translate('spent_duration', [_formatDuration(context, piece.durationInSeconds)]),
-                                              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-                                            )
+                                              context
+                                                  .translate('spent_duration', [
+                                                    _formatDuration(
+                                                      context,
+                                                      piece.durationInSeconds,
+                                                    ),
+                                                  ]),
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppTheme.textSecondary,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       );
@@ -316,62 +518,105 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                   ),
                                   const SizedBox(height: 12),
                                 ],
- 
+
                                 // Session Notes
                                 if (session.notes.isNotEmpty) ...[
                                   Text(
-                                    context.translate('practice_session_notes_title'),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textPrimary),
+                                    context.translate(
+                                      'practice_session_notes_title',
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: AppTheme.textPrimary,
+                                    ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     session.notes,
-                                    style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontStyle: FontStyle.italic),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textSecondary,
+                                      fontStyle: FontStyle.italic,
+                                    ),
                                   ),
                                   const SizedBox(height: 12),
                                 ],
- 
+
                                 // Audio Playback
                                 if (session.audioFilePath != null) ...[
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.border.withOpacity(0.3),
+                                      color: AppTheme.border.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: AppTheme.border.withOpacity(0.5)),
+                                      border: Border.all(
+                                        color: AppTheme.border.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
                                         IconButton(
+                                          tooltip: context.translate(
+                                            isSessionPlaying
+                                                ? 'stop_playback_btn'
+                                                : 'play_recording_btn',
+                                          ),
                                           style: IconButton.styleFrom(
-                                            backgroundColor: isSessionPlaying ? AppTheme.primary : AppTheme.primaryAccent,
+                                            backgroundColor: isSessionPlaying
+                                                ? AppTheme.primary
+                                                : AppTheme.primaryAccent,
                                             foregroundColor: Colors.white,
                                             minimumSize: const Size(36, 36),
                                           ),
-                                          icon: Icon(isSessionPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 20),
-                                          onPressed: () => _handleAudioPlayback(session.audioFilePath!),
+                                          icon: Icon(
+                                            isSessionPlaying
+                                                ? Icons.stop_rounded
+                                                : Icons.play_arrow_rounded,
+                                            size: 20,
+                                          ),
+                                          onPressed: () => _handleAudioPlayback(
+                                            session.audioFilePath!,
+                                          ),
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                context.translate('recorded_self_evaluation_title'),
-                                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                                context.translate(
+                                                  'recorded_self_evaluation_title',
+                                                ),
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                               Text(
                                                 isSessionPlaying
-                                                    ? context.translate('playing_back_audio')
-                                                    : context.translate('audio_attached'),
-                                                style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
-                                              )
+                                                    ? context.translate(
+                                                        'playing_back_audio',
+                                                      )
+                                                    : context.translate(
+                                                        'audio_attached',
+                                                      ),
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  color: AppTheme.textSecondary,
+                                                ),
+                                              ),
                                             ],
                                           ),
-                                        )
+                                        ),
                                       ],
                                     ),
-                                  )
+                                  ),
                                 ],
                               ],
                             ),
@@ -380,6 +625,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                       },
                     ),
             ),
+            const SizedBox(height: 72),
           ],
         ),
       ),

@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.antigravity.flute" "\0"
-            VALUE "FileDescription", "flute" "\0"
+            VALUE "CompanyName", "Seagomezar" "\0"
+            VALUE "FileDescription", "Flute Practice Coach" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "flute" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.antigravity.flute. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Seagomezar. All rights reserved." "\0"
             VALUE "OriginalFilename", "flute.exe" "\0"
-            VALUE "ProductName", "flute" "\0"
+            VALUE "ProductName", "Flute Practice Coach" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

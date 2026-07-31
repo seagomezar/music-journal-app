@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
 import '../main.dart';
+import '../providers/localization_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,7 +14,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -39,10 +40,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const AuthenticationWrapper(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const AuthenticationWrapper(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
             transitionDuration: const Duration(milliseconds: 600),
           ),
         );
@@ -76,7 +79,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 height: screenWidth * 0.7,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.primaryAccent.withOpacity(0.06), // Gold/Brass accent
+                  color: AppTheme.primaryAccent.withValues(
+                    alpha: 0.06,
+                  ), // Gold/Brass accent
                 ),
               ),
             ),
@@ -91,7 +96,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 height: screenWidth * 0.7,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.primary.withOpacity(0.08), // Forest Green primary
+                  color: AppTheme.primary.withValues(
+                    alpha: 0.08,
+                  ), // Forest Green primary
                 ),
               ),
             ),
@@ -105,18 +112,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Spacer(flex: 3),
-                  
+
                   // App Logo (Designed in Stitch project)
-                  const AppLogo(
-                    size: 130,
-                    showShadow: true,
-                  ),
+                  const AppLogo(size: 130, showShadow: true),
                   const SizedBox(height: 32),
-                  
+
                   // App Title (EB Garamond)
                   Text(
-                    'Flute Practice Coach',
-                    style: GoogleFonts.ebGaramond(
+                    context.translate('app_title'),
+                    style: const TextStyle(
+                      fontFamily: 'serif',
                       fontSize: 36,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.primary,
@@ -124,26 +129,26 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // App Subtitle (Hanken Grotesk)
                   Text(
-                    'Your AI-Powered Instrumental Coach',
-                    style: GoogleFonts.hankenGrotesk(
+                    context.translate('app_subtitle'),
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
                       color: AppTheme.textSecondary,
                       letterSpacing: 0.5,
                     ),
                   ),
-                  
+
                   const Spacer(flex: 2),
-                  
+
                   // Spinkit Loading Animation
                   const SpinKitDoubleBounce(
                     color: AppTheme.primaryAccent,
                     size: 40.0,
                   ),
-                  
+
                   const Spacer(flex: 1),
                 ],
               ),

@@ -1,0 +1,17 @@
+{
+  "name": "Flute Practice Coach",
+  "short_name": "Flute Coach",
+  "description": "A private, local-first practice journal for flutists.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf9f7",
+  "theme_color": "#061b0e",
+  "icons": [
+    {
+      "src": "assets/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

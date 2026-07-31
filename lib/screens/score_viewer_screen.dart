@@ -1,7 +1,7 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/practice_provider.dart';
 import '../providers/localization_provider.dart';
@@ -28,20 +28,25 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
   int _currentPage = 0;
   bool _isReady = false;
   String _errorMessage = '';
-  PDFViewController? _pdfViewController;
 
   // Bottom Navigation state
   int _activeNavIndex = 1; // 0: Metronome, 1: Navigation (Default), 2: Annotate
 
-  // Annotation points list
-  final List<Offset?> _annotationPoints = [];
+  // Annotations remain local to this viewer and are separated by PDF page.
+  final Map<int, List<Offset?>> _annotationPointsByPage = {};
+
+  List<Offset?> get _currentAnnotationPoints =>
+      _annotationPointsByPage.putIfAbsent(_currentPage, () => []);
 
   @override
   void initState() {
     super.initState();
     // Pre-configure metronome BPM if provider has it default
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final practiceProv = Provider.of<PracticeProvider>(context, listen: false);
+      final practiceProv = Provider.of<PracticeProvider>(
+        context,
+        listen: false,
+      );
       if (practiceProv.metronomeBpm != widget.pieceBpm) {
         practiceProv.setMetronomeBpm(widget.pieceBpm);
       }
@@ -51,6 +56,10 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
   @override
   Widget build(BuildContext context) {
     final practiceProv = Provider.of<PracticeProvider>(context);
+    final hasPdf =
+        !kIsWeb &&
+        widget.pdfPath.isNotEmpty &&
+        File(widget.pdfPath).existsSync();
 
     return Scaffold(
       appBar: AppBar(
@@ -59,7 +68,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
         iconTheme: const IconThemeData(color: AppTheme.primary),
         title: Text(
           widget.pieceTitle,
-          style: GoogleFonts.ebGaramond(
+          style: const TextStyle(
+            fontFamily: 'serif',
             fontWeight: FontWeight.w600,
             fontSize: 20,
             color: AppTheme.primary,
@@ -68,28 +78,28 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
         actions: [
           if (_activeNavIndex == 2) // Annotate tab active
             IconButton(
-              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
-              tooltip: 'Clear Annotations',
+              icon: const Icon(
+                Icons.delete_sweep_rounded,
+                color: Colors.redAccent,
+              ),
+              tooltip: context.translate('clear_annotations'),
               onPressed: () {
                 setState(() {
-                  _annotationPoints.clear();
+                  _currentAnnotationPoints.clear();
                 });
               },
             ),
-          IconButton(
-            icon: const Icon(Icons.more_vert_rounded, color: AppTheme.textSecondary),
-            onPressed: () {},
-          ),
         ],
       ),
       body: Stack(
         children: [
           // PDF Viewer
-          if (widget.pdfPath.isNotEmpty && File(widget.pdfPath).existsSync())
+          if (hasPdf)
             Positioned.fill(
               child: PDFView(
                 filePath: widget.pdfPath,
-                enableSwipe: _activeNavIndex == 1, // Enable swipe only in navigation tab
+                enableSwipe:
+                    _activeNavIndex == 1, // Enable swipe only in navigation tab
                 swipeHorizontal: true,
                 autoSpacing: true,
                 pageFling: true,
@@ -101,16 +111,17 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                 },
                 onError: (error) {
                   setState(() {
-                    _errorMessage = error.toString();
+                    _isReady = true;
+                    _errorMessage = context.translate('pdf_load_error');
                   });
                 },
                 onPageError: (page, error) {
                   setState(() {
-                    _errorMessage = 'Page $page: ${error.toString()}';
+                    _isReady = true;
+                    _errorMessage = context.translate('pdf_page_error', [
+                      ((page ?? 0) + 1).toString(),
+                    ]);
                   });
-                },
-                onViewCreated: (PDFViewController controller) {
-                  _pdfViewController = controller;
                 },
                 onPageChanged: (int? page, int? total) {
                   setState(() {
@@ -120,18 +131,19 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
               ),
             )
           else
-            const Center(
+            Center(
               child: Text(
-                'PDF file not found or path is empty.',
-                style: TextStyle(color: Colors.redAccent),
+                context.translate(
+                  kIsWeb ? 'pdf_viewer_web_unavailable' : 'pdf_missing',
+                ),
+                style: const TextStyle(color: Colors.redAccent),
+                textAlign: TextAlign.center,
               ),
             ),
 
           // Loading indicator
-          if (!_isReady && _errorMessage.isEmpty)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
+          if (hasPdf && !_isReady && _errorMessage.isEmpty)
+            const Center(child: CircularProgressIndicator()),
 
           // Error Message display
           if (_errorMessage.isNotEmpty)
@@ -152,18 +164,45 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
               child: GestureDetector(
                 onPanUpdate: (details) {
                   setState(() {
-                    RenderBox renderBox = context.findRenderObject() as RenderBox;
-                    _annotationPoints.add(renderBox.globalToLocal(details.globalPosition));
+                    _currentAnnotationPoints.add(details.localPosition);
                   });
                 },
                 onPanEnd: (details) {
                   setState(() {
-                    _annotationPoints.add(null); // break stroke
+                    _currentAnnotationPoints.add(null);
                   });
                 },
                 child: CustomPaint(
-                  painter: AnnotationPainter(_annotationPoints, AppTheme.primaryAccent),
+                  painter: AnnotationPainter(
+                    _currentAnnotationPoints,
+                    AppTheme.primaryAccent,
+                  ),
                   size: Size.infinite,
+                ),
+              ),
+            ),
+
+          if (_activeNavIndex == 2)
+            Positioned(
+              top: 12,
+              left: 24,
+              right: 24,
+              child: Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    child: Text(
+                      context.translate('annotations_temporary'),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -174,21 +213,29 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
               bottom: 24,
               right: 24,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface.withOpacity(0.85),
+                  color: AppTheme.surface.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.border.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppTheme.border.withValues(alpha: 0.3),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                     ),
                   ],
                 ),
                 child: Text(
-                  '${context.translate('page_label') ?? 'Page'} ${_currentPage + 1} of $_totalPages',
-                  style: GoogleFonts.hankenGrotesk(
+                  context.translate('page_of', [
+                    (_currentPage + 1).toString(),
+                    _totalPages.toString(),
+                  ]),
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textSecondary,
@@ -202,84 +249,94 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
           Positioned(
             bottom: 24,
             left: 24,
-            child: GestureDetector(
-              onTap: () {
-                practiceProv.toggleMetronome(widget.pieceBpm);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: practiceProv.metronomeOn 
-                      ? AppTheme.primary 
-                      : AppTheme.cardBg,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: practiceProv.metronomeOn 
-                        ? AppTheme.primaryAccent 
-                        : AppTheme.border,
-                    width: 1.5,
+            child: Semantics(
+              button: true,
+              label: context.translate('toggle_metronome'),
+              child: GestureDetector(
+                onTap: () {
+                  practiceProv.toggleMetronome(widget.pieceBpm);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                  decoration: BoxDecoration(
+                    color: practiceProv.metronomeOn
+                        ? AppTheme.primary
+                        : AppTheme.cardBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: practiceProv.metronomeOn
+                          ? AppTheme.primaryAccent
+                          : AppTheme.border,
+                      width: 1.5,
                     ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Icon(
-                          Icons.timer_outlined,
-                          color: practiceProv.metronomeOn 
-                              ? AppTheme.primaryAccent 
-                              : AppTheme.textSecondary,
-                          size: 18,
-                        ),
-                        if (practiceProv.metronomeOn && practiceProv.metronomePulse)
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppTheme.primaryAccent.withOpacity(0.25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            Icons.timer_outlined,
+                            color: practiceProv.metronomeOn
+                                ? AppTheme.primaryAccent
+                                : AppTheme.textSecondary,
+                            size: 18,
+                          ),
+                          if (practiceProv.metronomeOn &&
+                              practiceProv.metronomePulse)
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppTheme.primaryAccent.withValues(
+                                  alpha: 0.25,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            context.translate('tempo_label'),
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w600,
+                              color: practiceProv.metronomeOn
+                                  ? AppTheme.primaryAccent
+                                  : AppTheme.textSecondary,
                             ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'TEMPO',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 8,
-                            fontWeight: FontWeight.w600,
-                            color: practiceProv.metronomeOn 
-                                ? AppTheme.primaryAccent 
-                                : AppTheme.textSecondary,
+                          Text(
+                            '${practiceProv.metronomeBpm} BPM',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: practiceProv.metronomeOn
+                                  ? Colors.white
+                                  : AppTheme.textPrimary,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '${practiceProv.metronomeBpm} BPM',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: practiceProv.metronomeOn 
-                                ? Colors.white 
-                                : AppTheme.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -288,9 +345,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: AppTheme.border, width: 1),
-          ),
+          border: Border(top: BorderSide(color: AppTheme.border, width: 1)),
         ),
         child: BottomNavigationBar(
           currentIndex: _activeNavIndex,
@@ -307,21 +362,25 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
           items: [
             BottomNavigationBarItem(
               icon: const Icon(Icons.timer_outlined),
-              label: context.translate('visual_metronome') ?? 'Metronome',
+              label: context.translate('visual_metronome'),
             ),
             BottomNavigationBarItem(
               icon: Icon(
                 Icons.menu_book_rounded,
-                color: _activeNavIndex == 1 ? AppTheme.primary : AppTheme.textSecondary,
+                color: _activeNavIndex == 1
+                    ? AppTheme.primary
+                    : AppTheme.textSecondary,
               ),
-              label: context.translate('score_view') ?? 'Navigation',
+              label: context.translate('score_view'),
             ),
             BottomNavigationBarItem(
               icon: Icon(
                 Icons.edit_note_rounded,
-                color: _activeNavIndex == 2 ? AppTheme.primary : AppTheme.textSecondary,
+                color: _activeNavIndex == 2
+                    ? AppTheme.primary
+                    : AppTheme.textSecondary,
               ),
-              label: context.translate('annotate_score') ?? 'Annotate',
+              label: context.translate('annotate_score'),
             ),
           ],
         ),
@@ -340,14 +399,18 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 20.0,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    context.translate('visual_metronome') ?? 'Visual Metronome',
-                    style: GoogleFonts.ebGaramond(
+                    context.translate('visual_metronome'),
+                    style: const TextStyle(
+                      fontFamily: 'serif',
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textPrimary,
@@ -359,7 +422,11 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.remove_circle_outline_rounded, size: 36, color: AppTheme.primary),
+                        icon: const Icon(
+                          Icons.remove_circle_outline_rounded,
+                          size: 36,
+                          color: AppTheme.primary,
+                        ),
                         onPressed: () {
                           if (provider.metronomeBpm > 40) {
                             provider.setMetronomeBpm(provider.metronomeBpm - 1);
@@ -370,7 +437,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                       const SizedBox(width: 24),
                       Text(
                         '${provider.metronomeBpm}',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: const TextStyle(
                           fontSize: 48,
                           fontWeight: FontWeight.w300,
                           color: AppTheme.textPrimary,
@@ -378,7 +445,11 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                       ),
                       const SizedBox(width: 24),
                       IconButton(
-                        icon: const Icon(Icons.add_circle_outline_rounded, size: 36, color: AppTheme.primary),
+                        icon: const Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 36,
+                          color: AppTheme.primary,
+                        ),
                         onPressed: () {
                           if (provider.metronomeBpm < 240) {
                             provider.setMetronomeBpm(provider.metronomeBpm + 1);
@@ -403,7 +474,9 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: provider.metronomeOn ? Colors.redAccent : AppTheme.primary,
+                      backgroundColor: provider.metronomeOn
+                          ? Colors.redAccent
+                          : AppTheme.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -417,8 +490,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                     },
                     child: Text(
                       provider.metronomeOn
-                          ? (context.translate('stop_metronome') ?? 'Stop')
-                          : (context.translate('start_metronome') ?? 'Start'),
+                          ? context.translate('stop_metronome')
+                          : context.translate('start_metronome'),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),

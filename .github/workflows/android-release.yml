@@ -1,135 +1,126 @@
-name: Android Release Build
+name: Mobile quality and release
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: Public version, for example 1.0.0
+        required: true
+        default: 1.0.0
+      build_number:
+        description: Monotonically increasing store build number
+        required: true
+
+permissions:
+  contents: read
 
 env:
+  FLUTTER_VERSION: 3.44.0
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  build:
-    name: Build & Release Android App
+  quality:
+    name: Format, analyze, and test
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
         with:
-          distribution: 'zulu'
-          java-version: '17'
-          cache: 'gradle'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test --coverage
 
-      - name: Install dependencies
-        run: flutter pub get
+  android-preview:
+    name: Android release preview
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Build unsigned preview bundle
+        env:
+          BUILD_UNSIGNED: "true"
+        run: >-
+          flutter build appbundle --release
+          --build-number=${{ github.run_number }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-preview-${{ github.sha }}
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
 
-      - name: Configure Keystore and Signing
+  ios-preview:
+    name: iOS no-codesign archive check
+    needs: quality
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter build ios --release --no-codesign
+
+  android-store:
+    name: Signed Android store bundle
+    if: github.event_name == 'workflow_dispatch'
+    needs: [quality, android-preview]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Configure production upload key
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "Using production secrets to sign APK..."
-            echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
-            echo "storeFile=release.jks" > android/key.properties
-            echo "keyAlias=$KEY_ALIAS" >> android/key.properties
-            echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
-            echo "storePassword=$STORE_PASSWORD" >> android/key.properties
-            echo "SIGNED_STATUS=signed" >> $GITHUB_ENV
-          else
-            echo "Production secrets not found. Generating self-signed keystore for preview build..."
-            keytool -genkeypair -v \
-              -keystore android/app/release.jks \
-              -alias temp-alias \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass temp-password \
-              -keypass temp-password \
-              -dname "CN=Music Journal App, OU=Development, O=Seagomezar, C=US"
-            echo "storeFile=release.jks" > android/key.properties
-            echo "keyAlias=temp-alias" >> android/key.properties
-            echo "keyPassword=temp-password" >> android/key.properties
-            echo "storePassword=temp-password" >> android/key.properties
-            echo "SIGNED_STATUS=self-signed" >> $GITHUB_ENV
-          fi
-        shell: bash
-
-      - name: Build Signed APK & App Bundle
-        run: |
-          flutter build apk --release
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+          test -n "$STORE_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
+          {
+            printf 'storeFile=release.jks\n'
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+            printf 'storePassword=%s\n' "$STORE_PASSWORD"
+          } > android/key.properties
+      - name: Build signed store bundle
+        run: >-
           flutter build appbundle --release
-
-      - name: Stage Signed Artifacts
-        run: |
-          mkdir -p outputs
-          cp build/app/outputs/flutter-apk/app-release.apk outputs/app-release-${{ env.SIGNED_STATUS }}.apk
-          cp build/app/outputs/bundle/release/app-release.aab outputs/app-release-${{ env.SIGNED_STATUS }}.aab
-        shell: bash
-
-      - name: Clean key.properties for Unsigned Build
-        run: rm -f android/key.properties
-
-      - name: Build Unsigned APK & App Bundle
-        env:
-          BUILD_UNSIGNED: "true"
-        run: |
-          flutter build apk --release
-          flutter build appbundle --release
-
-      - name: Stage Unsigned Artifacts
-        run: |
-          if [ -f build/app/outputs/flutter-apk/app-release-unsigned.apk ]; then
-            cp build/app/outputs/flutter-apk/app-release-unsigned.apk outputs/app-release-unsigned.apk
-          else
-            cp build/app/outputs/flutter-apk/app-release.apk outputs/app-release-unsigned.apk
-          fi
-          
-          if [ -f build/app/outputs/bundle/release/app-release-unsigned.aab ]; then
-            cp build/app/outputs/bundle/release/app-release-unsigned.aab outputs/app-release-unsigned.aab
-          else
-            cp build/app/outputs/bundle/release/app-release.aab outputs/app-release-unsigned.aab
-          fi
-        shell: bash
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+          --build-name=${{ inputs.release_version }}
+          --build-number=${{ inputs.build_number }}
+      - uses: actions/upload-artifact@v4
         with:
-          name: android-builds
-          path: outputs/
-
-      - name: Create GitHub Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Release v1.0.${{ github.run_number }}
-          draft: false
-          prerelease: false
-          files: |
-            outputs/app-release-signed.apk
-            outputs/app-release-self-signed.apk
-            outputs/app-release-unsigned.apk
-            outputs/app-release-signed.aab
-            outputs/app-release-self-signed.aab
-            outputs/app-release-unsigned.aab
-          fail_on_unmatched_files: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: flute-practice-coach-${{ inputs.release_version }}-${{ inputs.build_number }}.aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30

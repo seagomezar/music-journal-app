@@ -14,17 +14,24 @@ class SessionPieceRecord {
   });
 
   Map<String, dynamic> toJson() => {
-        'pieceId': pieceId,
-        'pieceTitle': pieceTitle,
-        'durationInSeconds': durationInSeconds,
-        'measuresWorked': measuresWorked,
-      };
+    'pieceId': pieceId,
+    'pieceTitle': pieceTitle,
+    'durationInSeconds': durationInSeconds,
+    'measuresWorked': measuresWorked,
+  };
 
-  factory SessionPieceRecord.fromJson(Map<String, dynamic> json) => SessionPieceRecord(
+  factory SessionPieceRecord.fromJson(Map<String, dynamic> json) =>
+      SessionPieceRecord(
         pieceId: json['pieceId'] as String,
         pieceTitle: json['pieceTitle'] as String? ?? 'Untitled',
-        durationInSeconds: json['durationInSeconds'] as int? ?? 0,
-        measuresWorked: json['measuresWorked'] as int? ?? 0,
+        durationInSeconds: (json['durationInSeconds'] as num? ?? 0)
+            .toInt()
+            .clamp(0, 86400)
+            .toInt(),
+        measuresWorked: (json['measuresWorked'] as num? ?? 0)
+            .toInt()
+            .clamp(0, 10000)
+            .toInt(),
       );
 }
 
@@ -32,6 +39,8 @@ class SessionRecord {
   final String id;
   final DateTime startTime;
   final DateTime endTime;
+  final int startUtcOffsetMinutes;
+  final int endUtcOffsetMinutes;
   final int totalDurationInSeconds;
   final List<Exercise> completedExercises;
   final List<SessionPieceRecord> rehearsedPieces;
@@ -42,38 +51,79 @@ class SessionRecord {
     required this.id,
     required this.startTime,
     required this.endTime,
+    int? startUtcOffsetMinutes,
+    int? endUtcOffsetMinutes,
     required this.totalDurationInSeconds,
     required this.completedExercises,
     required this.rehearsedPieces,
     required this.notes,
     this.audioFilePath,
-  });
+  }) : startUtcOffsetMinutes =
+           startUtcOffsetMinutes ?? startTime.timeZoneOffset.inMinutes,
+       endUtcOffsetMinutes =
+           endUtcOffsetMinutes ?? endTime.timeZoneOffset.inMinutes;
+
+  DateTime get localStartTime => _wallTime(startTime, startUtcOffsetMinutes);
+  DateTime get localEndTime => _wallTime(endTime, endUtcOffsetMinutes);
+
+  static DateTime _wallTime(DateTime instant, int offsetMinutes) {
+    final shifted = instant.toUtc().add(Duration(minutes: offsetMinutes));
+    return DateTime(
+      shifted.year,
+      shifted.month,
+      shifted.day,
+      shifted.hour,
+      shifted.minute,
+      shifted.second,
+      shifted.millisecond,
+      shifted.microsecond,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'startTime': startTime.toIso8601String(),
-        'endTime': endTime.toIso8601String(),
-        'totalDurationInSeconds': totalDurationInSeconds,
-        'completedExercises': completedExercises.map((e) => e.toJson()).toList(),
-        'rehearsedPieces': rehearsedPieces.map((p) => p.toJson()).toList(),
-        'notes': notes,
-        'audioFilePath': audioFilePath,
-      };
+    'id': id,
+    'startTime': startTime.toUtc().toIso8601String(),
+    'endTime': endTime.toUtc().toIso8601String(),
+    'startUtcOffsetMinutes': startUtcOffsetMinutes,
+    'endUtcOffsetMinutes': endUtcOffsetMinutes,
+    'totalDurationInSeconds': totalDurationInSeconds,
+    'completedExercises': completedExercises.map((e) => e.toJson()).toList(),
+    'rehearsedPieces': rehearsedPieces.map((p) => p.toJson()).toList(),
+    'notes': notes,
+    'audioFilePath': audioFilePath,
+  };
 
-  factory SessionRecord.fromJson(Map<String, dynamic> json) => SessionRecord(
-        id: json['id'] as String,
-        startTime: DateTime.parse(json['startTime'] as String),
-        endTime: DateTime.parse(json['endTime'] as String),
-        totalDurationInSeconds: json['totalDurationInSeconds'] as int? ?? 0,
-        completedExercises: (json['completedExercises'] as List<dynamic>?)
-                ?.map((e) => Exercise.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-        rehearsedPieces: (json['rehearsedPieces'] as List<dynamic>?)
-                ?.map((p) => SessionPieceRecord.fromJson(p as Map<String, dynamic>))
-                .toList() ??
-            [],
-        notes: json['notes'] as String? ?? '',
-        audioFilePath: json['audioFilePath'] as String?,
-      );
+  factory SessionRecord.fromJson(Map<String, dynamic> json) {
+    final startTime = DateTime.parse(json['startTime'] as String);
+    final endTime = DateTime.parse(json['endTime'] as String);
+    return SessionRecord(
+      id: json['id'] as String,
+      startTime: startTime,
+      endTime: endTime,
+      startUtcOffsetMinutes:
+          (json['startUtcOffsetMinutes'] as num?)?.toInt() ??
+          startTime.timeZoneOffset.inMinutes,
+      endUtcOffsetMinutes:
+          (json['endUtcOffsetMinutes'] as num?)?.toInt() ??
+          endTime.timeZoneOffset.inMinutes,
+      totalDurationInSeconds: (json['totalDurationInSeconds'] as num? ?? 0)
+          .toInt()
+          .clamp(0, 86400)
+          .toInt(),
+      completedExercises:
+          (json['completedExercises'] as List<dynamic>?)
+              ?.map((e) => Exercise.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      rehearsedPieces:
+          (json['rehearsedPieces'] as List<dynamic>?)
+              ?.map(
+                (p) => SessionPieceRecord.fromJson(p as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
+      notes: json['notes'] as String? ?? '',
+      audioFilePath: json['audioFilePath'] as String?,
+    );
+  }
 }

@@ -7,6 +7,7 @@ import '../providers/practice_provider.dart';
 import '../providers/localization_provider.dart';
 import '../theme/app_theme.dart';
 import 'active_practice_view.dart';
+import 'settings_screen.dart';
 
 class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
@@ -45,7 +46,10 @@ class _DashboardViewState extends State<DashboardView> {
             children: [
               Text(
                 context.translate('update_goal_desc'),
-                style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -61,7 +65,10 @@ class _DashboardViewState extends State<DashboardView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.translate('cancel'), style: const TextStyle(color: AppTheme.textSecondary)),
+              child: Text(
+                context.translate('cancel'),
+                style: const TextStyle(color: AppTheme.textSecondary),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -70,9 +77,18 @@ class _DashboardViewState extends State<DashboardView> {
               ),
               onPressed: () {
                 final mins = int.tryParse(_goalController.text);
-                if (mins != null && mins > 0) {
-                  Provider.of<AuthProvider>(context, listen: false).updateWeeklyGoal(mins);
+                if (mins != null && mins > 0 && mins <= 10080) {
+                  Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  ).updateWeeklyGoal(mins);
                   Navigator.of(context).pop();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(context.translate('invalid_weekly_goal')),
+                    ),
+                  );
                 }
               },
               child: Text(context.translate('save')),
@@ -93,7 +109,9 @@ class _DashboardViewState extends State<DashboardView> {
     final user = authProv.user;
     final weeklyGoal = user?.weeklyPracticeGoalMinutes ?? 120;
     final weeklyMins = historyProv.thisWeekMinutesPracticed;
-    final weeklyProgress = weeklyGoal > 0 ? (weeklyMins / weeklyGoal).clamp(0.0, 1.0) : 0.0;
+    final weeklyProgress = weeklyGoal > 0
+        ? (weeklyMins / weeklyGoal).clamp(0.0, 1.0)
+        : 0.0;
 
     return Scaffold(
       body: SafeArea(
@@ -114,11 +132,19 @@ class _DashboardViewState extends State<DashboardView> {
                     CircleAvatar(
                       radius: 26,
                       backgroundColor: AppTheme.primary,
-                      backgroundImage: user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
+                      backgroundImage: user?.photoUrl != null
+                          ? NetworkImage(user!.photoUrl!)
+                          : null,
                       child: user?.photoUrl == null
                           ? Text(
-                              (user?.name.isNotEmpty == true) ? user!.name[0].toUpperCase() : 'F',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
+                              (user?.name.isNotEmpty == true)
+                                  ? user!.name[0].toUpperCase()
+                                  : 'F',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                                color: Colors.white,
+                              ),
                             )
                           : null,
                     ),
@@ -129,11 +155,14 @@ class _DashboardViewState extends State<DashboardView> {
                         children: [
                           Text(
                             context.translate('welcome_back'),
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 13),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.copyWith(fontSize: 13),
                           ),
                           Text(
                             user?.name ?? 'Flutist',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -142,7 +171,10 @@ class _DashboardViewState extends State<DashboardView> {
                       builder: (context, locProv, _) {
                         return IconButton(
                           tooltip: locProv.isSpanish ? 'English' : 'Español',
-                          icon: const Icon(Icons.language_rounded, color: AppTheme.primaryAccent),
+                          icon: const Icon(
+                            Icons.language_rounded,
+                            color: AppTheme.primaryAccent,
+                          ),
                           onPressed: () {
                             locProv.setLocale(locProv.isSpanish ? 'en' : 'es');
                           },
@@ -150,17 +182,22 @@ class _DashboardViewState extends State<DashboardView> {
                       },
                     ),
                     IconButton(
-                      tooltip: context.translate('sign_out'),
-                      icon: const Icon(Icons.logout_rounded, color: AppTheme.textSecondary),
-                      onPressed: () {
-                        authProv.signOut();
-                      },
-                    )
+                      tooltip: context.translate('settings'),
+                      icon: const Icon(
+                        Icons.settings_outlined,
+                        color: AppTheme.textSecondary,
+                      ),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 28),
-                
+
                 // Weekly Goal Progress Card
                 AppTheme.glassCard(
                   padding: const EdgeInsets.all(20),
@@ -175,9 +212,15 @@ class _DashboardViewState extends State<DashboardView> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           IconButton(
-                            icon: const Icon(Icons.edit_rounded, size: 18, color: AppTheme.primaryAccent),
-                            onPressed: () => _showEditGoalDialog(context, weeklyGoal),
-                          )
+                            icon: const Icon(
+                              Icons.edit_rounded,
+                              size: 18,
+                              color: AppTheme.primaryAccent,
+                            ),
+                            tooltip: context.translate('update_goal_title'),
+                            onPressed: () =>
+                                _showEditGoalDialog(context, weeklyGoal),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -196,7 +239,10 @@ class _DashboardViewState extends State<DashboardView> {
                           const SizedBox(width: 4),
                           Text(
                             '/ $weeklyGoal ${context.translate('minutes')}',
-                            style: const TextStyle(fontSize: 15, color: AppTheme.textSecondary),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: AppTheme.textSecondary,
+                            ),
                           ),
                         ],
                       ),
@@ -206,98 +252,136 @@ class _DashboardViewState extends State<DashboardView> {
                         child: LinearProgressIndicator(
                           value: weeklyProgress,
                           minHeight: 10,
-                          backgroundColor: AppTheme.border.withOpacity(0.5),
-                          valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryAccent),
+                          backgroundColor: AppTheme.border.withValues(
+                            alpha: 0.5,
+                          ),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppTheme.primaryAccent,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        context.translate('weekly_goal_target', [(weeklyProgress * 100).toStringAsFixed(0)]),
-                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        context.translate('weekly_goal_target', [
+                          (weeklyProgress * 100).toStringAsFixed(0),
+                        ]),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Grid Statistics Dashboard
-                GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    // Streak Card
-                    _buildStatCard(
-                      context,
-                      title: context.translate('current_streak_title'),
-                      value: '${historyProv.currentStreak} ${context.translate('days')}',
-                      icon: Icons.local_fire_department_rounded,
-                      iconColor: Colors.orangeAccent,
-                    ),
-                    // Total Sessions
-                    _buildStatCard(
-                      context,
-                      title: context.translate('total_sessions_title'),
-                      value: '${historyProv.totalSessionsCount}',
-                      icon: Icons.history_toggle_off_rounded,
-                      iconColor: Colors.tealAccent,
-                    ),
-                    // Exercises Finished
-                    _buildStatCard(
-                      context,
-                      title: context.translate('exercises_done_title'),
-                      value: '${historyProv.totalExercisesCompleted}',
-                      icon: Icons.checklist_rtl_rounded,
-                      iconColor: Colors.lightBlueAccent,
-                    ),
-                    // Total Practice Hours
-                    _buildStatCard(
-                      context,
-                      title: context.translate('total_study_time_title'),
-                      value: '${historyProv.totalMinutesPracticed}m',
-                      icon: Icons.timer_outlined,
-                      iconColor: Colors.purpleAccent,
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final useFourColumns = constraints.maxWidth >= 760;
+                    return GridView.count(
+                      crossAxisCount: useFourColumns ? 4 : 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: useFourColumns ? 1.18 : 1,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        // Streak Card
+                        _buildStatCard(
+                          context,
+                          title: context.translate('current_streak_title'),
+                          value:
+                              '${historyProv.currentStreak} ${context.translate('days')}',
+                          icon: Icons.local_fire_department_rounded,
+                          iconColor: Colors.orangeAccent,
+                        ),
+                        // Total Sessions
+                        _buildStatCard(
+                          context,
+                          title: context.translate('total_sessions_title'),
+                          value: '${historyProv.totalSessionsCount}',
+                          icon: Icons.history_toggle_off_rounded,
+                          iconColor: Colors.tealAccent,
+                        ),
+                        // Exercises Finished
+                        _buildStatCard(
+                          context,
+                          title: context.translate('exercises_done_title'),
+                          value: '${historyProv.totalExercisesCompleted}',
+                          icon: Icons.checklist_rtl_rounded,
+                          iconColor: Colors.lightBlueAccent,
+                        ),
+                        // Total Practice Hours
+                        _buildStatCard(
+                          context,
+                          title: context.translate('total_study_time_title'),
+                          value: '${historyProv.totalMinutesPracticed}m',
+                          icon: Icons.timer_outlined,
+                          iconColor: Colors.purpleAccent,
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Quick Start Practice Header
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      context.translate('quick_start'),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Text(
+                        context.translate('quick_start'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
+                    const SizedBox(width: 12),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary.withOpacity(0.15),
+                        backgroundColor: AppTheme.primary.withValues(
+                          alpha: 0.15,
+                        ),
                         foregroundColor: AppTheme.primaryAccent,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(color: AppTheme.primary, width: 0.5),
+                          side: const BorderSide(
+                            color: AppTheme.primary,
+                            width: 0.5,
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                       icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                      label: Text(context.translate('free_study'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      label: Text(
+                        context.translate('free_study'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                       onPressed: () {
                         practiceProv.startSession(null);
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (context) => const ActivePracticeView()),
+                          MaterialPageRoute(
+                            builder: (context) => const ActivePracticeView(),
+                          ),
                         );
                       },
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Routines List inside Dashboard
                 if (routineProv.isLoading)
                   const Center(
@@ -324,14 +408,16 @@ class _DashboardViewState extends State<DashboardView> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: routineProv.routines.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final routine = routineProv.routines[index];
                       return GestureDetector(
                         onTap: () {
                           practiceProv.startSession(routine);
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (context) => const ActivePracticeView()),
+                            MaterialPageRoute(
+                              builder: (context) => const ActivePracticeView(),
+                            ),
                           );
                         },
                         child: AppTheme.glassCard(
@@ -341,10 +427,15 @@ class _DashboardViewState extends State<DashboardView> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withOpacity(0.1),
+                                  color: AppTheme.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Icon(Icons.playlist_play_rounded, color: AppTheme.primaryAccent),
+                                child: const Icon(
+                                  Icons.playlist_play_rounded,
+                                  color: AppTheme.primaryAccent,
+                                ),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -353,17 +444,30 @@ class _DashboardViewState extends State<DashboardView> {
                                   children: [
                                     Text(
                                       routine.title,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      context.translate('technical_exercises_count', [routine.exercises.length.toString()]),
-                                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                      context.translate(
+                                        'technical_exercises_count',
+                                        [routine.exercises.length.toString()],
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textSecondary,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.play_circle_fill_rounded, size: 36, color: AppTheme.primaryAccent),
+                              const Icon(
+                                Icons.play_circle_fill_rounded,
+                                size: 36,
+                                color: AppTheme.primaryAccent,
+                              ),
                             ],
                           ),
                         ),
@@ -398,7 +502,7 @@ class _DashboardViewState extends State<DashboardView> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: iconColor, size: 20),

@@ -1,12 +1,15 @@
 {
-    "name": "flute",
-    "short_name": "flute",
+    "name": "Flute Practice Coach",
+    "short_name": "Flute Coach",
+    "id": "./",
     "start_url": ".",
+    "scope": "./",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#FAF9F7",
+    "theme_color": "#061B0E",
+    "description": "A private, local-first practice journal for flutists.",
+    "categories": ["music", "productivity"],
+    "lang": "en",
     "prefer_related_applications": false,
     "icons": [
         {

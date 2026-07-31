@@ -1,20 +1,29 @@
-import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:path_provider/path_provider.dart';
+import 'file_storage_service.dart';
 
 class AudioService {
+  AudioService({FileStorageService? storageService, this.onPlaybackChanged})
+    : _storageService = storageService ?? FileStorageService();
+
+  final FileStorageService _storageService;
+  ValueChanged<bool>? onPlaybackChanged;
   AudioRecorder? _recorderInstance;
   AudioPlayer? _playerInstance;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+  Future<String?>? _pendingStopRecording;
 
   AudioRecorder get _recorder => _recorderInstance ??= AudioRecorder();
-  
+
   AudioPlayer get _player {
     if (_playerInstance == null) {
       _playerInstance = AudioPlayer();
-      _playerInstance!.onPlayerStateChanged.listen((state) {
-        _isPlaying = state == PlayerState.playing;
+      _playerStateSubscription = _playerInstance!.onPlayerStateChanged.listen((
+        state,
+      ) {
+        _setPlaying(state == PlayerState.playing);
       });
     }
     return _playerInstance!;
@@ -28,7 +37,11 @@ class AudioService {
   bool get isPlaying => _isPlaying;
   String? get lastRecordedPath => _lastRecordedPath;
 
-  AudioService();
+  void _setPlaying(bool value) {
+    if (_isPlaying == value) return;
+    _isPlaying = value;
+    onPlaybackChanged?.call(value);
+  }
 
   Future<bool> hasPermission() async {
     try {
@@ -41,19 +54,17 @@ class AudioService {
 
   Future<void> startRecording() async {
     try {
-      if (await _recorder.hasPermission()) {
-        String? path;
-        if (!kIsWeb) {
-          final tempDir = await getTemporaryDirectory();
-          path = '${tempDir.path}/flute_practice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        }
-        
-        await _recorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc),
-          path: path ?? '',
-        );
-        _isRecording = true;
+      if (_isRecording) return;
+      if (!await _recorder.hasPermission()) {
+        throw StateError('Microphone permission was not granted.');
       }
+
+      final path = kIsWeb ? '' : await _storageService.createRecordingPath();
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path,
+      );
+      _isRecording = true;
     } catch (e) {
       debugPrint('Error starting audio recording: $e');
       _isRecording = false;
@@ -62,6 +73,18 @@ class AudioService {
   }
 
   Future<String?> stopRecording() async {
+    final pendingStop = _pendingStopRecording;
+    if (pendingStop != null) return pendingStop;
+    final stopFuture = _stopRecordingInternal();
+    _pendingStopRecording = stopFuture;
+    try {
+      return await stopFuture;
+    } finally {
+      _pendingStopRecording = null;
+    }
+  }
+
+  Future<String?> _stopRecordingInternal() async {
     try {
       if (!_isRecording) return null;
       final path = await _recorder.stop();
@@ -82,6 +105,7 @@ class AudioService {
       } else {
         await _player.play(DeviceFileSource(path));
       }
+      _setPlaying(true);
     } catch (e) {
       debugPrint('Error playing audio: $e');
       rethrow;
@@ -90,14 +114,31 @@ class AudioService {
 
   Future<void> pausePlayback() async {
     await _player.pause();
+    _setPlaying(false);
   }
 
   Future<void> stopPlayback() async {
-    await _player.stop();
+    if (_playerInstance != null) {
+      await _player.stop();
+    }
+    _setPlaying(false);
   }
 
-  void dispose() {
-    _recorderInstance?.dispose();
-    _playerInstance?.dispose();
+  Future<void> deleteRecording(String? path) async {
+    final stoppedPath = await stopRecording();
+    await stopPlayback();
+    final pathToDelete = path ?? stoppedPath ?? _lastRecordedPath;
+    await _storageService.deleteManagedFile(pathToDelete);
+    if (_lastRecordedPath == pathToDelete) {
+      _lastRecordedPath = null;
+    }
+  }
+
+  Future<void> dispose() async {
+    await stopRecording();
+    await stopPlayback();
+    await _playerStateSubscription?.cancel();
+    await _recorderInstance?.dispose();
+    await _playerInstance?.dispose();
   }
 }

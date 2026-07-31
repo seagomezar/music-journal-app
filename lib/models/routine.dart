@@ -14,21 +14,22 @@ class Routine {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'description': description,
-        'exercises': exercises.map((e) => e.toJson()).toList(),
-      };
+    'id': id,
+    'title': title,
+    'description': description,
+    'exercises': exercises.map((e) => e.toJson()).toList(),
+  };
 
   factory Routine.fromJson(Map<String, dynamic> json) => Routine(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        description: json['description'] as String? ?? '',
-        exercises: (json['exercises'] as List<dynamic>?)
-                ?.map((e) => Exercise.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-      );
+    id: json['id'] as String,
+    title: json['title'] as String,
+    description: json['description'] as String? ?? '',
+    exercises:
+        (json['exercises'] as List<dynamic>?)
+            ?.map((e) => Exercise.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [],
+  );
 
   Routine copyWith({
     String? title,

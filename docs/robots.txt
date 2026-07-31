@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://seagomezar.github.io/music-journal-app/sitemap.xml
