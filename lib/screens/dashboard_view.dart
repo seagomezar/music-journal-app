@@ -105,6 +105,7 @@ class _DashboardViewState extends State<DashboardView> {
     final historyProv = Provider.of<HistoryProvider>(context);
     final routineProv = Provider.of<RoutineProvider>(context);
     final practiceProv = Provider.of<PracticeProvider>(context, listen: false);
+    final localizationProv = context.watch<LocalizationProvider>();
 
     final user = authProv.user;
     final weeklyGoal = user?.weeklyPracticeGoalMinutes ?? 120;
@@ -167,17 +168,17 @@ class _DashboardViewState extends State<DashboardView> {
                         ],
                       ),
                     ),
-                    Consumer<LocalizationProvider>(
-                      builder: (context, locProv, _) {
-                        return IconButton(
-                          tooltip: locProv.isSpanish ? 'English' : 'Español',
-                          icon: const Icon(
-                            Icons.language_rounded,
-                            color: AppTheme.primaryAccent,
-                          ),
-                          onPressed: () {
-                            locProv.setLocale(locProv.isSpanish ? 'en' : 'es');
-                          },
+                    IconButton(
+                      tooltip: localizationProv.isSpanish
+                          ? 'English'
+                          : 'Español',
+                      icon: const Icon(
+                        Icons.language_rounded,
+                        color: AppTheme.primaryAccent,
+                      ),
+                      onPressed: () {
+                        localizationProv.setLocale(
+                          localizationProv.isSpanish ? 'en' : 'es',
                         );
                       },
                     ),
