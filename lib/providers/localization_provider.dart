@@ -103,11 +103,32 @@ class LocalizationProvider with ChangeNotifier {
     'none_technical_only': 'None (Technical Exercises Only)',
     'visual_metronome': 'Metronome',
     'tempo': 'Tempo: {} BPM',
+    'decrease_tempo': 'Decrease tempo by 1 BPM',
+    'increase_tempo': 'Increase tempo by 1 BPM',
     'metronome_sound': 'Metronome sound',
     'enable_metronome_sound': 'Turn metronome sound on',
     'mute_metronome': 'Mute metronome sound',
     'metronome_sound_suppressed':
         'Sound is muted while recording or playing back audio.',
+    'tuner': 'Tuner',
+    'tuner_subtitle':
+        'Tune freely or measure your intonation during an exercise.',
+    'show_tuner': 'Show tuner',
+    'hide_tuner': 'Hide tuner and stop listening',
+    'decrease_tuner_reference': 'Lower the A4 reference by 1 Hz',
+    'increase_tuner_reference': 'Raise the A4 reference by 1 Hz',
+    'pitch_tolerance': 'On-pitch tolerance',
+    'play_a_note': 'Play a steady note',
+    'waiting_for_stable_pitch': 'Waiting for a stable pitch…',
+    'on_pitch_live': '{}% on pitch • {} analyzed',
+    'track_my_pitch': 'Track my pitch',
+    'tune_now': 'Tune',
+    'stop_pitch_tracking': 'Stop tracking',
+    'stop_listening': 'Stop listening',
+    'tuner_mic_error':
+        'The microphone is unavailable. Stop the recorder and check microphone permission.',
+    'tuner_headphones_hint':
+        'Headphones improve accuracy while the metronome is sounding.',
     'self_recorder': 'Self-Evaluation Recorder',
     'self_recorder_subtitle':
         'Record a passage, play it back, and listen to your tone and articulation.',
@@ -126,6 +147,10 @@ class LocalizationProvider with ChangeNotifier {
     'finish_session_subtitle_web':
         'Review your practice notes before saving. Session details are saved to history; browser recordings are not retained.',
     'practice_notes': 'Practice Notes',
+    'exercise_notes_draft_title': 'Exercises worked:',
+    'exercise_notes_draft_item': '• {} — {} BPM',
+    'exercise_notes_draft_item_pitch':
+        '• {} — {} BPM — {}% on pitch (A4 {} Hz, ±{}¢)',
     'keep_practicing': 'Keep Practicing',
     'save_finish': 'Save & Finish',
     'exit_practice_title': 'Exit Practice?',
@@ -134,6 +159,16 @@ class LocalizationProvider with ChangeNotifier {
     'discard_session_btn': 'Discard Session',
     'select_active_sheet': 'Select active sheet piece',
     'exercises_for_routine': 'Exercises for: {}',
+    'start_exercise': 'Start',
+    'resume_exercise': 'Again',
+    'stop_exercise': 'Stop',
+    'exercise_elapsed': 'Exercise: {}',
+    'practiced_tempo': '{} BPM practiced',
+    'exercise_result_format': '{} • {} • {} BPM',
+    'exercise_result_with_pitch_format':
+        '{} • {} • {} BPM • {}% on pitch • {} analyzed • A4 {} Hz • ±{}¢',
+    'exercise_tempo_save_error':
+        'The routine tempo could not be saved. The previous tempo was restored.',
     'recording_audio': 'Recording audio...',
     'recording_saved_temp': 'Practice recording saved on this device',
     'start_recording': 'Start recording',
@@ -396,11 +431,32 @@ class LocalizationProvider with ChangeNotifier {
     'none_technical_only': 'Ninguna (Solo Ejercicios Técnicos)',
     'visual_metronome': 'Metrónomo',
     'tempo': 'Tempo: {} BPM',
+    'decrease_tempo': 'Reducir el tempo en 1 BPM',
+    'increase_tempo': 'Aumentar el tempo en 1 BPM',
     'metronome_sound': 'Sonido del metrónomo',
     'enable_metronome_sound': 'Activar sonido del metrónomo',
     'mute_metronome': 'Silenciar sonido del metrónomo',
     'metronome_sound_suppressed':
         'El sonido se silencia durante la grabación o reproducción.',
+    'tuner': 'Afinador',
+    'tuner_subtitle':
+        'Afina libremente o mide tu afinación durante un ejercicio.',
+    'show_tuner': 'Mostrar afinador',
+    'hide_tuner': 'Ocultar afinador y dejar de escuchar',
+    'decrease_tuner_reference': 'Bajar la referencia de La4 en 1 Hz',
+    'increase_tuner_reference': 'Subir la referencia de La4 en 1 Hz',
+    'pitch_tolerance': 'Tolerancia de afinación',
+    'play_a_note': 'Toca una nota estable',
+    'waiting_for_stable_pitch': 'Esperando una nota estable…',
+    'on_pitch_live': '{}% afinado • {} analizado',
+    'track_my_pitch': 'Medir mi afinación',
+    'tune_now': 'Afinar',
+    'stop_pitch_tracking': 'Detener medición',
+    'stop_listening': 'Dejar de escuchar',
+    'tuner_mic_error':
+        'El micrófono no está disponible. Detén la grabadora y revisa el permiso del micrófono.',
+    'tuner_headphones_hint':
+        'Los audífonos mejoran la precisión mientras suena el metrónomo.',
     'self_recorder': 'Grabadora de Autoevaluación',
     'self_recorder_subtitle':
         'Graba un fragmento, ejecútalo y escucha tu tono y articulación.',
@@ -418,6 +474,10 @@ class LocalizationProvider with ChangeNotifier {
     'finish_session_subtitle_web':
         'Revisa tus notas antes de guardar. Los detalles se guardan en el historial; las grabaciones del navegador no se conservan.',
     'practice_notes': 'Notas de Práctica',
+    'exercise_notes_draft_title': 'Ejercicios trabajados:',
+    'exercise_notes_draft_item': '• {} — {} BPM',
+    'exercise_notes_draft_item_pitch':
+        '• {} — {} BPM — {}% afinado (La4 {} Hz, ±{}¢)',
     'keep_practicing': 'Seguir Practicando',
     'save_finish': 'Guardar y Finalizar',
     'exit_practice_title': '¿Salir de la Práctica?',
@@ -426,6 +486,16 @@ class LocalizationProvider with ChangeNotifier {
     'discard_session_btn': 'Descartar Sesión',
     'select_active_sheet': 'Seleccionar partitura activa',
     'exercises_for_routine': 'Ejercicios para: {}',
+    'start_exercise': 'Iniciar',
+    'resume_exercise': 'Repetir',
+    'stop_exercise': 'Detener',
+    'exercise_elapsed': 'Ejercicio: {}',
+    'practiced_tempo': '{} BPM practicados',
+    'exercise_result_format': '{} • {} • {} BPM',
+    'exercise_result_with_pitch_format':
+        '{} • {} • {} BPM • {}% afinado • {} analizado • La4 {} Hz • ±{}¢',
+    'exercise_tempo_save_error':
+        'No se pudo guardar el tempo de la rutina. Se restauró el tempo anterior.',
     'recording_audio': 'Grabando audio...',
     'recording_saved_temp': 'Grabación guardada en este dispositivo',
     'start_recording': 'Iniciar grabación',

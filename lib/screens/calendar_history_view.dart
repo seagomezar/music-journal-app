@@ -414,7 +414,8 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                 ),
 
                                 // Exercises Done
-                                if (session.completedExercises.isNotEmpty) ...[
+                                if (session.completedExercises.isNotEmpty ||
+                                    session.exerciseResults.isNotEmpty) ...[
                                   Text(
                                     context.translate(
                                       'technical_exercises_completed_title',
@@ -429,33 +430,118 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 6,
-                                    children: session.completedExercises.map((
-                                      ex,
-                                    ) {
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.border.withValues(
-                                            alpha: 0.4,
+                                    children: [
+                                      ...session.exerciseResults.map((result) {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
                                           ),
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          border: Border.all(
-                                            color: AppTheme.border.withValues(
-                                              alpha: 0.5,
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryAccent
+                                                .withValues(alpha: 0.08),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            border: Border.all(
+                                              color: AppTheme.primaryAccent
+                                                  .withValues(alpha: 0.25),
                                             ),
                                           ),
-                                        ),
-                                        child: Text(
-                                          '${ex.name} (${ex.targetBpm} BPM ${ex.articulation})',
-                                          style: const TextStyle(fontSize: 11),
-                                        ),
-                                      );
-                                    }).toList(),
+                                          child: Text(
+                                            context.translate(
+                                              result.pitchSummary != null &&
+                                                      result
+                                                          .pitchSummary!
+                                                          .hasEnoughData
+                                                  ? 'exercise_result_with_pitch_format'
+                                                  : 'exercise_result_format',
+                                              result.pitchSummary != null &&
+                                                      result
+                                                          .pitchSummary!
+                                                          .hasEnoughData
+                                                  ? [
+                                                      result.exercise.name,
+                                                      _formatDuration(
+                                                        context,
+                                                        result
+                                                            .durationInSeconds,
+                                                      ),
+                                                      result.practicedBpm
+                                                          .toString(),
+                                                      result
+                                                          .pitchSummary!
+                                                          .onPitchPercentage
+                                                          .round()
+                                                          .toString(),
+                                                      _formatDuration(
+                                                        context,
+                                                        result
+                                                                .pitchSummary!
+                                                                .analyzedMilliseconds ~/
+                                                            1000,
+                                                      ),
+                                                      result
+                                                          .pitchSummary!
+                                                          .referenceHz
+                                                          .toString(),
+                                                      result
+                                                          .pitchSummary!
+                                                          .toleranceCents
+                                                          .toString(),
+                                                    ]
+                                                  : [
+                                                      result.exercise.name,
+                                                      _formatDuration(
+                                                        context,
+                                                        result
+                                                            .durationInSeconds,
+                                                      ),
+                                                      result.practicedBpm
+                                                          .toString(),
+                                                    ],
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                      ...session.completedExercises
+                                          .where(
+                                            (exercise) =>
+                                                !session.exerciseResults.any(
+                                                  (result) =>
+                                                      result.exercise.id ==
+                                                      exercise.id,
+                                                ),
+                                          )
+                                          .map((ex) {
+                                            return Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.border
+                                                    .withValues(alpha: 0.4),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: AppTheme.border
+                                                      .withValues(alpha: 0.5),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '${ex.name} (${ex.targetBpm} BPM ${ex.articulation})',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            );
+                                          }),
+                                    ],
                                   ),
                                   const SizedBox(height: 12),
                                 ],

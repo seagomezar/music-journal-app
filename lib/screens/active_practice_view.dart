@@ -6,8 +6,10 @@ import '../providers/practice_provider.dart';
 import '../providers/repertoire_provider.dart';
 import '../providers/history_provider.dart';
 import '../providers/localization_provider.dart';
+import '../providers/routine_provider.dart';
 import '../models/piece.dart';
 import '../theme/app_theme.dart';
+import '../widgets/practice_tuner_card.dart';
 
 class ActivePracticeView extends StatefulWidget {
   const ActivePracticeView({super.key});
@@ -18,6 +20,8 @@ class ActivePracticeView extends StatefulWidget {
 
 class _ActivePracticeViewState extends State<ActivePracticeView> {
   bool _isExitDialogVisible = false;
+  int? _tempoBeforeAdjustment;
+  bool _isSavingExerciseTempo = false;
 
   @override
   void initState() {
@@ -46,116 +50,232 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
     return articulation;
   }
 
-  void _confirmEndPractice(
+  Future<void> _saveExerciseTempo({
+    required BuildContext context,
+    required PracticeProvider practiceProvider,
+    required RoutineProvider routineProvider,
+    required String exerciseId,
+    required int previousBpm,
+  }) async {
+    final updatedRoutine = practiceProvider.activeRoutine;
+    if (updatedRoutine == null || _isSavingExerciseTempo) return;
+    setState(() => _isSavingExerciseTempo = true);
+    try {
+      await routineProvider.saveRoutine(updatedRoutine);
+    } catch (error) {
+      practiceProvider.setExerciseBpm(exerciseId, previousBpm);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.translate('exercise_tempo_save_error')),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingExerciseTempo = false);
+    }
+  }
+
+  Future<void> _adjustMetronomeTempo({
+    required BuildContext context,
+    required PracticeProvider practiceProvider,
+    required RoutineProvider routineProvider,
+    required int delta,
+  }) async {
+    final previousBpm = practiceProvider.metronomeBpm;
+    final nextBpm = (previousBpm + delta).clamp(40, 240);
+    if (nextBpm == previousBpm || _isSavingExerciseTempo) return;
+
+    final exerciseId = practiceProvider.activeExerciseId;
+    if (exerciseId == null) {
+      practiceProvider.setMetronomeBpm(nextBpm);
+      return;
+    }
+
+    practiceProvider.setExerciseBpm(exerciseId, nextBpm);
+    await _saveExerciseTempo(
+      context: context,
+      practiceProvider: practiceProvider,
+      routineProvider: routineProvider,
+      exerciseId: exerciseId,
+      previousBpm: previousBpm,
+    );
+  }
+
+  String _buildExerciseNotesDraft(
+    BuildContext context,
+    PracticeProvider practiceProvider,
+  ) {
+    final routine = practiceProvider.activeRoutine;
+    if (routine == null) return '';
+    final lines = <String>[];
+    for (final exercise in routine.exercises) {
+      final bpm = practiceProvider.exercisePracticedBpms[exercise.id];
+      if (bpm == null) continue;
+      final pitch = practiceProvider.exercisePitchSummaries[exercise.id];
+      lines.add(
+        pitch != null && pitch.hasEnoughData
+            ? context.translate('exercise_notes_draft_item_pitch', [
+                exercise.name,
+                bpm.toString(),
+                pitch.onPitchPercentage.round().toString(),
+                pitch.referenceHz.toString(),
+                pitch.toleranceCents.toString(),
+              ])
+            : context.translate('exercise_notes_draft_item', [
+                exercise.name,
+                bpm.toString(),
+              ]),
+      );
+    }
+    if (lines.isEmpty) return '';
+    return [
+      context.translate('exercise_notes_draft_title'),
+      ...lines,
+    ].join('\n');
+  }
+
+  String _notesWithExerciseDraft(String existingNotes, String draft) {
+    final existing = existingNotes.trim();
+    if (draft.isEmpty) return existing;
+    if (existing.isEmpty) return draft;
+    return '$existing\n\n$draft';
+  }
+
+  Future<void> _confirmEndPractice(
     BuildContext context,
     PracticeProvider practiceProv,
     RepertoireProvider repProv,
-  ) {
+  ) async {
     practiceProv.pauseSession();
+    await practiceProv.stopPitchCapture();
+    if (!mounted || !context.mounted) return;
     final locProv = Provider.of<LocalizationProvider>(context, listen: false);
     final historyProv = Provider.of<HistoryProvider>(context, listen: false);
-    var isSaving = false;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            return AlertDialog(
-              title: Text(context.translate('finish_session_title')),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      context.translate(
-                        kIsWeb
-                            ? 'finish_session_subtitle_web'
-                            : 'finish_session_subtitle',
-                      ),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: practiceProv.notesController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: context.translate('practice_notes'),
-                        hintText: locProv.isSpanish
-                            ? 'ej. Se sintió bien. El pasaje de repertorio en el compás 15 necesita un golpe de lengua doble más limpio.'
-                            : 'e.g., Felt good. Repertoire passage on measure 15 needs cleaner double tonguing.',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSaving
-                      ? null
-                      : () async {
-                          await practiceProv.resumeSession();
-                          if (dialogContext.mounted) {
-                            Navigator.of(dialogContext).pop();
-                          }
-                        },
-                  child: Text(
-                    dialogContext.translate('keep_practicing'),
-                    style: const TextStyle(color: AppTheme.textSecondary),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: isSaving
-                      ? null
-                      : () async {
-                          setDialogState(() => isSaving = true);
-                          try {
-                            final record = await practiceProv
-                                .prepareSessionRecord(repProv.pieces);
-                            if (record == null) {
-                              throw StateError('No active session to save.');
-                            }
-                            await historyProv.saveSession(record);
-                            practiceProv.completeSession();
-                            if (!mounted || !dialogContext.mounted) return;
-                            Navigator.of(dialogContext).pop();
-                            Navigator.of(context).pop();
-                          } catch (error) {
-                            if (!dialogContext.mounted) return;
-                            setDialogState(() => isSaving = false);
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  dialogContext.translate('session_save_error'),
-                                ),
-                                backgroundColor: Theme.of(
-                                  dialogContext,
-                                ).colorScheme.error,
-                              ),
-                            );
-                          }
-                        },
-                  child: isSaving
-                      ? const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(dialogContext.translate('save_finish')),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    final originalNotes = practiceProv.notesController.text;
+    final draft = _buildExerciseNotesDraft(context, practiceProv);
+    final finishNotesController = TextEditingController(
+      text: _notesWithExerciseDraft(originalNotes, draft),
     );
+    var isSaving = false;
+    var sessionSaved = false;
+
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              return AlertDialog(
+                title: Text(context.translate('finish_session_title')),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        context.translate(
+                          kIsWeb
+                              ? 'finish_session_subtitle_web'
+                              : 'finish_session_subtitle',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: finishNotesController,
+                        maxLines: 6,
+                        decoration: InputDecoration(
+                          labelText: context.translate('practice_notes'),
+                          hintText: locProv.isSpanish
+                              ? 'ej. Se sintió bien. El pasaje de repertorio en el compás 15 necesita un golpe de lengua doble más limpio.'
+                              : 'e.g., Felt good. Repertoire passage on measure 15 needs cleaner double tonguing.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: isSaving
+                        ? null
+                        : () async {
+                            await practiceProv.resumeSession();
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                          },
+                    child: Text(
+                      dialogContext.translate('keep_practicing'),
+                      style: const TextStyle(color: AppTheme.textSecondary),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: isSaving
+                        ? null
+                        : () async {
+                            setDialogState(() => isSaving = true);
+                            try {
+                              practiceProv.notesController.text =
+                                  finishNotesController.text;
+                              final record = await practiceProv
+                                  .prepareSessionRecord(repProv.pieces);
+                              if (record == null) {
+                                throw StateError('No active session to save.');
+                              }
+                              await historyProv.saveSession(record);
+                              practiceProv.completeSession();
+                              if (!mounted || !dialogContext.mounted) return;
+                              sessionSaved = true;
+                              Navigator.of(dialogContext).pop();
+                            } catch (error) {
+                              practiceProv.notesController.text = originalNotes;
+                              if (!dialogContext.mounted) return;
+                              setDialogState(() => isSaving = false);
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    dialogContext.translate(
+                                      'session_save_error',
+                                    ),
+                                  ),
+                                  backgroundColor: Theme.of(
+                                    dialogContext,
+                                  ).colorScheme.error,
+                                ),
+                              );
+                            }
+                          },
+                    child: isSaving
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(dialogContext.translate('save_finish')),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      // showDialog completes when pop is requested, before the reverse route
+      // animation has necessarily detached the TextField from its controller.
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      finishNotesController.dispose();
+    }
+    if (sessionSaved && mounted && context.mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<bool> _confirmExitPractice(
@@ -205,20 +325,25 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
   Widget build(BuildContext context) {
     final practiceProv = Provider.of<PracticeProvider>(context);
     final repProv = Provider.of<RepertoireProvider>(context);
+    final routineProv = Provider.of<RoutineProvider>(context, listen: false);
     final isSpanish = Provider.of<LocalizationProvider>(
       context,
       listen: false,
     ).isSpanish;
 
     final routine = practiceProv.activeRoutine;
-    final activeExercise = routine != null && routine.exercises.isNotEmpty
+    final suggestedExercise = routine != null && routine.exercises.isNotEmpty
         ? routine.exercises.firstWhere(
             (e) => !practiceProv.completedExerciseIds.contains(e.id),
             orElse: () => routine.exercises.last,
           )
         : null;
 
-    final defaultBpm = activeExercise?.targetBpm ?? 80;
+    final defaultBpm = practiceProv.activeExerciseId == null
+        ? suggestedExercise?.targetBpm ?? 80
+        : practiceProv.exercisePracticedBpms[practiceProv.activeExerciseId!] ??
+              suggestedExercise?.targetBpm ??
+              80;
 
     return PopScope(
       canPop: !practiceProv.isActive,
@@ -487,37 +612,221 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                 final isCompleted = practiceProv
                                     .completedExerciseIds
                                     .contains(exercise.id);
-                                return Material(
-                                  type: MaterialType.transparency,
-                                  child: CheckboxListTile(
-                                    activeColor: AppTheme.primaryAccent,
-                                    contentPadding: EdgeInsets.zero,
-                                    title: Text(
-                                      exercise.name,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                        decoration: isCompleted
-                                            ? TextDecoration.lineThrough
-                                            : null,
-                                        color: isCompleted
-                                            ? AppTheme.textSecondary
-                                            : AppTheme.textPrimary,
+                                final isActive =
+                                    practiceProv.activeExerciseId ==
+                                    exercise.id;
+                                final duration = practiceProv
+                                    .exerciseDurationInSeconds(exercise.id);
+                                final practicedBpm =
+                                    practiceProv.exercisePracticedBpms[exercise
+                                        .id] ??
+                                    exercise.targetBpm;
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isActive
+                                        ? AppTheme.primaryAccent.withValues(
+                                            alpha: 0.08,
+                                          )
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: isActive
+                                        ? Border.all(
+                                            color: AppTheme.primaryAccent
+                                                .withValues(alpha: 0.45),
+                                          )
+                                        : null,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Checkbox(
+                                            value: isCompleted,
+                                            activeColor: AppTheme.primaryAccent,
+                                            onChanged: (_) => practiceProv
+                                                .toggleExerciseCompleted(
+                                                  exercise.id,
+                                                ),
+                                          ),
+                                          Expanded(
+                                            child: InkWell(
+                                              onTap: () => practiceProv
+                                                  .toggleExerciseCompleted(
+                                                    exercise.id,
+                                                  ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    exercise.name,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: 14,
+                                                      decoration: isCompleted
+                                                          ? TextDecoration
+                                                                .lineThrough
+                                                          : null,
+                                                      color: isCompleted
+                                                          ? AppTheme
+                                                                .textSecondary
+                                                          : AppTheme
+                                                                .textPrimary,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${_getLocalizedArticulation(context, exercise.articulation)} • ${isSpanish ? 'Objetivo' : 'Target'}: ${exercise.targetBpm} BPM',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: AppTheme
+                                                          .textSecondary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          if (isActive)
+                                            ElevatedButton.icon(
+                                              key: ValueKey(
+                                                'stop_exercise_${exercise.id}',
+                                              ),
+                                              onPressed: () => practiceProv
+                                                  .stopExercise(exercise.id),
+                                              icon: const Icon(
+                                                Icons.stop_rounded,
+                                                size: 18,
+                                              ),
+                                              label: Text(
+                                                context.translate(
+                                                  'stop_exercise',
+                                                ),
+                                              ),
+                                            )
+                                          else
+                                            OutlinedButton.icon(
+                                              key: ValueKey(
+                                                'start_exercise_${exercise.id}',
+                                              ),
+                                              onPressed: practiceProv.isPaused
+                                                  ? null
+                                                  : () => practiceProv
+                                                        .startExercise(
+                                                          exercise.id,
+                                                          exercise.targetBpm,
+                                                        ),
+                                              icon: const Icon(
+                                                Icons.play_arrow_rounded,
+                                                size: 18,
+                                              ),
+                                              label: Text(
+                                                duration > 0
+                                                    ? context.translate(
+                                                        'resume_exercise',
+                                                      )
+                                                    : context.translate(
+                                                        'start_exercise',
+                                                      ),
+                                              ),
+                                            ),
+                                          const SizedBox(width: 8),
+                                        ],
                                       ),
-                                    ),
-                                    subtitle: Text(
-                                      '${_getLocalizedArticulation(context, exercise.articulation)} • ${isSpanish ? 'Objetivo' : 'Target'}: ${exercise.targetBpm} BPM',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                    ),
-                                    value: isCompleted,
-                                    onChanged: (bool? checked) {
-                                      practiceProv.toggleExerciseCompleted(
-                                        exercise.id,
-                                      );
-                                    },
+                                      if (duration > 0 || isActive)
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                            48,
+                                            4,
+                                            12,
+                                            0,
+                                          ),
+                                          child: Wrap(
+                                            spacing: 12,
+                                            runSpacing: 4,
+                                            alignment:
+                                                WrapAlignment.spaceBetween,
+                                            children: [
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.timer_outlined,
+                                                    size: 16,
+                                                    color:
+                                                        AppTheme.textSecondary,
+                                                  ),
+                                                  const SizedBox(width: 5),
+                                                  Text(
+                                                    context.translate(
+                                                      'exercise_elapsed',
+                                                      [_formatTime(duration)],
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              Text(
+                                                context.translate(
+                                                  'practiced_tempo',
+                                                  [practicedBpm.toString()],
+                                                ),
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: AppTheme.textSecondary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      if (isActive)
+                                        Slider(
+                                          key: ValueKey(
+                                            'exercise_tempo_${exercise.id}',
+                                          ),
+                                          min: 40,
+                                          max: 240,
+                                          activeColor: AppTheme.primaryAccent,
+                                          inactiveColor: AppTheme.border,
+                                          value: practicedBpm.toDouble(),
+                                          onChangeStart: (value) {
+                                            _tempoBeforeAdjustment = value
+                                                .round();
+                                          },
+                                          onChanged: _isSavingExerciseTempo
+                                              ? null
+                                              : (value) =>
+                                                    practiceProv.setExerciseBpm(
+                                                      exercise.id,
+                                                      value.round(),
+                                                    ),
+                                          onChangeEnd: (value) async {
+                                            final previous =
+                                                _tempoBeforeAdjustment ??
+                                                practicedBpm;
+                                            _tempoBeforeAdjustment = null;
+                                            if (previous == value.round()) {
+                                              return;
+                                            }
+                                            await _saveExerciseTempo(
+                                              context: context,
+                                              practiceProvider: practiceProv,
+                                              routineProvider: routineProv,
+                                              exerciseId: exercise.id,
+                                              previousBpm: previous,
+                                            );
+                                          },
+                                        ),
+                                    ],
                                   ),
                                 );
                               },
@@ -594,11 +903,13 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                     child: Switch(
                                       activeThumbColor: AppTheme.primaryAccent,
                                       value: practiceProv.metronomeOn,
-                                      onChanged: (value) {
-                                        practiceProv.toggleMetronome(
-                                          defaultBpm,
-                                        );
-                                      },
+                                      onChanged: practiceProv.isPaused
+                                          ? null
+                                          : (value) {
+                                              practiceProv.toggleMetronome(
+                                                defaultBpm,
+                                              );
+                                            },
                                     ),
                                   ),
                                 ],
@@ -607,15 +918,99 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                           ),
                           if (practiceProv.metronomeOn) ...[
                             const SizedBox(height: 8),
-                            Slider(
-                              min: 40,
-                              max: 240,
-                              activeColor: AppTheme.primaryAccent,
-                              inactiveColor: AppTheme.border,
-                              value: practiceProv.metronomeBpm.toDouble(),
-                              onChanged: (double val) {
-                                practiceProv.setMetronomeBpm(val.round());
-                              },
+                            Row(
+                              children: [
+                                IconButton.filledTonal(
+                                  key: const ValueKey(
+                                    'decrease_metronome_tempo',
+                                  ),
+                                  tooltip: context.translate('decrease_tempo'),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed:
+                                      _isSavingExerciseTempo ||
+                                          practiceProv.metronomeBpm <= 40
+                                      ? null
+                                      : () => _adjustMetronomeTempo(
+                                          context: context,
+                                          practiceProvider: practiceProv,
+                                          routineProvider: routineProv,
+                                          delta: -1,
+                                        ),
+                                  icon: const Icon(Icons.remove_rounded),
+                                ),
+                                Expanded(
+                                  child: Slider(
+                                    min: 40,
+                                    max: 240,
+                                    activeColor: AppTheme.primaryAccent,
+                                    inactiveColor: AppTheme.border,
+                                    value: practiceProv.metronomeBpm.toDouble(),
+                                    onChangeStart:
+                                        practiceProv.activeExerciseId == null
+                                        ? null
+                                        : (value) {
+                                            _tempoBeforeAdjustment = value
+                                                .round();
+                                          },
+                                    onChanged: _isSavingExerciseTempo
+                                        ? null
+                                        : (double val) {
+                                            final exerciseId =
+                                                practiceProv.activeExerciseId;
+                                            if (exerciseId == null) {
+                                              practiceProv.setMetronomeBpm(
+                                                val.round(),
+                                              );
+                                            } else {
+                                              practiceProv.setExerciseBpm(
+                                                exerciseId,
+                                                val.round(),
+                                              );
+                                            }
+                                          },
+                                    onChangeEnd:
+                                        practiceProv.activeExerciseId == null
+                                        ? null
+                                        : (value) async {
+                                            final exerciseId =
+                                                practiceProv.activeExerciseId;
+                                            if (exerciseId == null) return;
+                                            final previous =
+                                                _tempoBeforeAdjustment ??
+                                                value.round();
+                                            _tempoBeforeAdjustment = null;
+                                            if (previous == value.round()) {
+                                              return;
+                                            }
+                                            await _saveExerciseTempo(
+                                              context: context,
+                                              practiceProvider: practiceProv,
+                                              routineProvider: routineProv,
+                                              exerciseId: exerciseId,
+                                              previousBpm: previous,
+                                            );
+                                          },
+                                  ),
+                                ),
+                                IconButton.filledTonal(
+                                  key: const ValueKey(
+                                    'increase_metronome_tempo',
+                                  ),
+                                  tooltip: context.translate('increase_tempo'),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed:
+                                      _isSavingExerciseTempo ||
+                                          practiceProv.metronomeBpm >= 240
+                                      ? null
+                                      : () => _adjustMetronomeTempo(
+                                          context: context,
+                                          practiceProvider: practiceProv,
+                                          routineProvider: routineProv,
+                                          delta: 1,
+                                        ),
+                                  icon: const Icon(Icons.add_rounded),
+                                ),
+                              ],
                             ),
                             const Divider(height: 16, color: AppTheme.border),
                             Row(
@@ -725,6 +1120,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: 20),
+
+                    PracticeTunerCard(practiceProvider: practiceProv),
 
                     const SizedBox(height: 20),
 

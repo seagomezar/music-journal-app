@@ -6,23 +6,31 @@ import '../models/routine.dart';
 import '../models/exercise.dart';
 import '../models/piece.dart';
 import '../models/session_record.dart';
+import '../models/pitch_tracking.dart';
 import '../services/audio_service.dart';
 import '../services/metronome_audio_service.dart';
+import '../services/pitch_tracking_service.dart';
 import '../services/screen_awake_service.dart';
 
 class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   PracticeProvider({
     AudioService? audioService,
+    PitchTrackingService? pitchTrackingService,
     MetronomeAudioController? metronomeAudioController,
     ScreenAwakeController? screenAwakeController,
     Stopwatch? activeStopwatch,
     bool keepScreenAwake = false,
     bool metronomeSoundEnabled = true,
     double metronomeVolume = 0.7,
+    int tunerReferenceHz = 440,
+    int tunerToleranceCents = 10,
     Future<void> Function(bool)? persistKeepScreenAwake,
     Future<void> Function(bool)? persistMetronomeSound,
     Future<void> Function(double)? persistMetronomeVolume,
+    Future<void> Function(int)? persistTunerReference,
+    Future<void> Function(int)? persistTunerTolerance,
   }) : _audioService = audioService ?? AudioService(),
+       _pitchTracking = pitchTrackingService ?? PitchTrackingService(),
        _metronomeAudio =
            metronomeAudioController ?? NoopMetronomeAudioController(),
        _screenAwake = screenAwakeController ?? NoopScreenAwakeController(),
@@ -30,24 +38,38 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
        _keepScreenAwake = keepScreenAwake,
        _metronomeSoundEnabled = metronomeSoundEnabled,
        _metronomeVolume = metronomeVolume.clamp(0.0, 1.0),
+       _tunerReferenceHz = tunerReferenceHz.clamp(420, 460),
+       _tunerToleranceCents = const {5, 10, 20}.contains(tunerToleranceCents)
+           ? tunerToleranceCents
+           : 10,
        _persistKeepScreenAwake = persistKeepScreenAwake,
        _persistMetronomeSound = persistMetronomeSound,
-       _persistMetronomeVolume = persistMetronomeVolume {
+       _persistMetronomeVolume = persistMetronomeVolume,
+       _persistTunerReference = persistTunerReference,
+       _persistTunerTolerance = persistTunerTolerance {
     _audioService.onPlaybackChanged = (_) {
       if (_isDisposed) return;
       unawaited(_syncMetronomeAudioSuppression());
       notifyListeners();
     };
     _metronomeAudio.onExternalPlayingChanged = _handleExternalMetronomeState;
+    _pitchTracking.onReading = (reading) {
+      if (_isDisposed) return;
+      _pitchReading = reading;
+      notifyListeners();
+    };
     WidgetsBinding.instance.addObserver(this);
   }
 
   final AudioService _audioService;
+  final PitchTrackingService _pitchTracking;
   final MetronomeAudioController _metronomeAudio;
   final ScreenAwakeController _screenAwake;
   final Future<void> Function(bool)? _persistKeepScreenAwake;
   final Future<void> Function(bool)? _persistMetronomeSound;
   final Future<void> Function(double)? _persistMetronomeVolume;
+  final Future<void> Function(int)? _persistTunerReference;
+  final Future<void> Function(int)? _persistTunerTolerance;
   bool _isDisposed = false;
   bool _isInForeground = true;
 
@@ -63,6 +85,11 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
   // Active exercises completion
   final Set<String> _completedExerciseIds = {};
+  final Map<String, int> _exerciseDurationMilliseconds = {};
+  final Map<String, int> _exercisePracticedBpms = {};
+  String? _activeExerciseId;
+  int? _activeExerciseStartedAtMilliseconds;
+  bool _resumeMetronomeAfterSessionPause = false;
 
   // Rehearsed pieces tracker (pieceId -> seconds)
   final Map<String, int> _rehearsedPiecesDuration = {};
@@ -76,15 +103,20 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   // Metronome variables
   bool _metronomeOn = false;
   int _metronomeBpm = 80;
-  Timer? _metronomeBeatTimer;
-  Timer? _metronomePulseTimer;
+  Timer? _metronomeVisualTimer;
   Timer? _metronomeTempoTimer;
-  final Stopwatch _metronomeStopwatch = Stopwatch();
-  int _nextMetronomeBeat = 0;
   bool _metronomePulse = false;
   bool _metronomeSoundEnabled;
   double _metronomeVolume;
   bool _metronomeSoundSuppressed = false;
+
+  // Tuner and per-exercise intonation tracking
+  bool _isTunerVisible = true;
+  int _tunerReferenceHz;
+  int _tunerToleranceCents;
+  PitchReading? _pitchReading;
+  final Map<String, ExercisePitchSummary> _exercisePitchSummaries = {};
+  Future<void>? _pendingPitchStop;
 
   // Notes
   final TextEditingController notesController = TextEditingController();
@@ -96,6 +128,8 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   int get secondsElapsed => _secondsElapsed;
   bool get keepScreenAwake => _keepScreenAwake;
   Set<String> get completedExerciseIds => _completedExerciseIds;
+  String? get activeExerciseId => _activeExerciseId;
+  Map<String, int> get exercisePracticedBpms => _exercisePracticedBpms;
   Map<String, int> get rehearsedPiecesDuration => _rehearsedPiecesDuration;
   String? get activePieceId => _activePieceId;
   bool get isAudioRecorderActive => _isAudioRecorderActive;
@@ -110,6 +144,17 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   bool get metronomeSoundEnabled => _metronomeSoundEnabled;
   double get metronomeVolume => _metronomeVolume;
   bool get isMetronomeSoundSuppressed => _metronomeSoundSuppressed;
+  bool get isTunerVisible => _isTunerVisible;
+  int get tunerReferenceHz => _tunerReferenceHz;
+  int get tunerToleranceCents => _tunerToleranceCents;
+  PitchReading? get pitchReading => _pitchReading;
+  bool get isPitchListening => _pitchTracking.isListening;
+  bool get isTrackingPitch =>
+      _pitchTracking.isListening &&
+      _pitchTracking.mode == PitchCaptureMode.tracking;
+  Map<String, ExercisePitchSummary> get exercisePitchSummaries =>
+      Map.unmodifiable(_exercisePitchSummaries);
+  ExercisePitchSummary? get livePitchSummary => _pitchTracking.currentSummary();
 
   // Action methods
   Future<void> setKeepScreenAwake(bool enabled) async {
@@ -136,11 +181,19 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _isPaused = false;
     _secondsElapsed = 0;
     _completedExerciseIds.clear();
+    _exerciseDurationMilliseconds.clear();
+    _exercisePracticedBpms.clear();
+    _exercisePitchSummaries.clear();
+    _activeExerciseId = null;
+    _activeExerciseStartedAtMilliseconds = null;
+    _resumeMetronomeAfterSessionPause = false;
     _rehearsedPiecesDuration.clear();
     _activePieceId = null;
     _activePieceTitle = null;
     _isAudioRecorderActive = false;
     _recordedAudioPath = null;
+    _isTunerVisible = true;
+    _pitchReading = null;
     notesController.clear();
 
     _activeStopwatch
@@ -179,7 +232,9 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _isPaused = true;
     _activeStopwatch.stop();
     _timer?.cancel();
+    _resumeMetronomeAfterSessionPause = _metronomeOn;
     _stopMetronome();
+    unawaited(stopPitchCapture());
     unawaited(_applyScreenAwakePreferenceSafely());
     notifyListeners();
   }
@@ -189,6 +244,12 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _isPaused = false;
     _activeStopwatch.start();
     _startTimer();
+    if (_resumeMetronomeAfterSessionPause && _activeExerciseId != null) {
+      _metronomeBpm =
+          _exercisePracticedBpms[_activeExerciseId!] ?? _metronomeBpm;
+      _startMetronome();
+    }
+    _resumeMetronomeAfterSessionPause = false;
     await _applyScreenAwakePreferenceSafely();
     notifyListeners();
   }
@@ -231,6 +292,81 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     notifyListeners();
   }
 
+  int exerciseDurationInSeconds(String id) {
+    var milliseconds = _exerciseDurationMilliseconds[id] ?? 0;
+    if (_activeExerciseId == id &&
+        _activeExerciseStartedAtMilliseconds != null) {
+      milliseconds +=
+          _activeStopwatch.elapsedMilliseconds -
+          _activeExerciseStartedAtMilliseconds!;
+    }
+    return (milliseconds ~/ Duration.millisecondsPerSecond).clamp(0, 86400);
+  }
+
+  void startExercise(String id, int targetBpm) {
+    if (!_isActive || _isPaused || _activeExerciseId == id) return;
+    if (_activeExerciseId != null) {
+      _finalizeActiveExercise(markCompleted: true);
+    }
+
+    final bpm = targetBpm.clamp(40, 240).toInt();
+    _activeExerciseId = id;
+    _activeExerciseStartedAtMilliseconds = _activeStopwatch.elapsedMilliseconds;
+    _exerciseDurationMilliseconds.putIfAbsent(id, () => 0);
+    _exercisePracticedBpms[id] = bpm;
+    _completedExerciseIds.remove(id);
+    _metronomeBpm = bpm;
+    if (_metronomeOn) {
+      unawaited(_setMetronomeTempoSafely());
+      notifyListeners();
+    } else {
+      _startMetronome();
+    }
+  }
+
+  void stopExercise(String id) {
+    if (_activeExerciseId != id) return;
+    _finalizeActiveExercise(markCompleted: true);
+    _stopMetronome();
+  }
+
+  void setExerciseBpm(String id, int bpm) {
+    final nextBpm = bpm.clamp(40, 240).toInt();
+    _exercisePracticedBpms[id] = nextBpm;
+    final routine = _activeRoutine;
+    if (routine != null) {
+      _activeRoutine = routine.copyWith(
+        exercises: routine.exercises
+            .map(
+              (exercise) => exercise.id == id
+                  ? exercise.copyWith(targetBpm: nextBpm)
+                  : exercise,
+            )
+            .toList(),
+      );
+    }
+    if (_activeExerciseId == id) {
+      setMetronomeBpm(nextBpm);
+    } else {
+      notifyListeners();
+    }
+  }
+
+  void _finalizeActiveExercise({required bool markCompleted}) {
+    final id = _activeExerciseId;
+    final startedAt = _activeExerciseStartedAtMilliseconds;
+    if (id == null || startedAt == null) return;
+    final elapsed = _activeStopwatch.elapsedMilliseconds - startedAt;
+    _exerciseDurationMilliseconds[id] =
+        (_exerciseDurationMilliseconds[id] ?? 0) + elapsed.clamp(0, 86400000);
+    if (markCompleted) _completedExerciseIds.add(id);
+    if (isTrackingPitch) unawaited(stopPitchCapture(exerciseId: id));
+    _activeExerciseId = null;
+    _activeExerciseStartedAtMilliseconds = null;
+    _resumeMetronomeAfterSessionPause = false;
+    notifyListeners();
+  }
+
   // --- AUDIO SELF EVALUATION RECORDER ---
   void activateAudioRecorder() {
     _isAudioRecorderActive = true;
@@ -238,6 +374,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   }
 
   Future<bool> startRecording() async {
+    await stopPitchCapture();
     await _setMetronomeSoundSuppressed(true);
     try {
       await _audioService.startRecording();
@@ -249,6 +386,111 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       notifyListeners();
       return false;
     }
+  }
+
+  // --- TUNER AND PITCH TRACKING ---
+  Future<void> setTunerVisible(bool visible) async {
+    if (_isTunerVisible == visible) return;
+    if (!visible) await stopPitchCapture();
+    _isTunerVisible = visible;
+    notifyListeners();
+  }
+
+  Future<void> setTunerReferenceHz(int value) async {
+    if (isPitchListening) return;
+    final next = value.clamp(420, 460);
+    if (next == _tunerReferenceHz) return;
+    final previous = _tunerReferenceHz;
+    _tunerReferenceHz = next;
+    notifyListeners();
+    try {
+      await _persistTunerReference?.call(next);
+    } catch (_) {
+      _tunerReferenceHz = previous;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> setTunerToleranceCents(int value) async {
+    if (isPitchListening || !const {5, 10, 20}.contains(value)) return;
+    if (value == _tunerToleranceCents) return;
+    final previous = _tunerToleranceCents;
+    _tunerToleranceCents = value;
+    notifyListeners();
+    try {
+      await _persistTunerTolerance?.call(value);
+    } catch (_) {
+      _tunerToleranceCents = previous;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<bool> startPitchCapture({required bool trackExercise}) async {
+    if (!_isActive || _isPaused || isRecording || isPlayingPlayback) {
+      return false;
+    }
+    if (trackExercise && _activeExerciseId == null) return false;
+    await stopPitchCapture();
+    try {
+      await _pitchTracking.start(
+        mode: trackExercise
+            ? PitchCaptureMode.tracking
+            : PitchCaptureMode.tuning,
+        referenceHz: _tunerReferenceHz,
+        toleranceCents: _tunerToleranceCents,
+        excludeFrame: _isMetronomeClickWindow,
+      );
+      notifyListeners();
+      return true;
+    } catch (error) {
+      debugPrint('Unable to start pitch tracking: $error');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  bool _isMetronomeClickWindow() {
+    if (!_metronomeOn ||
+        !_metronomeSoundEnabled ||
+        _metronomeSoundSuppressed ||
+        _metronomeVolume == 0) {
+      return false;
+    }
+    final snapshot = _metronomeAudio.clockSnapshot;
+    return snapshot != null &&
+        snapshot.phase < const Duration(milliseconds: 80);
+  }
+
+  Future<void> stopPitchCapture({String? exerciseId}) async {
+    final pending = _pendingPitchStop;
+    if (pending != null) {
+      await pending;
+      return;
+    }
+    final stop = _stopPitchCaptureInternal(exerciseId: exerciseId);
+    _pendingPitchStop = stop;
+    try {
+      await stop;
+    } finally {
+      _pendingPitchStop = null;
+    }
+  }
+
+  Future<void> _stopPitchCaptureInternal({String? exerciseId}) async {
+    if (!_pitchTracking.isListening && _pitchTracking.mode == null) return;
+    final trackedId =
+        exerciseId ??
+        (_pitchTracking.mode == PitchCaptureMode.tracking
+            ? _activeExerciseId
+            : null);
+    final summary = await _pitchTracking.stop();
+    if (trackedId != null && summary != null) {
+      _exercisePitchSummaries[trackedId] = summary;
+    }
+    _pitchReading = null;
+    if (!_isDisposed) notifyListeners();
   }
 
   Future<void> stopRecording() async {
@@ -302,12 +544,11 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   Future<void> _setMetronomeSoundSuppressed(bool suppressed) async {
     if (_metronomeSoundSuppressed == suppressed) return;
     _metronomeSoundSuppressed = suppressed;
-    if (_metronomeOn && _metronomeSoundEnabled) {
+    if (_metronomeOn) {
       try {
-        if (!suppressed) {
-          await _metronomeAudio.setTempo(_metronomeBpm);
-        }
-        await _metronomeAudio.setVolume(suppressed ? 0 : _metronomeVolume);
+        await _metronomeAudio.setVolume(
+          suppressed || !_metronomeSoundEnabled ? 0 : _metronomeVolume,
+        );
       } catch (error) {
         debugPrint('Unable to update metronome audio suppression: $error');
       }
@@ -328,14 +569,11 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   void setMetronomeBpm(int bpm) {
     _metronomeBpm = bpm.clamp(40, 240).toInt();
     if (_metronomeOn) {
-      _restartMetronomeVisual();
-      if (_metronomeSoundEnabled && !_metronomeSoundSuppressed) {
-        _metronomeTempoTimer?.cancel();
-        _metronomeTempoTimer = Timer(
-          const Duration(milliseconds: 120),
-          () => unawaited(_setMetronomeTempoSafely()),
-        );
-      }
+      _metronomeTempoTimer?.cancel();
+      _metronomeTempoTimer = Timer(
+        const Duration(milliseconds: 120),
+        () => unawaited(_setMetronomeTempoSafely()),
+      );
     }
     notifyListeners();
   }
@@ -347,17 +585,17 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     notifyListeners();
     try {
       if (_metronomeOn) {
-        if (enabled) {
-          await _startMetronomeAudio();
-        } else {
-          await _metronomeAudio.stop();
-        }
+        await _metronomeAudio.setVolume(
+          enabled && !_metronomeSoundSuppressed ? _metronomeVolume : 0,
+        );
       }
       await _persistMetronomeSound?.call(enabled);
     } catch (error) {
       _metronomeSoundEnabled = previous;
-      if (_metronomeOn && previous) {
-        await _startMetronomeAudio();
+      if (_metronomeOn) {
+        await _metronomeAudio.setVolume(
+          previous && !_metronomeSoundSuppressed ? _metronomeVolume : 0,
+        );
       }
       notifyListeners();
       rethrow;
@@ -371,17 +609,17 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _metronomeVolume = nextVolume;
     notifyListeners();
     try {
-      if (_metronomeOn && _metronomeSoundEnabled) {
+      if (_metronomeOn) {
         await _metronomeAudio.setVolume(
-          _metronomeSoundSuppressed ? 0 : nextVolume,
+          _metronomeSoundSuppressed || !_metronomeSoundEnabled ? 0 : nextVolume,
         );
       }
       await _persistMetronomeVolume?.call(nextVolume);
     } catch (error) {
       _metronomeVolume = previous;
-      if (_metronomeOn && _metronomeSoundEnabled) {
+      if (_metronomeOn) {
         await _metronomeAudio.setVolume(
-          _metronomeSoundSuppressed ? 0 : previous,
+          _metronomeSoundSuppressed || !_metronomeSoundEnabled ? 0 : previous,
         );
       }
       notifyListeners();
@@ -392,9 +630,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   void _startMetronome() {
     _metronomeOn = true;
     _restartMetronomeVisual();
-    if (_metronomeSoundEnabled && !_metronomeSoundSuppressed) {
-      unawaited(_startMetronomeAudioSafely());
-    }
+    unawaited(_startMetronomeAudioSafely());
     notifyListeners();
   }
 
@@ -409,51 +645,35 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   void _restartMetronomeVisual() {
     _stopMetronomeVisual();
     if (!_metronomeOn || !_isInForeground) return;
-    _nextMetronomeBeat = 0;
-    _metronomeStopwatch
-      ..reset()
-      ..start();
-    _emitMetronomeBeat();
-  }
-
-  void _emitMetronomeBeat() {
-    if (!_metronomeOn || !_isInForeground || _isDisposed) return;
-    _metronomePulse = false;
-    _metronomePulseTimer?.cancel();
-    _metronomePulse = true;
-    notifyListeners();
-    _metronomePulseTimer = Timer(const Duration(milliseconds: 90), () {
-      if (_isDisposed) return;
-      _metronomePulse = false;
-      notifyListeners();
-    });
-
-    _nextMetronomeBeat += 1;
-    final targetMicros =
-        (_nextMetronomeBeat * Duration.microsecondsPerMinute / _metronomeBpm)
-            .round();
-    final delayMicros = targetMicros - _metronomeStopwatch.elapsedMicroseconds;
-    _metronomeBeatTimer = Timer(
-      Duration(microseconds: delayMicros.clamp(0, targetMicros)),
-      _emitMetronomeBeat,
+    _refreshMetronomeVisual();
+    _metronomeVisualTimer = Timer.periodic(
+      const Duration(milliseconds: 16),
+      (_) => _refreshMetronomeVisual(),
     );
   }
 
+  void _refreshMetronomeVisual() {
+    if (!_metronomeOn || !_isInForeground || _isDisposed) return;
+    final snapshot = _metronomeAudio.clockSnapshot;
+    final nextPulse =
+        snapshot != null && snapshot.phase < const Duration(milliseconds: 90);
+    if (_metronomePulse == nextPulse) return;
+    _metronomePulse = nextPulse;
+    notifyListeners();
+  }
+
   void _stopMetronomeVisual() {
-    _metronomeBeatTimer?.cancel();
-    _metronomePulseTimer?.cancel();
+    _metronomeVisualTimer?.cancel();
     _metronomeTempoTimer?.cancel();
-    _metronomeStopwatch
-      ..stop()
-      ..reset();
-    _nextMetronomeBeat = 0;
     _metronomePulse = false;
   }
 
   Future<void> _startMetronomeAudio() {
     return _metronomeAudio.start(
       bpm: _metronomeBpm,
-      volume: _metronomeSoundSuppressed ? 0 : _metronomeVolume,
+      volume: _metronomeSoundSuppressed || !_metronomeSoundEnabled
+          ? 0
+          : _metronomeVolume,
     );
   }
 
@@ -497,6 +717,8 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     if (!_isActive) return null;
 
     pauseSession();
+    _finalizeActiveExercise(markCompleted: true);
+    await stopPitchCapture();
     await stopRecording();
     await stopPlayback();
     _timer?.cancel();
@@ -508,10 +730,21 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
     // Resolve completed exercises
     final completedList = <Exercise>[];
+    final exerciseResults = <SessionExerciseRecord>[];
     if (_activeRoutine != null) {
       for (final ex in _activeRoutine!.exercises) {
         if (_completedExerciseIds.contains(ex.id)) {
           completedList.add(ex);
+        }
+        if (_exerciseDurationMilliseconds.containsKey(ex.id)) {
+          exerciseResults.add(
+            SessionExerciseRecord(
+              exercise: ex,
+              durationInSeconds: exerciseDurationInSeconds(ex.id),
+              practicedBpm: _exercisePracticedBpms[ex.id] ?? ex.targetBpm,
+              pitchSummary: _exercisePitchSummaries[ex.id],
+            ),
+          );
         }
       }
     }
@@ -544,6 +777,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       endTime: endTime,
       totalDurationInSeconds: _secondsElapsed,
       completedExercises: completedList,
+      exerciseResults: exerciseResults,
       rehearsedPieces: rehearsedList,
       notes: notesController.text,
       // Browser recorder URLs are tied to the current page and cannot be
@@ -564,6 +798,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _timer?.cancel();
     _activeStopwatch.stop();
     _stopMetronome();
+    await stopPitchCapture();
     await _audioService.deleteRecording(_recordedAudioPath);
     _resetSessionState();
     await _applyScreenAwakePreferenceSafely();
@@ -576,6 +811,12 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _activeRoutine = null;
     _secondsElapsed = 0;
     _completedExerciseIds.clear();
+    _exerciseDurationMilliseconds.clear();
+    _exercisePracticedBpms.clear();
+    _exercisePitchSummaries.clear();
+    _activeExerciseId = null;
+    _activeExerciseStartedAtMilliseconds = null;
+    _resumeMetronomeAfterSessionPause = false;
     _rehearsedPiecesDuration.clear();
     _activePieceId = null;
     _activePieceTitle = null;
@@ -600,9 +841,6 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       }
       if (_metronomeOn) {
         _restartMetronomeVisual();
-        if (_metronomeSoundEnabled && !_metronomeSoundSuppressed) {
-          unawaited(_startMetronomeAudioSafely());
-        }
       }
       unawaited(_applyScreenAwakePreferenceSafely());
       notifyListeners();
@@ -620,6 +858,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       unawaited(_applyScreenAwakePreferenceSafely());
       unawaited(stopRecording());
       unawaited(stopPlayback());
+      unawaited(stopPitchCapture());
       notifyListeners();
       return;
     }
@@ -634,6 +873,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       unawaited(_applyScreenAwakePreferenceSafely());
       unawaited(stopRecording());
       unawaited(stopPlayback());
+      unawaited(stopPitchCapture());
     }
   }
 
@@ -642,14 +882,14 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
-    _metronomeBeatTimer?.cancel();
-    _metronomePulseTimer?.cancel();
+    _metronomeVisualTimer?.cancel();
     _metronomeTempoTimer?.cancel();
     _activeStopwatch.stop();
-    _metronomeStopwatch.stop();
     _metronomeAudio.onExternalPlayingChanged = null;
+    _pitchTracking.onReading = null;
     unawaited(_stopMetronomeAudioSafely());
     unawaited(_disableScreenAwakeSafely());
+    unawaited(_pitchTracking.dispose());
     if (_isActive) {
       unawaited(
         _audioService

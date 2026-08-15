@@ -11,12 +11,15 @@ import 'package:flute/models/session_record.dart';
 import 'package:flute/providers/localization_provider.dart';
 import 'package:flute/providers/history_provider.dart';
 import 'package:flute/providers/practice_provider.dart';
+import 'package:flute/providers/repertoire_provider.dart';
 import 'package:flute/providers/routine_provider.dart';
+import 'package:flute/screens/active_practice_view.dart';
 import 'package:flute/screens/manual_session_screen.dart';
 import 'package:flute/services/audio_service.dart';
 import 'package:flute/services/file_storage_service.dart';
 import 'package:flute/services/metronome_audio_service.dart';
 import 'package:flute/services/screen_awake_service.dart';
+import 'package:flute/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 
 class FakeAudioService extends AudioService {
@@ -63,6 +66,9 @@ class FakeAudioService extends AudioService {
 class FakeMetronomeAudioController implements MetronomeAudioController {
   @override
   ValueChanged<bool>? onExternalPlayingChanged;
+
+  @override
+  MetronomeClockSnapshot? get clockSnapshot => null;
 
   int startCalls = 0;
   int stopCalls = 0;
@@ -158,6 +164,14 @@ class FakeRoutineProvider extends RoutineProvider {
 
   @override
   Future<void> loadRoutines() async {}
+
+  @override
+  Future<void> saveRoutine(Routine routine) async {}
+}
+
+class FakeRepertoireProvider extends RepertoireProvider {
+  @override
+  Future<void> loadPieces() async {}
 }
 
 void main() {
@@ -167,6 +181,23 @@ void main() {
   });
 
   group('Data Models Tests', () {
+    test('exercise notes draft labels are localized', () {
+      final english = LocalizationProvider(initialLocale: 'en');
+      final spanish = LocalizationProvider(initialLocale: 'es');
+      expect(
+        english.translate('exercise_notes_draft_title'),
+        'Exercises worked:',
+      );
+      expect(
+        spanish.translate('exercise_notes_draft_title'),
+        'Ejercicios trabajados:',
+      );
+      expect(
+        spanish.translate('exercise_notes_draft_item', ['Escalas', '96']),
+        '• Escalas — 96 BPM',
+      );
+    });
+
     test('UserProfile JSON serialization', () {
       final profile = UserProfile(
         id: 'u1',
@@ -425,6 +456,191 @@ void main() {
       expect(provider.metronomeBpm, 240);
       provider.dispose();
     });
+
+    test(
+      'Exercise runs accumulate time, switch cleanly, and save the latest BPM',
+      () async {
+        final stopwatch = FakeStopwatch();
+        final metronome = FakeMetronomeAudioController();
+        final first = Exercise(
+          id: 'ex1',
+          name: 'Long tones',
+          targetBpm: 60,
+          articulation: 'Legato',
+        );
+        final second = Exercise(
+          id: 'ex2',
+          name: 'Scales',
+          targetBpm: 96,
+          articulation: 'Tongued',
+        );
+        final provider = PracticeProvider(
+          audioService: FakeAudioService(),
+          metronomeAudioController: metronome,
+          activeStopwatch: stopwatch,
+        );
+        provider.startSession(
+          Routine(
+            id: 'routine-1',
+            title: 'Warmup',
+            description: '',
+            exercises: [first, second],
+          ),
+        );
+
+        provider.startExercise(first.id, first.targetBpm);
+        stopwatch.advance(const Duration(milliseconds: 5400));
+        provider.startExercise(second.id, second.targetBpm);
+
+        expect(provider.exerciseDurationInSeconds(first.id), 5);
+        expect(provider.completedExerciseIds, contains(first.id));
+        expect(provider.activeExerciseId, second.id);
+        expect(provider.metronomeBpm, 96);
+
+        provider.pauseSession();
+        stopwatch.advance(const Duration(seconds: 10));
+        await provider.resumeSession();
+        stopwatch.advance(const Duration(milliseconds: 2600));
+        provider.setExerciseBpm(second.id, 132);
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        provider.stopExercise(second.id);
+
+        expect(provider.exerciseDurationInSeconds(second.id), 2);
+        expect(provider.completedExerciseIds, contains(second.id));
+        expect(provider.activeRoutine!.exercises.last.targetBpm, 132);
+        expect(metronome.lastBpm, 132);
+
+        provider.startExercise(first.id, first.targetBpm);
+        stopwatch.advance(const Duration(seconds: 3));
+        provider.stopExercise(first.id);
+        final record = await provider.prepareSessionRecord(const []);
+
+        expect(record!.exerciseResults, hasLength(2));
+        expect(record.exerciseResults.first.durationInSeconds, 8);
+        expect(record.exerciseResults.last.durationInSeconds, 2);
+        expect(record.exerciseResults.last.practicedBpm, 132);
+        expect(record.completedExercises, hasLength(2));
+        provider.completeSession();
+        provider.dispose();
+      },
+    );
+  });
+
+  testWidgets('individual exercise controls start and stop a timed run', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final stopwatch = FakeStopwatch();
+    final practiceProvider = PracticeProvider(
+      audioService: FakeAudioService(),
+      metronomeAudioController: FakeMetronomeAudioController(),
+      activeStopwatch: stopwatch,
+    );
+    final exercise = Exercise(
+      id: 'exercise-1',
+      name: 'Long tones',
+      targetBpm: 72,
+      articulation: 'Legato',
+    );
+    practiceProvider.startSession(
+      Routine(
+        id: 'routine-1',
+        title: 'Warmup',
+        description: '',
+        exercises: [exercise],
+      ),
+    );
+    addTearDown(() async {
+      await practiceProvider.cancelSession();
+      practiceProvider.dispose();
+    });
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<PracticeProvider>.value(
+            value: practiceProvider,
+          ),
+          ChangeNotifierProvider<RepertoireProvider>(
+            create: (_) => FakeRepertoireProvider(),
+          ),
+          ChangeNotifierProvider<HistoryProvider>(
+            create: (_) => FakeHistoryProvider(),
+          ),
+          ChangeNotifierProvider<RoutineProvider>(
+            create: (_) => FakeRoutineProvider(),
+          ),
+          ChangeNotifierProvider<LocalizationProvider>(
+            create: (_) => LocalizationProvider(initialLocale: 'en'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const ActivePracticeView(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final start = find.byKey(const ValueKey('start_exercise_exercise-1'));
+    await tester.ensureVisible(start);
+    await tester.tap(start);
+    await tester.pump();
+
+    expect(practiceProvider.activeExerciseId, exercise.id);
+    expect(practiceProvider.metronomeOn, true);
+    expect(
+      find.byKey(const ValueKey('stop_exercise_exercise-1')),
+      findsOneWidget,
+    );
+
+    final increaseTempo = find.byKey(
+      const ValueKey('increase_metronome_tempo'),
+    );
+    await tester.ensureVisible(increaseTempo);
+    await tester.tap(increaseTempo);
+    await tester.pumpAndSettle();
+    expect(practiceProvider.metronomeBpm, 73);
+
+    final decreaseTempo = find.byKey(
+      const ValueKey('decrease_metronome_tempo'),
+    );
+    await tester.tap(decreaseTempo);
+    await tester.pumpAndSettle();
+    expect(practiceProvider.metronomeBpm, 72);
+
+    stopwatch.advance(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Exercise: 00:03'), findsOneWidget);
+
+    final stopExercise = find.byKey(const ValueKey('stop_exercise_exercise-1'));
+    await tester.ensureVisible(stopExercise);
+    await tester.tap(stopExercise);
+    await tester.pump();
+    expect(practiceProvider.activeExerciseId, isNull);
+    expect(practiceProvider.completedExerciseIds, contains(exercise.id));
+    expect(practiceProvider.metronomeOn, false);
+
+    practiceProvider.notesController.text = 'Tone felt steady.';
+    final finish = find.text('Finish');
+    await tester.ensureVisible(finish);
+    await tester.tap(finish);
+    await tester.pumpAndSettle();
+    final notesField = tester.widget<TextField>(find.byType(TextField).last);
+    expect(
+      notesField.controller!.text,
+      'Tone felt steady.\n\nExercises worked:\n• Long tones — 72 BPM',
+    );
+    await tester.tap(find.text('Keep Practicing'));
+    await tester.pumpAndSettle();
+    expect(practiceProvider.notesController.text, 'Tone felt steady.');
+
+    await practiceProvider.cancelSession();
+    await tester.pump();
   });
 
   group('Managed file storage', () {

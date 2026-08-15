@@ -14,6 +14,8 @@ class DatabaseService {
   static const String _keepScreenAwakeKey = 'keep_screen_awake';
   static const String _metronomeSoundKey = 'metronome_sound';
   static const String _metronomeVolumeKey = 'metronome_volume';
+  static const String _tunerReferenceKey = 'tuner_reference_hz';
+  static const String _tunerToleranceKey = 'tuner_tolerance_cents';
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
@@ -264,6 +266,28 @@ class DatabaseService {
 
   Future<void> setMetronomeVolume(double volume) async {
     await _profileBox.put(_metronomeVolumeKey, volume.clamp(0.0, 1.0));
+  }
+
+  int getTunerReferenceHz() {
+    final value = _profileBox.get(_tunerReferenceKey, defaultValue: 440);
+    return (value as num).toInt().clamp(420, 460);
+  }
+
+  Future<void> setTunerReferenceHz(int referenceHz) async {
+    await _profileBox.put(_tunerReferenceKey, referenceHz.clamp(420, 460));
+  }
+
+  int getTunerToleranceCents() {
+    final value = _profileBox.get(_tunerToleranceKey, defaultValue: 10);
+    final tolerance = (value as num).toInt();
+    return const {5, 10, 20}.contains(tolerance) ? tolerance : 10;
+  }
+
+  Future<void> setTunerToleranceCents(int toleranceCents) async {
+    final value = const {5, 10, 20}.contains(toleranceCents)
+        ? toleranceCents
+        : 10;
+    await _profileBox.put(_tunerToleranceKey, value);
   }
 
   Future<void> clearAllUserData() async {

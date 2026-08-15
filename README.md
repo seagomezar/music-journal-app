@@ -4,7 +4,7 @@
 [![Flutter 3.44.0](https://img.shields.io/badge/Flutter-3.44.0-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Flute Practice Coach is a private, local-only practice journal for flutists. It helps organize technical routines and repertoire, time practice sessions, use a visual metronome, review short self-evaluation recordings, and follow progress over time.
+Flute Practice Coach is a private, local-only practice journal for flutists. It helps organize technical routines and repertoire, time practice sessions, use a metronome and tuner, measure exercise intonation, review short self-evaluation recordings, and follow progress over time.
 
 ## Features
 
@@ -45,9 +45,13 @@ flutter test integration_test/app_smoke_test.dart -d <ios-simulator-id>
 Run or build the browser version with:
 
 ```bash
-flutter run -d chrome
-flutter build web --release
+flutter run -d chrome --wasm
+flutter build web --release --wasm
 ```
+
+The sample-accurate browser metronome requires the WASM build. A JavaScript
+build is supported only when its server sends `Cross-Origin-Opener-Policy:
+same-origin` and `Cross-Origin-Embedder-Policy: require-corp`.
 
 The browser version keeps profile and journal data in browser storage. PDF importing/viewing is mobile-only, and browser recordings are available only during the active practice session; they are not retained in history. Clearing site data or using private browsing can remove browser-stored journal data.
 
@@ -58,7 +62,7 @@ flutter build appbundle --release --build-name=1.0.0 --build-number=1
 flutter build ios --release --no-codesign
 ```
 
-The GitHub workflow runs formatting, analysis, tests, an unsigned Android preview, and an unsigned iOS build check. Signed Android store bundles are created only by a manually dispatched workflow with permanent signing secrets and explicit version/build inputs.
+The GitHub workflow runs formatting, analysis, tests, an unsigned Android preview, an unsigned iOS build check, and a WASM web build. Signed Android store bundles are created only by a manually dispatched workflow with permanent signing secrets and explicit version/build inputs.
 
 ## Store preparation
 
@@ -68,7 +72,7 @@ The GitHub workflow runs formatting, analysis, tests, an unsigned Android previe
 - [Terms and conditions](docs/terms-and-conditions.html)
 - [Support page](docs/support.html)
 - [Landing page](docs/index.html)
-- [Journal backup JSON Schema](docs/journal-backup-schema-v1.json)
+- [Journal backup JSON Schema](docs/journal-backup-schema-v3.json)
 - Generated store graphics under `assets/store/`
 
 ## License

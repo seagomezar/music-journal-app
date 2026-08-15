@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <application
-        android:label="Flute Practice Coach"
+        android:label="Flute Practice"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
