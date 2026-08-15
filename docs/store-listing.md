@@ -43,10 +43,20 @@ Key features:
 - Repertoire and measure-progress tracking
 - PDF score viewer with temporary page annotations
 - Visual metronome from 40 to 240 BPM
+- Exercise-level tempo controls and optional local pitch tracking with A4 reference adjustment
 - Practice timer, notes, statistics, calendar, and streaks
 - Optional private self-evaluation recordings
 - English and Spanish interface
 - Local-first app-managed storage with an in-app erase-data control
+
+## Evidence-informed positioning
+
+The app is designed around structured goals, focused feedback, and reflection—
+practice behaviors discussed in music-learning research. Store copy must not
+claim that the app itself guarantees faster improvement or makes someone a
+better flutist. See the [evidence brief](research/flutist-practice-evidence.md)
+and [claim ledger](research/claim-ledger.csv) for approved wording and source
+limitations.
 
 ## Privacy declarations
 

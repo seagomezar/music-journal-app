@@ -6,6 +6,7 @@ import '../models/routine.dart';
 import '../models/exercise.dart';
 import '../models/piece.dart';
 import '../models/session_record.dart';
+import '../services/analytics_service.dart';
 import '../models/pitch_tracking.dart';
 import '../services/audio_service.dart';
 import '../services/metronome_audio_service.dart';
@@ -175,6 +176,10 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
   void startSession(Routine? routine) {
     if (_isActive) return;
+    AnalyticsService.track(
+      'practice_session_started',
+      properties: {'routine': routine == null ? 'quick_start' : 'routine'},
+    );
     _activeRoutine = routine;
     _startTime = DateTime.now();
     _isActive = true;

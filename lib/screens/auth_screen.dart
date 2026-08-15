@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/localization_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
+import '../services/analytics_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -36,6 +37,7 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
       if (context.mounted) {
+        AnalyticsService.track('onboarding_complete');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

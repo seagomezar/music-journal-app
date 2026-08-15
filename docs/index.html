@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-plausible-domain="">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#061b0e">
-  <meta name="description" content="Flute Practice Coach is a private, local-first journal for planning routines, organizing repertoire, and understanding your practice over time.">
+  <meta name="description" content="Flute Practice Coach turns evidence-informed flute practice into a calm, private workflow for planning, feedback, and reflection.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Flute Practice Coach — Make every practice session count">
-  <meta property="og:description" content="Plan routines, organize repertoire, time focused sessions, and privately reflect on your progress.">
+  <meta property="og:title" content="Flute Practice Coach — Practice with purpose">
+  <meta property="og:description" content="Plan flute practice, hear the tempo, use local pitch feedback, and return to your progress without accounts or ads.">
   <meta property="og:image" content="https://seagomezar.github.io/music-journal-app/assets/feature-graphic.png">
   <meta property="og:url" content="https://seagomezar.github.io/music-journal-app/">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="https://seagomezar.github.io/music-journal-app/">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="es" href="index-es.html">
   <link rel="icon" href="assets/app-icon.png">
   <link rel="manifest" href="site.webmanifest">
   <link rel="stylesheet" href="styles.css">
-  <title>Flute Practice Coach — Make every practice session count</title>
+  <title>Flute Practice Coach — Practice with purpose</title>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -27,11 +29,13 @@
         <span>Flute Practice Coach</span>
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
+        <a href="#evidence">Why this workflow</a>
         <a href="#features">Features</a>
         <a href="#screens">Preview</a>
         <a href="#privacy">Privacy</a>
         <a href="support.html">Support</a>
         <a href="terms-and-conditions.html">Terms</a>
+        <a href="index-es.html" lang="es">Español</a>
       </nav>
     </div>
   </header>
@@ -40,14 +44,14 @@
     <section class="hero">
       <div class="container hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">A calmer way to improve</p>
-          <h1>Make every practice session count.</h1>
-          <p class="hero-lede">Build focused routines, organize the music you love, and see your progress take shape—without accounts, ads, or distractions.</p>
+          <p class="eyebrow">Evidence-informed practice for flutists</p>
+          <h1>Practice with purpose. Return with clarity.</h1>
+          <p class="hero-lede">Turn one musical goal into a focused session with a precise tempo, optional local pitch feedback, and a private record of what to do next.</p>
           <div class="button-row">
-            <a class="button" href="#features">Explore the app <span aria-hidden="true">↓</span></a>
-            <a class="button secondary" href="support.html">Get support</a>
+            <a class="button" href="app/" data-plausible-event="landing_cta_click" data-plausible-target="web_app">Try the web app <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="#evidence">See the evidence</a>
           </div>
-          <p class="availability">Preparing for iPhone and Android release</p>
+          <p class="availability">Private by default · English &amp; Spanish · No account required</p>
         </div>
 
         <div class="phone-stage">
@@ -61,10 +65,42 @@
 
     <section class="trust-strip" aria-label="Product principles">
       <div class="container trust-grid">
-        <div class="trust-item">Local-first storage</div>
-        <div class="trust-item">No advertising</div>
-        <div class="trust-item">No analytics</div>
+        <div class="trust-item">Goal-directed sessions</div>
+        <div class="trust-item">Tempo + pitch feedback</div>
+        <div class="trust-item">Local-first privacy</div>
         <div class="trust-item">English &amp; Spanish</div>
+      </div>
+    </section>
+    <p class="analytics-notice" data-analytics-notice hidden>We measure only aggregate page and activation counts to improve this experience. We never send journal, audio, profile, or pitch data. <a href="privacy-policy.html">Privacy details</a>.</p>
+
+    <section class="section evidence-section" id="evidence">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">What the research can—and cannot—say</p>
+          <h2>A better practice loop starts with a better question.</h2>
+          <p>Research on musicians points toward structured goals, focused feedback, and reflection. The app is designed around those behaviors; it does not promise a shortcut or replace a teacher.</p>
+        </div>
+        <div class="evidence-grid">
+          <article class="evidence-card">
+            <span class="evidence-stat">13 studies · N=788</span>
+            <h3>Task-relevant practice matters</h3>
+            <p>A meta-analysis found a substantial association between task-relevant practice and musical achievement.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/25018742/" rel="noopener noreferrer">Read the study ↗</a>
+          </article>
+          <article class="evidence-card">
+            <span class="evidence-stat">N=115 · 4 weeks</span>
+            <h3>Hearing your work gives you information</h3>
+            <p>A study of student guitarists and pianists found different benefits from auditory feedback during practice.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/36396694/" rel="noopener noreferrer">Read the study ↗</a>
+          </article>
+          <article class="evidence-card">
+            <span class="evidence-stat">N=334 · 39 nationalities</span>
+            <h3>Practice quality is more than hours</h3>
+            <p>Self-regulation research connects planning, emotional regulation, expertise, and practice behavior.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/33240155/" rel="noopener noreferrer">Read the study ↗</a>
+          </article>
+        </div>
+        <p class="evidence-note">These are associations from music research—not a measured claim that this app causes improvement. <a href="research/flutist-practice-evidence.html">See the full evidence brief</a>.</p>
       </div>
     </section>
 
@@ -80,22 +116,45 @@
           <article class="feature-card">
             <div class="feature-number" aria-hidden="true">01</div>
             <h3>Plan with purpose</h3>
-            <p>Create technical routines for long tones, scales, articulation, and whatever your playing needs next.</p>
+            <p>Create technical routines for tone, scales, articulation, and whatever your playing needs next.</p>
           </article>
           <article class="feature-card">
             <div class="feature-number" aria-hidden="true">02</div>
             <h3>Practice with focus</h3>
-            <p>Use a visual metronome, timer, notes, PDF scores, and optional self-recording without leaving your session.</p>
+            <p>Start an exercise instantly, hear its exact tempo, track pitch locally when useful, and record a short self-evaluation.</p>
           </article>
           <article class="feature-card">
             <div class="feature-number" aria-hidden="true">03</div>
             <h3>Reflect with clarity</h3>
-            <p>Follow repertoire progress, calendar history, streaks, and private recordings—and add a missed session to any past date.</p>
+            <p>Follow repertoire progress, calendar history, streaks, pitch summaries, and private recordings—and add a missed session to any past date.</p>
           </article>
           <article class="feature-card">
             <div class="feature-number" aria-hidden="true">04</div>
             <h3>Keep your journal portable</h3>
-            <p>Export routines and practice history as a versioned file, then safely merge them on another device. Recordings and PDFs stay behind.</p>
+            <p>Export routines and practice history as a versioned file, then safely merge them on another device. Audio and PDFs stay behind.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section audience-section">
+      <div class="container audience-grid">
+        <div>
+          <p class="eyebrow">Meet your next practice session</p>
+          <h2>Useful whether you are starting, returning, or refining.</h2>
+        </div>
+        <div class="audience-list">
+          <article>
+            <h3>Starting out</h3>
+            <p>One clear exercise, a comfortable tempo, and a note for tomorrow.</p>
+          </article>
+          <article>
+            <h3>Coming back</h3>
+            <p>A low-friction way to remember what you were working on and rebuild consistency.</p>
+          </article>
+          <article>
+            <h3>Going deeper</h3>
+            <p>Exercise-level tempo, intonation feedback, repertoire context, and a history you can discuss with a teacher.</p>
           </article>
         </div>
       </div>
@@ -132,7 +191,7 @@
         <div>
           <p class="eyebrow">Private by design</p>
           <h2>Your practice belongs to you.</h2>
-          <p>Flute Practice Coach has no online account, advertising, or analytics. Your profile, journal, imported scores, and recordings are managed locally by the app.</p>
+          <p>The app has no online account, advertising, or in-app analytics. Your profile, journal, imported scores, and recordings are managed locally by the app. The landing page may use optional aggregate Plausible counts; it never receives practice content.</p>
           <ul class="privacy-list">
             <li>The app does not upload your journal or recordings.</li>
             <li>Microphone access is optional and requested only when recording.</li>
@@ -179,9 +238,10 @@
       <div class="container closing-panel">
         <p class="eyebrow">Practice thoughtfully</p>
         <h2>Less friction. More music.</h2>
-        <p>Flute Practice Coach is being prepared for release on iPhone and Android.</p>
+        <p>Try the browser workflow today; iPhone and Android releases are being prepared.</p>
         <div class="button-row centered">
-          <a class="button" href="https://github.com/seagomezar/music-journal-app" rel="noopener noreferrer">Follow the project</a>
+          <a class="button" href="app/" data-plausible-event="landing_cta_click" data-plausible-target="web_app">Try the web app ↗</a>
+          <a class="button secondary" href="https://github.com/seagomezar/music-journal-app" rel="noopener noreferrer">Follow the project</a>
         </div>
       </div>
     </section>
@@ -191,6 +251,7 @@
     <div class="container footer-grid">
       <div class="footer-copy">© 2026 Seagomezar. Flute Practice Coach.</div>
       <nav class="footer-links" aria-label="Legal and support">
+        <a href="research/flutist-practice-evidence.html">Evidence</a>
         <a href="privacy-policy.html">Privacy</a>
         <a href="terms-and-conditions.html">Terms</a>
         <a href="support.html">Support</a>
@@ -198,5 +259,6 @@
       </nav>
     </div>
   </footer>
+  <script src="analytics.js" defer></script>
 </body>
 </html>

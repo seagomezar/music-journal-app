@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flute/models/user_profile.dart';
@@ -425,7 +426,10 @@ void main() {
         final record = await provider.prepareSessionRecord(const []);
 
         expect(audio.recording, false);
-        expect(record?.audioFilePath, '/managed/practice.m4a');
+        expect(
+          record?.audioFilePath,
+          kIsWeb ? isNull : '/managed/practice.m4a',
+        );
         expect(provider.isActive, true);
         provider.completeSession();
         expect(provider.isActive, false);
@@ -662,7 +666,7 @@ void main() {
       expect(await service.isManagedPath(imported), true);
       await service.deleteManagedFile(imported);
       expect(await File(imported).exists(), false);
-    });
+    }, skip: kIsWeb);
   });
 
   testWidgets('translations are safe inside event callbacks', (tester) async {

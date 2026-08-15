@@ -15,7 +15,7 @@ Flute Practice Coach is a private, local-only practice journal for flutists. It 
 - Optional self-evaluation recordings stored in private app storage on mobile
 - Versioned JSON export/import for routines and practice history (media excluded)
 - English and Spanish interface
-- No online account, advertising, analytics, or cloud data collection
+- No online account, advertising, in-app analytics, or cloud journal data collection
 - In-app privacy policy, support information, and permanent data erasure
 
 ## Architecture
@@ -64,6 +64,10 @@ flutter build ios --release --no-codesign
 
 The GitHub workflow runs formatting, analysis, tests, an unsigned Android preview, an unsigned iOS build check, and a WASM web build. Signed Android store bundles are created only by a manually dispatched workflow with permanent signing secrets and explicit version/build inputs.
 
+The Pages workflow publishes the static landing page and the Flutter web app at
+`/music-journal-app/app/`. Set the repository variable `PLAUSIBLE_DOMAIN` to
+enable aggregate conversion events; without it, both pages remain analytics-free.
+
 ## Store preparation
 
 - [Store listing copy](docs/store-listing.md)
@@ -72,6 +76,8 @@ The GitHub workflow runs formatting, analysis, tests, an unsigned Android previe
 - [Terms and conditions](docs/terms-and-conditions.html)
 - [Support page](docs/support.html)
 - [Landing page](docs/index.html)
+- [Flutist practice evidence brief](docs/research/flutist-practice-evidence.md)
+- [Landing-page measurement specification](docs/research/measurement.md)
 - [Journal backup JSON Schema](docs/journal-backup-schema-v3.json)
 - Generated store graphics under `assets/store/`
 

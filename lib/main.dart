@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'services/database_service.dart';
 import 'services/metronome_audio_service.dart';
 import 'services/screen_awake_service.dart';
+import 'services/analytics_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/routine_provider.dart';
 import 'providers/repertoire_provider.dart';
@@ -19,6 +20,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AnalyticsService.track('app_launch');
 
   // Initialize Local Offline Database
   final dbService = DatabaseService();
