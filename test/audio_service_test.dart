@@ -10,32 +10,35 @@ import 'package:flute/services/file_storage_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('recording balances capture lifecycle around recorder start and stop', () async {
-    final previousPlatform = RecordPlatform.instance;
-    final recordPlatform = _FakeRecordPlatform();
-    final lifecycle = _FakeCaptureLifecycleController();
-    RecordPlatform.instance = recordPlatform;
-    addTearDown(() async {
-      RecordPlatform.instance = previousPlatform;
-      await recordPlatform.dispose('test');
-    });
+  test(
+    'recording balances capture lifecycle around recorder start and stop',
+    () async {
+      final previousPlatform = RecordPlatform.instance;
+      final recordPlatform = _FakeRecordPlatform();
+      final lifecycle = _FakeCaptureLifecycleController();
+      RecordPlatform.instance = recordPlatform;
+      addTearDown(() async {
+        RecordPlatform.instance = previousPlatform;
+        await recordPlatform.dispose('test');
+      });
 
-    final audio = AudioService(
-      storageService: _FakeFileStorageService(),
-      captureLifecycle: lifecycle,
-    );
-    await audio.startRecording();
+      final audio = AudioService(
+        storageService: _FakeFileStorageService(),
+        captureLifecycle: lifecycle,
+      );
+      await audio.startRecording();
 
-    expect(audio.isRecording, true);
-    expect(lifecycle.started, [AudioCaptureKind.recording]);
+      expect(audio.isRecording, true);
+      expect(lifecycle.started, [AudioCaptureKind.recording]);
 
-    final path = await audio.stopRecording();
+      final path = await audio.stopRecording();
 
-    expect(path, '/fake/practice.m4a');
-    expect(audio.isRecording, false);
-    expect(lifecycle.ended, [AudioCaptureKind.recording]);
-    await audio.dispose();
-  });
+      expect(path, '/fake/practice.m4a');
+      expect(audio.isRecording, false);
+      expect(lifecycle.ended, [AudioCaptureKind.recording]);
+      await audio.dispose();
+    },
+  );
 }
 
 class _FakeCaptureLifecycleController
@@ -118,7 +121,8 @@ class _FakeRecordPlatform extends RecordPlatform {
   ) async => true;
 
   @override
-  Future<List<InputDevice>> listInputDevices(String recorderId) async => const [];
+  Future<List<InputDevice>> listInputDevices(String recorderId) async =>
+      const [];
 
   @override
   Future<void> cancel(String recorderId) async {}
