@@ -16,7 +16,7 @@
 
 - [x] Recording stops after close, finish, discard, and background (automated tests and Android smoke test)
 - [ ] Verify recording cleanup after forced process termination on physical devices
-- [x] Permission denial is recoverable and non-recording features remain usable
+- [x] Permission denial is recoverable and microphone-independent features remain usable
 - [x] Session-save failures do not exit or discard the active session
 - [ ] Imported PDF and recording survive relaunch
 - [x] Deleting a session removes its managed recording (automated test and Android smoke test)

@@ -63,7 +63,7 @@ limitations.
 - Apple App Privacy: `Data Not Collected`, provided archive inspection confirms no dependency transmits data.
 - Google Play Data Safety: no data collected or shared by the app; profile data, notes, PDFs, and recordings are managed locally. Platform backups are controlled separately by the user and operating-system provider.
 - Permission purpose: microphone is used only after the user explicitly starts the tuner, pitch tracking, or self-recorder. Tuner audio is analyzed locally and is not saved or transmitted.
-- Tracking: none.
+- Mobile-app tracking: none; optional aggregate measurement for the deployed web version is described in the Privacy Policy.
 - Ads: none.
 
 ## Review notes

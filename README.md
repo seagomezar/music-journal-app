@@ -20,7 +20,7 @@ Flute Practice Coach is a private, local-only practice journal for flutists. It 
 
 ## Architecture
 
-Flutter widgets consume `ChangeNotifier` providers. Providers coordinate Hive persistence, app-owned file storage, recording/playback, localization, and session state. The app manages user content locally and does not upload it. The deployed web build can send only aggregate app-launch, onboarding, and session-start events through Plausible when `PLAUSIBLE_DOMAIN` is configured; journal, profile, audio, and pitch data are never included.
+Flutter widgets consume `ChangeNotifier` providers. Providers coordinate Hive CE persistence, app-owned file storage, recording/playback, localization, and session state. The app manages user content locally and does not upload it. The deployed web build can send only aggregate app-launch, onboarding, and session-start events through Plausible when `PLAUSIBLE_DOMAIN` is configured; journal, profile, audio, and pitch data are never included.
 
 ## Development
 
