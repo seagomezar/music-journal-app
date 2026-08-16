@@ -80,13 +80,13 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 context.translate('cancel'),
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: TextStyle(color: AppTheme.textSecondaryColor(context)),
               ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: AppTheme.primaryColor(context),
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
               ),
               onPressed: () async {
                 final title = _routineTitleController.text.trim();
@@ -213,13 +213,15 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(
                     context.translate('cancel'),
-                    style: const TextStyle(color: AppTheme.textSecondary),
+                    style: TextStyle(
+                      color: AppTheme.textSecondaryColor(context),
+                    ),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppTheme.primaryColor(context),
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   onPressed: () async {
                     final bpm = int.tryParse(_exBpmController.text);
@@ -312,9 +314,9 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.add_circle_outline_rounded,
-              color: AppTheme.primaryAccent,
+              color: AppTheme.accentColor(context),
               size: 28,
             ),
             tooltip: context.translate('add_routine'),
@@ -336,7 +338,9 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                       Icon(
                         Icons.playlist_add_circle_rounded,
                         size: 72,
-                        color: AppTheme.border.withValues(alpha: 0.5),
+                        color: AppTheme.borderColor(
+                          context,
+                        ).withValues(alpha: 0.5),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -350,7 +354,9 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                       Text(
                         context.translate('click_add_routine'),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppTheme.textSecondary),
+                        style: TextStyle(
+                          color: AppTheme.textSecondaryColor(context),
+                        ),
                       ),
                     ],
                   ),
@@ -381,17 +387,19 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                           leading: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppTheme.primary.withValues(alpha: 0.1),
+                              color: AppTheme.primaryColor(
+                                context,
+                              ).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.my_library_music_rounded,
-                              color: AppTheme.primaryAccent,
+                              color: AppTheme.accentColor(context),
                             ),
                           ),
                           title: Text(
                             routine.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -404,9 +412,9 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                 : routine.description,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: AppTheme.textSecondary,
+                              color: AppTheme.textSecondaryColor(context),
                             ),
                           ),
                           trailing: IconButton(
@@ -421,7 +429,10 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                             },
                           ),
                           children: [
-                            const Divider(height: 1, color: AppTheme.border),
+                            Divider(
+                              height: 1,
+                              color: AppTheme.borderColor(context),
+                            ),
                             Container(
                               padding: const EdgeInsets.all(16),
                               color: Colors.black12,
@@ -448,8 +459,9 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                       const SizedBox(width: 8),
                                       TextButton.icon(
                                         style: TextButton.styleFrom(
-                                          foregroundColor:
-                                              AppTheme.primaryAccent,
+                                          foregroundColor: AppTheme.accentColor(
+                                            context,
+                                          ),
                                           padding: EdgeInsets.zero,
                                         ),
                                         icon: const Icon(Icons.add, size: 16),
@@ -475,9 +487,11 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                           context.translate(
                                             'no_exercises_added',
                                           ),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 12,
-                                            color: AppTheme.textSecondary,
+                                            color: AppTheme.textSecondaryColor(
+                                              context,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -492,8 +506,10 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                           context.translate(
                                             'reorder_exercises_hint',
                                           ),
-                                          style: const TextStyle(
-                                            color: AppTheme.textSecondary,
+                                          style: TextStyle(
+                                            color: AppTheme.textSecondaryColor(
+                                              context,
+                                            ),
                                             fontSize: 11,
                                           ),
                                         ),
@@ -524,16 +540,16 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                           ),
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.surface.withValues(
-                                              alpha: 0.4,
-                                            ),
+                                            color: AppTheme.surfaceColor(
+                                              context,
+                                            ).withValues(alpha: 0.4),
                                             borderRadius: BorderRadius.circular(
                                               10,
                                             ),
                                             border: Border.all(
-                                              color: AppTheme.border.withValues(
-                                                alpha: 0.3,
-                                              ),
+                                              color: AppTheme.borderColor(
+                                                context,
+                                              ).withValues(alpha: 0.3),
                                             ),
                                           ),
                                           child: Row(
@@ -542,8 +558,9 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                                 _getArticulationIcon(
                                                   exercise.articulation,
                                                 ),
-                                                color: AppTheme.primaryAccent
-                                                    .withValues(alpha: 0.7),
+                                                color: AppTheme.accentColor(
+                                                  context,
+                                                ).withValues(alpha: 0.7),
                                                 size: 18,
                                               ),
                                               const SizedBox(width: 10),
@@ -593,9 +610,11 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                                 ),
                                                 visualDensity:
                                                     VisualDensity.compact,
-                                                icon: const Icon(
+                                                icon: Icon(
                                                   Icons.edit_outlined,
-                                                  color: AppTheme.primaryAccent,
+                                                  color: AppTheme.accentColor(
+                                                    context,
+                                                  ),
                                                   size: 18,
                                                 ),
                                                 tooltip: context.translate(
@@ -745,7 +764,7 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 context.translate('cancel'),
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: TextStyle(color: AppTheme.textSecondaryColor(context)),
               ),
             ),
             ElevatedButton(

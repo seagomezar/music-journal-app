@@ -41,7 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Colors.white,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(dialogContext.translate('erase_data_action')),
@@ -58,6 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await practiceProvider.cancelSession();
       }
       await authProvider.eraseAllData();
+      await practiceProvider.resetPreferences();
       if (context.mounted) Navigator.of(context).pop();
     } catch (error) {
       if (!context.mounted) return;
@@ -234,7 +235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 12),
               Text(
                 dialogContext.translate('backup_exclusions'),
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: TextStyle(color: AppTheme.textSecondaryColor(context)),
               ),
             ],
           ),
@@ -270,9 +271,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 type: MaterialType.transparency,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    backgroundColor: AppTheme.primary,
-                    child: Icon(Icons.person_rounded, color: Colors.white),
+                  leading: CircleAvatar(
+                    backgroundColor: AppTheme.primaryColor(context),
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
                   ),
                   title: Text(user?.name ?? context.translate('local_profile')),
                   subtitle: Text(context.translate('local_only_data')),
@@ -285,7 +289,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Text(
                 context.translate('practice_preferences'),
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppTheme.primaryAccent,
+                  color: AppTheme.accentColor(context),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -434,7 +438,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Text(
                 context.translate('data_portability'),
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppTheme.primaryAccent,
+                  color: AppTheme.accentColor(context),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -597,7 +601,7 @@ const _privacyEn = <(String, String)>[
   ('Effective date', 'July 24, 2026'),
   (
     'Summary',
-    'Flute Practice Coach is a local-only practice journal. It does not use advertising, analytics, or an online account, and it does not sell personal data.',
+    'Flute Practice Coach is a local-first practice journal. It does not use advertising or an online account, and it does not sell personal data. The deployed web version may send optional aggregate app-launch, onboarding, and session-start events through Plausible when configured; it never sends journal, profile, audio, or pitch data.',
   ),
   (
     'Data stored on your device',
@@ -609,7 +613,7 @@ const _privacyEn = <(String, String)>[
   ),
   (
     'Sharing and retention',
-    'The app does not transmit your journal, PDFs, or recordings to us. If you export a journal backup, the operating system saves the file where you choose. Exported backups contain routines, session history, and notes, are not encrypted, and exclude recordings and PDFs. App-managed data remains until you delete individual content, erase all data in Settings, or uninstall the app.',
+    'The app does not transmit your journal, PDFs, or recordings to us. The deployed web version sends only the aggregate events described above when analytics are enabled. If you export a journal backup, the operating system saves the file where you choose. Exported backups contain routines, session history, and notes, are not encrypted, and exclude recordings and PDFs. App-managed data remains until you delete individual content, erase all data in Settings, or uninstall the app.',
   ),
   (
     'Your choices',
@@ -625,7 +629,7 @@ const _privacyEs = <(String, String)>[
   ('Fecha de vigencia', '24 de julio de 2026'),
   (
     'Resumen',
-    'Flute Practice Coach es un diario de práctica local. No utiliza publicidad, analítica ni cuentas en línea, y no vende datos personales.',
+    'Flute Practice Coach es un diario de práctica local. No utiliza publicidad ni cuentas en línea, y no vende datos personales. La versión web publicada puede enviar eventos agregados opcionales de inicio, incorporación y comienzo de sesión a través de Plausible cuando se configura; nunca envía tu diario, perfil, audio ni datos de afinación.',
   ),
   (
     'Datos guardados en tu dispositivo',
@@ -637,7 +641,7 @@ const _privacyEs = <(String, String)>[
   ),
   (
     'Uso compartido y conservación',
-    'La app no nos transmite tu diario, archivos PDF ni grabaciones. Si exportas una copia del diario, el sistema operativo guarda el archivo donde elijas. Las copias contienen rutinas, historial y notas, no están cifradas y excluyen grabaciones y archivos PDF. Los datos permanecen hasta que elimines el contenido, borres todos los datos o desinstales la app.',
+    'La app no nos transmite tu diario, archivos PDF ni grabaciones. La versión web publicada solo envía los eventos agregados descritos arriba cuando se activa la analítica. Si exportas una copia del diario, el sistema operativo guarda el archivo donde elijas. Las copias contienen rutinas, historial y notas, no están cifradas y excluyen grabaciones y archivos PDF. Los datos permanecen hasta que elimines el contenido, borres todos los datos o desinstales la app.',
   ),
   (
     'Tus opciones',

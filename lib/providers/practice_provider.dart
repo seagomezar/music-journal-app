@@ -390,9 +390,11 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _isPaused = false;
     _activeStopwatch.start();
     _startTimer();
-    if (_resumeMetronomeAfterSessionPause && _activeExerciseId != null) {
-      _metronomeBpm =
-          _exercisePracticedBpms[_activeExerciseId!] ?? _metronomeBpm;
+    if (_resumeMetronomeAfterSessionPause) {
+      if (_activeExerciseId != null) {
+        _metronomeBpm =
+            _exercisePracticedBpms[_activeExerciseId!] ?? _metronomeBpm;
+      }
       _startMetronome();
     }
     _resumeMetronomeAfterSessionPause = false;
@@ -839,6 +841,30 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     } catch (error) {
       debugPrint('Unable to update metronome tempo: $error');
     }
+  }
+
+  Future<void> resetPreferences() async {
+    if (_isDisposed) return;
+    _keepScreenAwake = false;
+    _metronomeSoundEnabled = true;
+    _metronomeVolume = 0.7;
+    _tunerReferenceHz = 440;
+    _tunerToleranceCents = 10;
+    _visualMode = PracticeVisualMode.focused;
+    _themeMode = ThemeMode.system;
+    _hapticsEnabled = true;
+    _soundCuesEnabled = true;
+    _reducedMotion = false;
+    _showCelebrations = true;
+    _metronomeSoundSuppressed = false;
+    _metronomeTempoTimer?.cancel();
+    _stopMetronomeVisual();
+    try {
+      await _screenAwake.setEnabled(false);
+    } catch (error) {
+      debugPrint('Unable to reset the screen-awake preference: $error');
+    }
+    notifyListeners();
   }
 
   Future<void> _stopMetronomeAudioSafely() async {

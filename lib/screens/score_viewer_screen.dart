@@ -63,16 +63,16 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: AppTheme.surface,
+        backgroundColor: AppTheme.surfaceColor(context),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppTheme.primary),
+        iconTheme: IconThemeData(color: AppTheme.primaryColor(context)),
         title: Text(
           widget.pieceTitle,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'serif',
             fontWeight: FontWeight.w600,
             fontSize: 20,
-            color: AppTheme.primary,
+            color: AppTheme.primaryColor(context),
           ),
         ),
         actions: [
@@ -175,7 +175,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                 child: CustomPaint(
                   painter: AnnotationPainter(
                     _currentAnnotationPoints,
-                    AppTheme.primaryAccent,
+                    AppTheme.accentColor(context),
                   ),
                   size: Size.infinite,
                 ),
@@ -190,7 +190,9 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
               child: Center(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppTheme.surface.withValues(alpha: 0.9),
+                    color: AppTheme.surfaceColor(
+                      context,
+                    ).withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
@@ -218,10 +220,10 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface.withValues(alpha: 0.85),
+                  color: AppTheme.surfaceColor(context).withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppTheme.border.withValues(alpha: 0.3),
+                    color: AppTheme.borderColor(context).withValues(alpha: 0.3),
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -235,10 +237,10 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                     (_currentPage + 1).toString(),
                     _totalPages.toString(),
                   ]),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textSecondary,
+                    color: AppTheme.textSecondaryColor(context),
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -264,13 +266,13 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: practiceProv.metronomeOn
-                        ? AppTheme.primary
-                        : AppTheme.cardBg,
+                        ? AppTheme.primaryColor(context)
+                        : AppTheme.cardColor(context),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: practiceProv.metronomeOn
-                          ? AppTheme.primaryAccent
-                          : AppTheme.border,
+                          ? AppTheme.accentColor(context)
+                          : AppTheme.borderColor(context),
                       width: 1.5,
                     ),
                     boxShadow: [
@@ -290,8 +292,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                           Icon(
                             Icons.timer_outlined,
                             color: practiceProv.metronomeOn
-                                ? AppTheme.primaryAccent
-                                : AppTheme.textSecondary,
+                                ? AppTheme.accentColor(context)
+                                : AppTheme.textSecondaryColor(context),
                             size: 18,
                           ),
                           if (practiceProv.metronomeOn &&
@@ -301,9 +303,9 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                               height: 24,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppTheme.primaryAccent.withValues(
-                                  alpha: 0.25,
-                                ),
+                                color: AppTheme.accentColor(
+                                  context,
+                                ).withValues(alpha: 0.25),
                               ),
                             ),
                         ],
@@ -319,8 +321,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                               fontSize: 8,
                               fontWeight: FontWeight.w600,
                               color: practiceProv.metronomeOn
-                                  ? AppTheme.primaryAccent
-                                  : AppTheme.textSecondary,
+                                  ? AppTheme.accentColor(context)
+                                  : AppTheme.textSecondaryColor(context),
                             ),
                           ),
                           Text(
@@ -329,8 +331,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: practiceProv.metronomeOn
-                                  ? Colors.white
-                                  : AppTheme.textPrimary,
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : AppTheme.textPrimaryColor(context),
                             ),
                           ),
                         ],
@@ -344,8 +346,10 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
         ],
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppTheme.border, width: 1)),
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: AppTheme.borderColor(context), width: 1),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _activeNavIndex,
@@ -368,8 +372,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
               icon: Icon(
                 Icons.menu_book_rounded,
                 color: _activeNavIndex == 1
-                    ? AppTheme.primary
-                    : AppTheme.textSecondary,
+                    ? AppTheme.primaryColor(context)
+                    : AppTheme.textSecondaryColor(context),
               ),
               label: context.translate('score_view'),
             ),
@@ -377,8 +381,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
               icon: Icon(
                 Icons.edit_note_rounded,
                 color: _activeNavIndex == 2
-                    ? AppTheme.primary
-                    : AppTheme.textSecondary,
+                    ? AppTheme.primaryColor(context)
+                    : AppTheme.textSecondaryColor(context),
               ),
               label: context.translate('annotate_score'),
             ),
@@ -391,7 +395,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
   void _showMetronomeSettings(BuildContext context, PracticeProvider provider) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppTheme.surfaceColor(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -409,11 +413,11 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                 children: [
                   Text(
                     context.translate('visual_metronome'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
+                      color: AppTheme.textPrimaryColor(context),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -422,10 +426,10 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.remove_circle_outline_rounded,
                           size: 36,
-                          color: AppTheme.primary,
+                          color: AppTheme.primaryColor(context),
                         ),
                         onPressed: () {
                           if (provider.metronomeBpm > 40) {
@@ -437,18 +441,18 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                       const SizedBox(width: 24),
                       Text(
                         '${provider.metronomeBpm}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 48,
                           fontWeight: FontWeight.w300,
-                          color: AppTheme.textPrimary,
+                          color: AppTheme.textPrimaryColor(context),
                         ),
                       ),
                       const SizedBox(width: 24),
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.add_circle_outline_rounded,
                           size: 36,
-                          color: AppTheme.primary,
+                          color: AppTheme.primaryColor(context),
                         ),
                         onPressed: () {
                           if (provider.metronomeBpm < 240) {
@@ -464,8 +468,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                     min: 40,
                     max: 240,
                     value: provider.metronomeBpm.toDouble(),
-                    activeColor: AppTheme.primaryAccent,
-                    inactiveColor: AppTheme.border,
+                    activeColor: AppTheme.accentColor(context),
+                    inactiveColor: AppTheme.borderColor(context),
                     onChanged: (val) {
                       provider.setMetronomeBpm(val.round());
                       setSheetState(() {});
@@ -476,8 +480,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: provider.metronomeOn
                           ? Colors.redAccent
-                          : AppTheme.primary,
-                      foregroundColor: Colors.white,
+                          : AppTheme.primaryColor(context),
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

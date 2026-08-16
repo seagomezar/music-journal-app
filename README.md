@@ -15,12 +15,12 @@ Flute Practice Coach is a private, local-only practice journal for flutists. It 
 - Optional self-evaluation recordings stored in private app storage on mobile
 - Versioned JSON export/import for routines and practice history (media excluded)
 - English and Spanish interface
-- No online account, advertising, in-app analytics, or cloud journal data collection
+- No online account, advertising, or cloud journal data collection; the deployed web build may send optional aggregate usage events when configured
 - In-app privacy policy, support information, and permanent data erasure
 
 ## Architecture
 
-Flutter widgets consume `ChangeNotifier` providers. Providers coordinate Hive persistence, app-owned file storage, recording/playback, localization, and session state. The app manages user content locally and does not upload it.
+Flutter widgets consume `ChangeNotifier` providers. Providers coordinate Hive persistence, app-owned file storage, recording/playback, localization, and session state. The app manages user content locally and does not upload it. The deployed web build can send only aggregate app-launch, onboarding, and session-start events through Plausible when `PLAUSIBLE_DOMAIN` is configured; journal, profile, audio, and pitch data are never included.
 
 ## Development
 
@@ -76,7 +76,8 @@ The GitHub workflow runs formatting, analysis, tests, an unsigned Android previe
 
 The Pages workflow publishes the static landing page and the Flutter web app at
 `/music-journal-app/app/`. Set the repository variable `PLAUSIBLE_DOMAIN` to
-enable aggregate conversion events; without it, both pages remain analytics-free.
+enable optional aggregate landing-page and web-app events; without it, both
+pages remain analytics-free.
 
 ## Store preparation
 

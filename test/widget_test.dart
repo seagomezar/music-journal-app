@@ -461,6 +461,26 @@ void main() {
       provider.dispose();
     });
 
+    test('Free-study metronome resumes after pausing the session', () async {
+      final metronome = FakeMetronomeAudioController();
+      final provider = PracticeProvider(
+        audioService: FakeAudioService(),
+        metronomeAudioController: metronome,
+      );
+      provider.startSession(null);
+      provider.toggleMetronome(96);
+      await Future<void>.delayed(Duration.zero);
+
+      provider.pauseSession();
+      await provider.resumeSession();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(metronome.startCalls, 2);
+      expect(provider.metronomeOn, isTrue);
+      await provider.cancelSession();
+      provider.dispose();
+    });
+
     test(
       'Exercise runs accumulate time, switch cleanly, and save the latest BPM',
       () async {

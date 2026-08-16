@@ -28,6 +28,8 @@ class AppTheme {
   static const Color darkTextPrimary = Color(0xFFF1F4EF);
   static const Color darkTextSecondary = Color(0xFFC1CEC2);
   static const Color darkPrimary = Color(0xFF9BC9A5);
+  static const Color darkSecondary = Color(0xFFA7C9AE);
+  static const Color darkAccent = Color(0xFFE1C56C);
 
   static const LinearGradient brandGradient = LinearGradient(
     colors: [primary, Color(0xFF1B3022)],
@@ -79,7 +81,11 @@ class AppTheme {
   }) {
     final isDark = brightness == Brightness.dark;
     final effectivePrimary = isDark ? darkPrimary : primary;
+    final effectiveSecondary = isDark ? darkSecondary : secondary;
+    final effectiveAccent = isDark ? darkAccent : primaryAccent;
     final effectiveOnPrimary = isDark ? darkBackground : Colors.white;
+    final effectiveOnSecondary = isDark ? darkBackground : Colors.white;
+    final effectiveOnAccent = isDark ? darkBackground : Colors.white;
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -88,11 +94,13 @@ class AppTheme {
       colorScheme: ColorScheme(
         brightness: brightness,
         primary: effectivePrimary,
-        secondary: secondary,
+        secondary: effectiveSecondary,
+        tertiary: effectiveAccent,
         surface: surfaceColor,
         onSurface: foregroundColor,
         onPrimary: effectiveOnPrimary,
-        onSecondary: Colors.white,
+        onSecondary: effectiveOnSecondary,
+        onTertiary: effectiveOnAccent,
         onError: Colors.white,
         error: Color(0xFFBA1A1A),
       ),
@@ -181,6 +189,33 @@ class AppTheme {
       ),
     );
   }
+
+  static Color backgroundColor(BuildContext context) =>
+      Theme.of(context).scaffoldBackgroundColor;
+
+  static Color surfaceColor(BuildContext context) =>
+      Theme.of(context).colorScheme.surface;
+
+  static Color cardColor(BuildContext context) => Theme.of(context).cardColor;
+
+  static Color borderColor(BuildContext context) =>
+      Theme.of(context).dividerColor;
+
+  static Color primaryColor(BuildContext context) =>
+      Theme.of(context).colorScheme.primary;
+
+  static Color accentColor(BuildContext context) =>
+      Theme.of(context).colorScheme.tertiary;
+
+  static Color secondaryColor(BuildContext context) =>
+      Theme.of(context).colorScheme.secondary;
+
+  static Color textPrimaryColor(BuildContext context) =>
+      Theme.of(context).colorScheme.onSurface;
+
+  static Color textSecondaryColor(BuildContext context) =>
+      Theme.of(context).textTheme.bodyMedium?.color ??
+      Theme.of(context).colorScheme.onSurface;
 
   // Helper Widget: Glassmorphic/Tonal Container Card
   static Widget glassCard({

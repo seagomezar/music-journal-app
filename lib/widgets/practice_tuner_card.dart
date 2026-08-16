@@ -39,7 +39,7 @@ class PracticeTunerCard extends StatelessWidget {
     final controlsEnabled = !isListening && !practiceProvider.isPaused;
     final cents = reading?.cents ?? 0;
     final indicatorColor = reading == null || !reading.isStable
-        ? AppTheme.textSecondary
+        ? AppTheme.textSecondaryColor(context)
         : reading.isOnPitch
         ? Colors.greenAccent.shade400
         : Colors.orangeAccent;
@@ -50,9 +50,9 @@ class PracticeTunerCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.graphic_eq_rounded,
-                color: AppTheme.primaryAccent,
+                color: AppTheme.accentColor(context),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -61,16 +61,16 @@ class PracticeTunerCard extends StatelessWidget {
                   children: [
                     Text(
                       context.translate('tuner'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
                     ),
                     Text(
                       context.translate('tuner_subtitle'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppTheme.textSecondary,
+                        color: AppTheme.textSecondaryColor(context),
                       ),
                     ),
                   ],
@@ -140,9 +140,9 @@ class PracticeTunerCard extends StatelessWidget {
             children: [
               Text(
                 context.translate('pitch_tolerance'),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: AppTheme.textSecondary,
+                  color: AppTheme.textSecondaryColor(context),
                 ),
               ),
               for (final tolerance in const [5, 10, 20])
@@ -178,7 +178,7 @@ class PracticeTunerCard extends StatelessWidget {
                   reading == null
                       ? context.translate('play_a_note')
                       : '${reading.frequencyHz.toStringAsFixed(1)} Hz  •  ${reading.cents >= 0 ? '+' : ''}${reading.cents.toStringAsFixed(1)}¢',
-                  style: const TextStyle(color: AppTheme.textSecondary),
+                  style: TextStyle(color: AppTheme.textSecondaryColor(context)),
                 ),
                 const SizedBox(height: 12),
                 _PitchMeter(cents: cents, color: indicatorColor),
@@ -195,8 +195,8 @@ class PracticeTunerCard extends StatelessWidget {
                       _formatDuration(summary.analyzedMilliseconds),
                     ]),
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppTheme.primaryAccent,
+              style: TextStyle(
+                color: AppTheme.accentColor(context),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -233,9 +233,9 @@ class PracticeTunerCard extends StatelessWidget {
             Text(
               context.translate('tuner_headphones_hint'),
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
-                color: AppTheme.textSecondary,
+                color: AppTheme.textSecondaryColor(context),
               ),
             ),
           ],
@@ -271,7 +271,7 @@ class _PitchMeter extends StatelessWidget {
               return Stack(
                 alignment: Alignment.center,
                 children: [
-                  Container(height: 3, color: AppTheme.border),
+                  Container(height: 3, color: AppTheme.borderColor(context)),
                   Positioned(
                     left: center - 1,
                     child: Container(width: 2, height: 18, color: Colors.green),

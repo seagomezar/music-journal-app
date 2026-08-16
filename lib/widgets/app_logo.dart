@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class AppLogo extends StatelessWidget {
   final double size;
@@ -25,7 +24,8 @@ class AppLogo extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: (color ?? AppTheme.primary).withValues(alpha: 0.12),
+                  color: (color ?? Theme.of(context).colorScheme.primary)
+                      .withValues(alpha: 0.12),
                   blurRadius: 30,
                   offset: const Offset(0, 10),
                 ),
@@ -34,8 +34,8 @@ class AppLogo extends StatelessWidget {
           : null,
       child: CustomPaint(
         painter: _FluteLogoPainter(
-          color: color ?? AppTheme.primary,
-          dotColor: dotColor ?? AppTheme.background,
+          color: color ?? Theme.of(context).colorScheme.primary,
+          dotColor: dotColor ?? Theme.of(context).scaffoldBackgroundColor,
         ),
       ),
     );

@@ -171,9 +171,9 @@ class _DashboardViewState extends State<DashboardView> {
                       tooltip: localizationProv.isSpanish
                           ? 'English'
                           : 'Español',
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.language_rounded,
-                        color: AppTheme.primaryAccent,
+                        color: AppTheme.accentColor(context),
                       ),
                       onPressed: () {
                         localizationProv.setLocale(
@@ -214,10 +214,10 @@ class _DashboardViewState extends State<DashboardView> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.edit_rounded,
                               size: 18,
-                              color: AppTheme.primaryAccent,
+                              color: AppTheme.accentColor(context),
                             ),
                             tooltip: context.translate('update_goal_title'),
                             onPressed: () =>
@@ -232,10 +232,10 @@ class _DashboardViewState extends State<DashboardView> {
                         children: [
                           Text(
                             '$weeklyMins',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w900,
-                              color: AppTheme.primaryAccent,
+                              color: AppTheme.accentColor(context),
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -253,11 +253,11 @@ class _DashboardViewState extends State<DashboardView> {
                         child: LinearProgressIndicator(
                           value: weeklyProgress,
                           minHeight: 10,
-                          backgroundColor: AppTheme.border.withValues(
-                            alpha: 0.5,
-                          ),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppTheme.primaryAccent,
+                          backgroundColor: AppTheme.borderColor(
+                            context,
+                          ).withValues(alpha: 0.5),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppTheme.accentColor(context),
                           ),
                         ),
                       ),
@@ -347,7 +347,7 @@ class _DashboardViewState extends State<DashboardView> {
                         backgroundColor: Theme.of(
                           context,
                         ).colorScheme.primary.withValues(alpha: 0.15),
-                        foregroundColor: AppTheme.primaryAccent,
+                        foregroundColor: AppTheme.accentColor(context),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -432,9 +432,9 @@ class _DashboardViewState extends State<DashboardView> {
                                   ).colorScheme.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.playlist_play_rounded,
-                                  color: AppTheme.primaryAccent,
+                                  color: AppTheme.accentColor(context),
                                 ),
                               ),
                               const SizedBox(width: 14),
@@ -463,10 +463,10 @@ class _DashboardViewState extends State<DashboardView> {
                                   ],
                                 ),
                               ),
-                              const Icon(
+                              Icon(
                                 Icons.play_circle_fill_rounded,
                                 size: 36,
-                                color: AppTheme.primaryAccent,
+                                color: AppTheme.accentColor(context),
                               ),
                             ],
                           ),

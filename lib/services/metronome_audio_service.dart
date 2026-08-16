@@ -60,6 +60,8 @@ class NoopMetronomeAudioController implements MetronomeAudioController {
 class MetronomeAudioService implements MetronomeAudioController {
   _MetronomeAudioHandler? _handler;
   Future<void>? _initialization;
+  Future<void> _operationQueue = Future<void>.value();
+  int _operationGeneration = 0;
 
   @override
   ValueChanged<bool>? onExternalPlayingChanged;
@@ -114,23 +116,51 @@ class MetronomeAudioService implements MetronomeAudioController {
 
   @override
   Future<void> start({required int bpm, required double volume}) async {
-    await initialize();
-    await _handler?.startMetronome(bpm: bpm, volume: volume);
+    await _enqueueOperation((generation) async {
+      await initialize();
+      if (generation != _operationGeneration) return;
+      final handler = _handler;
+      if (handler == null) return;
+      await handler.startMetronome(bpm: bpm, volume: volume);
+      if (generation != _operationGeneration) {
+        await handler.stopMetronome();
+      }
+    });
   }
 
   @override
   Future<void> setTempo(int bpm) async {
-    await _handler?.setTempo(bpm);
+    await _enqueueOperation((generation) async {
+      final handler = _handler;
+      if (handler == null || generation != _operationGeneration) return;
+      await handler.setTempo(bpm);
+    });
   }
 
   @override
   Future<void> setVolume(double volume) async {
-    await _handler?.setVolume(volume);
+    await _enqueueOperation((generation) async {
+      final handler = _handler;
+      if (handler == null || generation != _operationGeneration) return;
+      await handler.setVolume(volume);
+    });
   }
 
   @override
   Future<void> stop() async {
-    await _handler?.stopMetronome();
+    _operationGeneration++;
+    await _enqueueOperation((_) async {
+      await _handler?.stopMetronome();
+    });
+  }
+
+  Future<void> _enqueueOperation(
+    Future<void> Function(int generation) operation,
+  ) {
+    final generation = _operationGeneration;
+    final queued = _operationQueue.then((_) => operation(generation));
+    _operationQueue = queued.then<void>((_) {}, onError: (_, _) {});
+    return queued;
   }
 }
 

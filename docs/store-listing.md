@@ -35,7 +35,7 @@ Flute Practice Coach gives flutists a calm, private place to structure daily pra
 
 Create technical routines for long tones, scales, articulation, and other exercises. Organize repertoire, attach PDF scores, set target tempos, and track measure progress. During practice, use the visual metronome, time each piece, make notes, and record a short passage for self-evaluation.
 
-Your journal is managed locally by the app and is not uploaded to us. The app has no advertising, analytics, or online account. Imported scores and recordings are stored in private app storage and can be deleted individually or erased together from Settings. Your operating system may separately include app data in a backup you enable.
+Your journal is managed locally by the app and is not uploaded to us. The app has no advertising or online account. The deployed web version may send optional aggregate usage events through Plausible when configured; it never sends journal, profile, audio, or pitch data. Imported scores and recordings are stored in private app storage and can be deleted individually or erased together from Settings. Your operating system may separately include app data in a backup you enable.
 
 Key features:
 

@@ -184,9 +184,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                               ? 'finish_session_subtitle_web'
                               : 'finish_session_subtitle',
                         ),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppTheme.textSecondaryColor(context),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -215,13 +215,17 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                           },
                     child: Text(
                       dialogContext.translate('keep_practicing'),
-                      style: const TextStyle(color: AppTheme.textSecondary),
+                      style: TextStyle(
+                        color: AppTheme.textSecondaryColor(dialogContext),
+                      ),
                     ),
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppTheme.primaryColor(dialogContext),
+                      foregroundColor: Theme.of(
+                        dialogContext,
+                      ).colorScheme.onPrimary,
                     ),
                     onPressed: isSaving
                         ? null
@@ -300,7 +304,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: Text(
                 dialogContext.translate('keep_practicing'),
-                style: const TextStyle(color: AppTheme.primaryAccent),
+                style: TextStyle(color: AppTheme.accentColor(dialogContext)),
               ),
             ),
             ElevatedButton(
@@ -351,7 +355,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
               Text(
                 context.translate('recording_web_session_only'),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.primaryAccent,
+                  color: AppTheme.accentColor(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -377,8 +381,8 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                 Text(
                   context.translate('playing_back_audio'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppTheme.primaryAccent,
+                  style: TextStyle(
+                    color: AppTheme.accentColor(context),
                     fontWeight: FontWeight.w700,
                   ),
                 )
@@ -515,7 +519,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                     letterSpacing: 1.4,
                     color: practiceProv.isPaused
                         ? Theme.of(context).colorScheme.onSurfaceVariant
-                        : AppTheme.primaryAccent,
+                        : AppTheme.accentColor(context),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -658,7 +662,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                   ? Icons.music_note_rounded
                   : Icons.music_note_outlined,
               color: practiceProv.metronomeOn
-                  ? AppTheme.primaryAccent
+                  ? AppTheme.accentColor(context)
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             title: Text(context.translate('visual_metronome')),
@@ -807,21 +811,22 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                   vertical: 24,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.surface,
+                                  color: AppTheme.surfaceColor(context),
                                   borderRadius: BorderRadius.circular(24),
                                   border: Border.all(
                                     color: practiceProv.isPaused
-                                        ? AppTheme.border
-                                        : AppTheme.primaryAccent.withValues(
-                                            alpha: 0.5,
-                                          ),
+                                        ? AppTheme.borderColor(context)
+                                        : AppTheme.accentColor(
+                                            context,
+                                          ).withValues(alpha: 0.5),
                                     width: 2,
                                   ),
                                   boxShadow: [
                                     if (!practiceProv.isPaused)
                                       BoxShadow(
-                                        color: AppTheme.primaryAccent
-                                            .withValues(alpha: 0.15),
+                                        color: AppTheme.accentColor(
+                                          context,
+                                        ).withValues(alpha: 0.15),
                                         blurRadius: 20,
                                         spreadRadius: 2,
                                       ),
@@ -832,10 +837,12 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                   children: [
                                     Text(
                                       _formatTime(practiceProv.secondsElapsed),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 54,
                                         fontWeight: FontWeight.w300,
-                                        color: AppTheme.textPrimary,
+                                        color: AppTheme.textPrimaryColor(
+                                          context,
+                                        ),
                                         letterSpacing: 2,
                                       ),
                                     ),
@@ -853,8 +860,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                         fontWeight: FontWeight.bold,
                                         letterSpacing: 1.5,
                                         color: practiceProv.isPaused
-                                            ? AppTheme.textSecondary
-                                            : AppTheme.primaryAccent,
+                                            ? AppTheme.textSecondaryColor(
+                                                context,
+                                              )
+                                            : AppTheme.accentColor(context),
                                       ),
                                     ),
                                   ],
@@ -872,19 +881,21 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                 ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: practiceProv.isPaused
-                                        ? AppTheme.primary
-                                        : AppTheme.cardBg,
+                                        ? AppTheme.primaryColor(context)
+                                        : AppTheme.cardColor(context),
                                     foregroundColor: practiceProv.isPaused
-                                        ? Colors.white
-                                        : AppTheme.primary,
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary
+                                        : AppTheme.primaryColor(context),
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 24,
                                       vertical: 12,
                                     ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      side: const BorderSide(
-                                        color: AppTheme.border,
+                                      side: BorderSide(
+                                        color: AppTheme.borderColor(context),
                                         width: 1,
                                       ),
                                     ),
@@ -941,7 +952,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                 children: [
                                   Text(
                                     context.translate('repertoire_tracking'),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
                                     ),
@@ -951,9 +962,11 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                     context.translate(
                                       'repertoire_tracking_subtitle',
                                     ),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
-                                      color: AppTheme.textSecondary,
+                                      color: AppTheme.textSecondaryColor(
+                                        context,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 12),
@@ -965,10 +978,12 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    decoration: const InputDecoration(
+                                    decoration: InputDecoration(
                                       prefixIcon: Icon(
                                         Icons.library_music_rounded,
-                                        color: AppTheme.textSecondary,
+                                        color: AppTheme.textSecondaryColor(
+                                          context,
+                                        ),
                                       ),
                                     ),
                                     items: [
@@ -1033,9 +1048,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                       physics:
                                           const NeverScrollableScrollPhysics(),
                                       itemCount: routine.exercises.length,
-                                      separatorBuilder: (_, _) => const Divider(
+                                      separatorBuilder: (_, _) => Divider(
                                         height: 1,
-                                        color: AppTheme.border,
+                                        color: AppTheme.borderColor(context),
                                       ),
                                       itemBuilder: (context, idx) {
                                         final exercise = routine.exercises[idx];
@@ -1063,8 +1078,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: isActive
-                                                ? AppTheme.primaryAccent
-                                                      .withValues(alpha: 0.08)
+                                                ? AppTheme.accentColor(
+                                                    context,
+                                                  ).withValues(alpha: 0.08)
                                                 : Colors.transparent,
                                             borderRadius: BorderRadius.circular(
                                               12,
@@ -1086,7 +1102,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                                   Checkbox(
                                                     value: isCompleted,
                                                     activeColor:
-                                                        AppTheme.primaryAccent,
+                                                        AppTheme.accentColor(
+                                                          context,
+                                                        ),
                                                     onChanged: (_) => practiceProv
                                                         .toggleExerciseCompleted(
                                                           exercise.id,
@@ -1260,9 +1278,13 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                                   min: 40,
                                                   max: 240,
                                                   activeColor:
-                                                      AppTheme.primaryAccent,
+                                                      AppTheme.accentColor(
+                                                        context,
+                                                      ),
                                                   inactiveColor:
-                                                      AppTheme.border,
+                                                      AppTheme.borderColor(
+                                                        context,
+                                                      ),
                                                   value: practicedBpm
                                                       .toDouble(),
                                                   onChangeStart: (value) {
@@ -1327,7 +1349,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                               context.translate(
                                                 'visual_metronome',
                                               ),
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 14,
                                               ),
@@ -1337,9 +1359,12 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                                 practiceProv.metronomeBpm
                                                     .toString(),
                                               ]),
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 12,
-                                                color: AppTheme.textSecondary,
+                                                color:
+                                                    AppTheme.textSecondaryColor(
+                                                      context,
+                                                    ),
                                               ),
                                             ),
                                           ],
@@ -1356,10 +1381,14 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                                 shape: BoxShape.circle,
                                                 color:
                                                     practiceProv.metronomePulse
-                                                    ? AppTheme.primaryAccent
+                                                    ? AppTheme.accentColor(
+                                                        context,
+                                                      )
                                                     : Colors.transparent,
                                                 border: Border.all(
-                                                  color: AppTheme.primaryAccent,
+                                                  color: AppTheme.accentColor(
+                                                    context,
+                                                  ),
                                                   width: 2,
                                                 ),
                                                 boxShadow: [
@@ -1384,7 +1413,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                             ),
                                             child: Switch(
                                               activeThumbColor:
-                                                  AppTheme.primaryAccent,
+                                                  AppTheme.accentColor(context),
                                               value: practiceProv.metronomeOn,
                                               onChanged: practiceProv.isPaused
                                                   ? null
@@ -1432,8 +1461,12 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                           child: Slider(
                                             min: 40,
                                             max: 240,
-                                            activeColor: AppTheme.primaryAccent,
-                                            inactiveColor: AppTheme.border,
+                                            activeColor: AppTheme.accentColor(
+                                              context,
+                                            ),
+                                            inactiveColor: AppTheme.borderColor(
+                                              context,
+                                            ),
                                             value: practiceProv.metronomeBpm
                                                 .toDouble(),
                                             onChangeStart:
@@ -1519,9 +1552,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                         ),
                                       ],
                                     ),
-                                    const Divider(
+                                    Divider(
                                       height: 16,
-                                      color: AppTheme.border,
+                                      color: AppTheme.borderColor(context),
                                     ),
                                     Row(
                                       children: [
@@ -1572,8 +1605,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                             color:
                                                 practiceProv
                                                     .metronomeSoundEnabled
-                                                ? AppTheme.primaryAccent
-                                                : AppTheme.textSecondary,
+                                                ? AppTheme.accentColor(context)
+                                                : AppTheme.textSecondaryColor(
+                                                    context,
+                                                  ),
                                           ),
                                         ),
                                       ],
@@ -1581,18 +1616,22 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                     if (practiceProv.metronomeSoundEnabled)
                                       Row(
                                         children: [
-                                          const Icon(
+                                          Icon(
                                             Icons.volume_down_rounded,
                                             size: 18,
-                                            color: AppTheme.textSecondary,
+                                            color: AppTheme.textSecondaryColor(
+                                              context,
+                                            ),
                                           ),
                                           Expanded(
                                             child: Slider(
                                               min: 0,
                                               max: 1,
-                                              activeColor:
-                                                  AppTheme.primaryAccent,
-                                              inactiveColor: AppTheme.border,
+                                              activeColor: AppTheme.accentColor(
+                                                context,
+                                              ),
+                                              inactiveColor:
+                                                  AppTheme.borderColor(context),
                                               value:
                                                   practiceProv.metronomeVolume,
                                               onChanged: (value) async {
@@ -1619,10 +1658,12 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                               },
                                             ),
                                           ),
-                                          const Icon(
+                                          Icon(
                                             Icons.volume_up_rounded,
                                             size: 18,
-                                            color: AppTheme.textSecondary,
+                                            color: AppTheme.textSecondaryColor(
+                                              context,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -1631,8 +1672,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                         context.translate(
                                           'metronome_sound_suppressed',
                                         ),
-                                        style: const TextStyle(
-                                          color: AppTheme.textSecondary,
+                                        style: TextStyle(
+                                          color: AppTheme.textSecondaryColor(
+                                            context,
+                                          ),
                                           fontSize: 11,
                                         ),
                                       ),
@@ -1662,9 +1705,11 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                   const SizedBox(height: 2),
                                   Text(
                                     context.translate('self_recorder_subtitle'),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
-                                      color: AppTheme.textSecondary,
+                                      color: AppTheme.textSecondaryColor(
+                                        context,
+                                      ),
                                     ),
                                   ),
                                   if (kIsWeb) ...[
@@ -1673,9 +1718,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                       context.translate(
                                         'recording_web_session_only',
                                       ),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
-                                        color: AppTheme.primaryAccent,
+                                        color: AppTheme.accentColor(context),
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -1685,10 +1730,12 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                   if (!practiceProv.isAudioRecorderActive)
                                     OutlinedButton.icon(
                                       style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(
-                                          color: AppTheme.primaryAccent,
+                                        side: BorderSide(
+                                          color: AppTheme.accentColor(context),
                                         ),
-                                        foregroundColor: AppTheme.primaryAccent,
+                                        foregroundColor: AppTheme.accentColor(
+                                          context,
+                                        ),
                                         padding: const EdgeInsets.symmetric(
                                           vertical: 12,
                                         ),
@@ -1740,8 +1787,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                       Center(
                                         child: Column(
                                           children: [
-                                            const SpinKitWave(
-                                              color: AppTheme.primaryAccent,
+                                            SpinKitWave(
+                                              color: AppTheme.accentColor(
+                                                context,
+                                              ),
                                               size: 32.0,
                                             ),
                                             const SizedBox(height: 8),
@@ -1749,9 +1798,11 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                               context.translate(
                                                 'playing_back_audio',
                                               ),
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 12,
-                                                color: AppTheme.primaryAccent,
+                                                color: AppTheme.accentColor(
+                                                  context,
+                                                ),
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
@@ -1767,9 +1818,11 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
-                                            const Icon(
+                                            Icon(
                                               Icons.audiotrack_rounded,
-                                              color: AppTheme.primaryAccent,
+                                              color: AppTheme.accentColor(
+                                                context,
+                                              ),
                                               size: 18,
                                             ),
                                             const SizedBox(width: 6),
@@ -1781,9 +1834,11 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                                       : 'recording_saved_temp',
                                                 ),
                                                 textAlign: TextAlign.center,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 12,
-                                                  color: AppTheme.primaryAccent,
+                                                  color: AppTheme.accentColor(
+                                                    context,
+                                                  ),
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
@@ -1798,9 +1853,12 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                         child: Center(
                                           child: Text(
                                             context.translate('mic_ready'),
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 12,
-                                              color: AppTheme.textSecondary,
+                                              color:
+                                                  AppTheme.textSecondaryColor(
+                                                    context,
+                                                  ),
                                             ),
                                           ),
                                         ),
@@ -1874,12 +1932,17 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                             !practiceProv.isPlayingPlayback)
                                           IconButton.filled(
                                             style: IconButton.styleFrom(
-                                              backgroundColor: AppTheme.primary,
+                                              backgroundColor:
+                                                  AppTheme.primaryColor(
+                                                    context,
+                                                  ),
                                               minimumSize: const Size(50, 50),
                                             ),
-                                            icon: const Icon(
+                                            icon: Icon(
                                               Icons.play_arrow_rounded,
-                                              color: Colors.white,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
                                               size: 24,
                                             ),
                                             tooltip: context.translate(
@@ -1893,15 +1956,22 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                         if (practiceProv.isPlayingPlayback)
                                           IconButton.filled(
                                             style: IconButton.styleFrom(
-                                              backgroundColor: AppTheme.surface,
+                                              backgroundColor:
+                                                  AppTheme.surfaceColor(
+                                                    context,
+                                                  ),
                                               minimumSize: const Size(50, 50),
-                                              side: const BorderSide(
-                                                color: AppTheme.border,
+                                              side: BorderSide(
+                                                color: AppTheme.borderColor(
+                                                  context,
+                                                ),
                                               ),
                                             ),
-                                            icon: const Icon(
+                                            icon: Icon(
                                               Icons.stop_rounded,
-                                              color: Colors.white,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurface,
                                               size: 24,
                                             ),
                                             tooltip: context.translate(
@@ -1936,7 +2006,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                     // Closing the recorder does not change session time.
                                     TextButton(
                                       style: TextButton.styleFrom(
-                                        foregroundColor: AppTheme.textSecondary,
+                                        foregroundColor:
+                                            AppTheme.textSecondaryColor(
+                                              context,
+                                            ),
                                       ),
                                       onPressed: () async {
                                         await practiceProv.closeAudioRecorder();

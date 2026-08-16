@@ -66,4 +66,35 @@ void main() {
     );
     expect(AppTheme.darkTheme.cardTheme.color, AppTheme.darkCardBg);
   });
+
+  test('resetPreferences restores defaults after erasing local data', () async {
+    final provider = PracticeProvider(
+      keepScreenAwake: true,
+      metronomeSoundEnabled: false,
+      metronomeVolume: 0.2,
+      tunerReferenceHz: 450,
+      tunerToleranceCents: 20,
+      visualMode: PracticeVisualMode.full,
+      themeMode: ThemeMode.dark,
+      hapticsEnabled: false,
+      soundCuesEnabled: false,
+      reducedMotion: true,
+      showCelebrations: false,
+    );
+    addTearDown(provider.dispose);
+
+    await provider.resetPreferences();
+
+    expect(provider.keepScreenAwake, isFalse);
+    expect(provider.metronomeSoundEnabled, isTrue);
+    expect(provider.metronomeVolume, 0.7);
+    expect(provider.tunerReferenceHz, 440);
+    expect(provider.tunerToleranceCents, 10);
+    expect(provider.visualMode, PracticeVisualMode.focused);
+    expect(provider.themeMode, ThemeMode.system);
+    expect(provider.hapticsEnabled, isTrue);
+    expect(provider.soundCuesEnabled, isTrue);
+    expect(provider.reducedMotion, isFalse);
+    expect(provider.showCelebrations, isTrue);
+  });
 }
