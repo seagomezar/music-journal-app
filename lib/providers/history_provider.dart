@@ -83,11 +83,15 @@ class HistoryProvider with ChangeNotifier {
   ) async {
     final session = _sessionById(sessionId);
     if (session == null) return;
-    await _storage.deleteManagedFile(recording.storagePath);
     final updatedRecordings = session.recordings
         .where((item) => item.id != recording.id)
         .toList();
     await saveSession(session.copyWith(recordings: updatedRecordings));
+    try {
+      await _storage.deleteManagedFile(recording.storagePath);
+    } catch (error) {
+      debugPrint('Error deleting recording file: $error');
+    }
   }
 
   SessionRecord? _sessionById(String id) {

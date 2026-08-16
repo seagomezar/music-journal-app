@@ -31,6 +31,9 @@ class AudioService {
       _playerStateSubscription = _playerInstance!.onPlayerStateChanged.listen((
         state,
       ) {
+        if (state == PlayerState.completed || state == PlayerState.stopped) {
+          unawaited(_releasePlayingStoragePath());
+        }
         _setPlaying(state == PlayerState.playing);
       });
     }
@@ -42,6 +45,7 @@ class AudioService {
   bool _isPlaying = false;
   String? _lastRecordedPath;
   String? _pendingRecordingPath;
+  String? _playingStoragePath;
 
   bool get isRecording => _isRecording;
   bool get isPlaying => _isPlaying;
@@ -68,6 +72,7 @@ class AudioService {
   Future<void> _startRecordingInternal() async {
     try {
       if (_isRecording) return;
+      await stopPlayback();
       if (!await _recorder.hasPermission()) {
         throw StateError('Microphone permission was not granted.');
       }
@@ -146,8 +151,12 @@ class AudioService {
     if (_isRecording) {
       throw StateError('Cannot play a recording while recording.');
     }
+    await stopPlayback();
+    var resolvedPath = false;
     try {
       final playablePath = await _storageService.playableRecordingPath(path);
+      resolvedPath = true;
+      _playingStoragePath = path;
       if (kIsWeb || path.startsWith('http') || path.startsWith('blob:')) {
         await _player.play(UrlSource(playablePath));
       } else {
@@ -155,6 +164,7 @@ class AudioService {
       }
       _setPlaying(true);
     } catch (e) {
+      if (resolvedPath) await _releasePlayingStoragePath(path);
       debugPrint('Error playing audio: $e');
       rethrow;
     }
@@ -162,6 +172,7 @@ class AudioService {
 
   Future<void> pausePlayback() async {
     await _player.pause();
+    await _releasePlayingStoragePath();
     _setPlaying(false);
   }
 
@@ -169,7 +180,15 @@ class AudioService {
     if (_playerInstance != null) {
       await _player.stop();
     }
+    await _releasePlayingStoragePath();
     _setPlaying(false);
+  }
+
+  Future<void> _releasePlayingStoragePath([String? expectedPath]) async {
+    final path = _playingStoragePath;
+    if (path == null || (expectedPath != null && expectedPath != path)) return;
+    _playingStoragePath = null;
+    await _storageService.releasePlaybackUrl(path);
   }
 
   Future<void> deleteRecording(String? path) async {
@@ -177,7 +196,9 @@ class AudioService {
     if (path == null || (_isRecording && path == _pendingRecordingPath)) {
       stoppedPath = await stopRecording();
     }
-    await stopPlayback();
+    if (path == null || path == _playingStoragePath) {
+      await stopPlayback();
+    }
     final pathToDelete = path ?? stoppedPath ?? _lastRecordedPath;
     await _storageService.deleteManagedFile(pathToDelete);
     if (_lastRecordedPath == pathToDelete) {
@@ -186,7 +207,11 @@ class AudioService {
   }
 
   Future<void> dispose() async {
-    await stopRecording();
+    try {
+      await stopRecording();
+    } catch (error) {
+      debugPrint('Error disposing audio recording: $error');
+    }
     await stopPlayback();
     await _playerStateSubscription?.cancel();
     await _recordStateSubscription?.cancel();

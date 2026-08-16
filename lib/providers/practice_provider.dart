@@ -737,12 +737,25 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   }
 
   Future<void> _deleteAllRecordings() async {
-    final stoppedPath = await _audioService.stopRecording();
+    String? stoppedPath;
+    try {
+      stoppedPath = await _audioService.stopRecording();
+    } catch (error) {
+      debugPrint('Error discarding active recording: $error');
+    }
     if (stoppedPath != null) {
-      await _audioService.deleteRecording(stoppedPath);
+      try {
+        await _audioService.deleteRecording(stoppedPath);
+      } catch (error) {
+        debugPrint('Error deleting discarded recording: $error');
+      }
     }
     for (final recording in List<SessionRecording>.from(_recordings)) {
-      await _audioService.deleteRecording(recording.storagePath);
+      try {
+        await _audioService.deleteRecording(recording.storagePath);
+      } catch (error) {
+        debugPrint('Error deleting discarded recording: $error');
+      }
     }
     _recordings.clear();
     _playingRecordingPath = null;
@@ -1042,10 +1055,13 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _activeStopwatch.stop();
     _stopMetronome();
     await stopPitchCapture();
-    await _deleteAllRecordings();
-    _resetSessionState();
-    await _applyScreenAwakePreferenceSafely();
-    notifyListeners();
+    try {
+      await _deleteAllRecordings();
+    } finally {
+      _resetSessionState();
+      await _applyScreenAwakePreferenceSafely();
+      notifyListeners();
+    }
   }
 
   void _resetSessionState() {

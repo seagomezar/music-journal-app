@@ -35,6 +35,8 @@ class FileStorageService {
 
   Future<String> playableRecordingPath(String path) async => path;
 
+  Future<void> releasePlaybackUrl(String path) async {}
+
   Future<String> importPdf(String sourcePath, {String? originalName}) async {
     final source = File(sourcePath);
     if (!await source.exists()) {

@@ -155,6 +155,24 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
     }
   }
 
+  Future<void> _renameRecording(
+    BuildContext context,
+    HistoryProvider provider,
+    String sessionId,
+    SessionRecording recording,
+  ) async {
+    try {
+      await provider.renameRecording(sessionId, recording, recording.name);
+    } catch (error) {
+      debugPrint('Recording rename error: $error');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.translate('recording_rename_error'))),
+        );
+      }
+    }
+  }
+
   Future<void> _openManualSession() async {
     final loggedDate = await Navigator.of(context).push<DateTime>(
       MaterialPageRoute(
@@ -695,12 +713,12 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                     onPlay: (recording) => _handleAudioPlayback(
                                       recording.storagePath,
                                     ),
-                                    onRename: (recording) =>
-                                        historyProv.renameRecording(
-                                          session.id,
-                                          recording,
-                                          recording.name,
-                                        ),
+                                    onRename: (recording) => _renameRecording(
+                                      context,
+                                      historyProv,
+                                      session.id,
+                                      recording,
+                                    ),
                                     onDelete: (recording) => _deleteRecording(
                                       context,
                                       historyProv,
