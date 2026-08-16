@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../providers/history_provider.dart';
 import '../providers/localization_provider.dart';
 import '../models/session_record.dart';
+import '../models/session_recording.dart';
 import '../services/audio_service.dart';
 import '../services/local_file_availability.dart';
 import '../theme/app_theme.dart';
@@ -128,6 +129,27 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.translate('session_delete_error'))),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteRecording(
+    BuildContext context,
+    HistoryProvider provider,
+    String sessionId,
+    SessionRecording recording,
+  ) async {
+    try {
+      if (_currentlyPlayingPath == recording.storagePath) {
+        await _playbackService.stopPlayback();
+      }
+      await provider.deleteRecording(sessionId, recording);
+    } catch (error) {
+      debugPrint('Recording delete error: $error');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.translate('recording_delete_error'))),
         );
       }
     }
@@ -679,8 +701,12 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                           recording,
                                           recording.name,
                                         ),
-                                    onDelete: (recording) => historyProv
-                                        .deleteRecording(session.id, recording),
+                                    onDelete: (recording) => _deleteRecording(
+                                      context,
+                                      historyProv,
+                                      session.id,
+                                      recording,
+                                    ),
                                   ),
                                 ],
                               ],

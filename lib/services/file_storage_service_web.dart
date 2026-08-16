@@ -10,7 +10,7 @@ class FileStorageService {
 
   static const _recordingPrefix = 'recording://';
   Box<Uint8List>? _recordingBox;
-  final _playbackUrls = <String, String>{};
+  static final _playbackUrls = <String, String>{};
 
   Future<Box<Uint8List>> _recordings() async {
     return _recordingBox ??= await Hive.openBox<Uint8List>(
@@ -25,15 +25,20 @@ class FileStorageService {
     if (sourcePath == null || sourcePath.isEmpty) {
       throw StateError('The browser did not produce an audio recording.');
     }
-    final response = await http.get(Uri.parse(sourcePath));
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw StateError('The browser recording could not be saved.');
+    try {
+      final response = await http.get(Uri.parse(sourcePath));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw StateError('The browser recording could not be saved.');
+      }
+      final key = _keyFor(targetPath);
+      final box = await _recordings();
+      await box.put(key, Uint8List.fromList(response.bodyBytes));
+      return targetPath;
+    } finally {
+      if (sourcePath.startsWith('blob:')) {
+        web.URL.revokeObjectURL(sourcePath);
+      }
     }
-    final key = _keyFor(targetPath);
-    final box = await _recordings();
-    await box.put(key, Uint8List.fromList(response.bodyBytes));
-    web.URL.revokeObjectURL(sourcePath);
-    return targetPath;
   }
 
   Future<String> playableRecordingPath(String path) async {

@@ -185,6 +185,8 @@ class LocalizationProvider with ChangeNotifier {
     'delete_recording_confirm': 'Delete "{}"? This cannot be undone.',
     'recording_rename_error': 'The recording name could not be saved.',
     'recording_delete_error': 'The recording could not be deleted.',
+    'recording_save_error':
+        'The recording could not be saved. Try recording it again.',
     'start_recording': 'Start recording',
     'stop_recording': 'Stop recording',
     'delete_recording': 'Delete recording',
@@ -548,6 +550,8 @@ class LocalizationProvider with ChangeNotifier {
     'delete_recording_confirm': '¿Eliminar "{}"? Esto no se puede deshacer.',
     'recording_rename_error': 'No se pudo guardar el nombre de la grabación.',
     'recording_delete_error': 'No se pudo eliminar la grabación.',
+    'recording_save_error':
+        'No se pudo guardar la grabación. Intenta grabarla de nuevo.',
     'start_recording': 'Iniciar grabación',
     'stop_recording': 'Detener grabación',
     'delete_recording': 'Eliminar grabación',

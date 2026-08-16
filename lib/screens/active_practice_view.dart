@@ -107,6 +107,21 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
     );
   }
 
+  Future<void> _handleRecordingAction(
+    BuildContext context,
+    Future<void> Function() action,
+  ) async {
+    try {
+      await action();
+    } catch (error) {
+      debugPrint('Recording save error: $error');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.translate('recording_save_error'))),
+      );
+    }
+  }
+
   String _buildExerciseNotesDraft(
     BuildContext context,
     PracticeProvider practiceProvider,
@@ -418,7 +433,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                   if (practiceProv.isRecording)
                     IconButton.filled(
                       tooltip: context.translate('stop_recording'),
-                      onPressed: practiceProv.stopRecording,
+                      onPressed: () => _handleRecordingAction(
+                        context,
+                        practiceProv.stopRecording,
+                      ),
                       icon: const Icon(Icons.stop_rounded),
                     ),
                 ],
@@ -438,7 +456,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                 ),
               ],
               TextButton(
-                onPressed: practiceProv.closeAudioRecorder,
+                onPressed: () => _handleRecordingAction(
+                  context,
+                  practiceProv.closeAudioRecorder,
+                ),
                 child: Text(context.translate('close_recorder')),
               ),
             ],
@@ -1920,8 +1941,11 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                             tooltip: context.translate(
                                               'stop_recording',
                                             ),
-                                            onPressed:
-                                                practiceProv.stopRecording,
+                                            onPressed: () =>
+                                                _handleRecordingAction(
+                                                  context,
+                                                  practiceProv.stopRecording,
+                                                ),
                                           ),
                                       ],
                                     ),
@@ -1956,9 +1980,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                               context,
                                             ),
                                       ),
-                                      onPressed: () async {
-                                        await practiceProv.closeAudioRecorder();
-                                      },
+                                      onPressed: () => _handleRecordingAction(
+                                        context,
+                                        practiceProv.closeAudioRecorder,
+                                      ),
                                       child: Text(
                                         context.translate('close_recorder'),
                                       ),

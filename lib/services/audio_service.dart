@@ -118,7 +118,7 @@ class AudioService {
       debugPrint('Error stopping audio recording: $e');
       _isRecording = false;
       _pendingRecordingPath = null;
-      return null;
+      rethrow;
     } finally {
       await _recordStateSubscription?.cancel();
       _recordStateSubscription = null;
@@ -143,6 +143,9 @@ class AudioService {
   }
 
   Future<void> startPlayback(String path) async {
+    if (_isRecording) {
+      throw StateError('Cannot play a recording while recording.');
+    }
     try {
       final playablePath = await _storageService.playableRecordingPath(path);
       if (kIsWeb || path.startsWith('http') || path.startsWith('blob:')) {
