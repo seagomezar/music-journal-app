@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flute/services/capture_lifecycle_service.dart';
 
@@ -33,10 +34,19 @@ void main() {
       controller.end(AudioCaptureKind.pitchTracking),
     ]);
 
-    expect(calls.map((call) => call.method), ['begin', 'begin', 'end', 'end']);
-    expect(calls[0].arguments['kind'], 'recording');
-    expect(calls[1].arguments['kind'], 'pitchTracking');
-    expect(calls[2].arguments['kind'], 'recording');
-    expect(calls[3].arguments['kind'], 'pitchTracking');
+    if (kIsWeb) {
+      expect(calls, isEmpty);
+    } else {
+      expect(calls.map((call) => call.method), [
+        'begin',
+        'begin',
+        'end',
+        'end',
+      ]);
+      expect(calls[0].arguments['kind'], 'recording');
+      expect(calls[1].arguments['kind'], 'pitchTracking');
+      expect(calls[2].arguments['kind'], 'recording');
+      expect(calls[3].arguments['kind'], 'pitchTracking');
+    }
   });
 }
