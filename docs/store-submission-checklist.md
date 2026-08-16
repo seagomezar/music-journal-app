@@ -9,7 +9,7 @@
 - [ ] Android release app bundle succeeds with permanent upload-key signing
 - [ ] iOS release archive succeeds with the distribution team and a matching installed iOS/Xcode platform
 - [ ] Test the exact signed builds on physical Android and iPhone devices
-- [x] Inspect the unsigned Android merged manifest (only optional microphone permission plus AndroidX receiver permission)
+- [x] Inspect the unsigned Android merged manifest (optional microphone permission plus wake-lock and foreground-service/media-playback permissions for the background metronome)
 - [ ] Inspect the signed iOS archive privacy report
 
 ## Product checks

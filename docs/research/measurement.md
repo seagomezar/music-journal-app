@@ -11,7 +11,7 @@ or persistent user identifier.
 
 | Event | Where | Allowed properties | Success meaning |
 | --- | --- | --- | --- |
-| `locale_selected` | Landing page and app | `locale` (`en`/`es`) | Language preference observed in aggregate |
+| `locale_selected` | Landing page | `locale` (`en`/`es`) | Landing-page locale observed in aggregate |
 | `landing_cta_click` | Landing page | `target` (`web_app`/`research`/`support`) | Visitor chooses a next step |
 | `app_launch` | Flutter web app | none | App loaded successfully |
 | `onboarding_complete` | Flutter web app | none | Local profile created |
