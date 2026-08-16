@@ -19,8 +19,8 @@
 - [ ] Verify recording cleanup after forced process termination on physical devices
 - [x] Permission denial is recoverable and microphone-independent features remain usable
 - [x] Session-save failures do not exit or discard the active session
-- [ ] Imported PDF and recording survive relaunch
-- [x] Deleting a session removes its managed recording (automated test and Android smoke test)
+- [ ] Imported PDF and recordings survive relaunch
+- [x] Deleting a session removes its managed recordings (automated test and Android smoke test)
 - [ ] Deleting a repertoire piece removes its managed PDF on a physical device
 - [x] Erase all data removes the profile, database content, and app-managed files (Android smoke test)
 - [ ] English and Spanish, large text, VoiceOver/TalkBack, and small-screen layouts pass

@@ -12,7 +12,7 @@ Flute Practice Coach is a private, local-only practice journal for flutists. It 
 - Repertoire catalog with app-managed PDF scores on mobile
 - Practice timer, visual metronome, notes, calendar, goals, and streaks
 - Manual logging for practice completed on a past date
-- Optional self-evaluation recordings stored in private app storage on mobile
+- Optional self-evaluation recordings with multiple takes and playback, rename, and delete controls; stored locally on mobile and in browser storage on web
 - Versioned JSON export/import for routines and practice history (media excluded)
 - English and Spanish interface
 - No online account, advertising, or cloud journal data collection; the deployed web build may send optional aggregate usage events when configured
@@ -63,7 +63,7 @@ The sample-accurate browser metronome requires the WASM build. A JavaScript
 build is supported only when its server sends `Cross-Origin-Opener-Policy:
 same-origin` and `Cross-Origin-Embedder-Policy: require-corp`.
 
-The browser version keeps profile and journal data in browser storage. PDF importing/viewing is mobile-only, and browser recordings are available only during the active practice session; they are not retained in history. Clearing site data or using private browsing can remove browser-stored journal data.
+The browser version keeps profile, journal, and saved recordings in browser storage. PDF importing/viewing is mobile-only, and recordings remain available in session history after a reload. See the [privacy policy](docs/privacy-policy.html) for storage-retention details.
 
 On Android and iOS, an explicitly started recording or tuner measurement continues through supported screen-lock and background audio states. The app shows a native capture indicator while microphone capture is active. Browsers may suspend microphone capture while a hidden tab is inactive; the app preserves any measurement completed before that interruption.
 
