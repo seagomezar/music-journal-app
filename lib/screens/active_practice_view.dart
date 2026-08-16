@@ -13,6 +13,7 @@ import '../models/routine.dart';
 import '../models/practice_appearance_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/practice_tuner_card.dart';
+import '../widgets/recording_list.dart';
 
 class ActivePracticeView extends StatefulWidget {
   const ActivePracticeView({super.key});
@@ -333,7 +334,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
     BuildContext context,
     PracticeProvider practiceProv,
   ) {
-    final hasRecording = practiceProv.recordedAudioPath != null;
+    final hasRecording = practiceProv.recordings.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: AppTheme.glassCard(
@@ -388,11 +389,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                 )
               else if (hasRecording)
                 Text(
-                  context.translate(
-                    kIsWeb
-                        ? 'recording_web_session_only'
-                        : 'recording_saved_temp',
-                  ),
+                  context.translate('recording_count_format', [
+                    practiceProv.recordings.length.toString(),
+                  ]),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -401,7 +400,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                 alignment: WrapAlignment.center,
                 spacing: 12,
                 children: [
-                  if (!practiceProv.isRecording && !hasRecording)
+                  if (!practiceProv.isRecording)
                     IconButton.filled(
                       tooltip: context.translate('start_recording'),
                       onPressed: () async {
@@ -422,26 +421,22 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                       onPressed: practiceProv.stopRecording,
                       icon: const Icon(Icons.stop_rounded),
                     ),
-                  if (hasRecording && !practiceProv.isPlayingPlayback)
-                    IconButton.filledTonal(
-                      tooltip: context.translate('play_recording_btn'),
-                      onPressed: practiceProv.startPlayback,
-                      icon: const Icon(Icons.play_arrow_rounded),
-                    ),
-                  if (practiceProv.isPlayingPlayback)
-                    IconButton.filledTonal(
-                      tooltip: context.translate('stop_playback_btn'),
-                      onPressed: practiceProv.stopPlayback,
-                      icon: const Icon(Icons.stop_rounded),
-                    ),
-                  if (hasRecording)
-                    IconButton(
-                      tooltip: context.translate('delete_recording'),
-                      onPressed: practiceProv.deleteRecording,
-                      icon: const Icon(Icons.delete_outline_rounded),
-                    ),
                 ],
               ),
+              if (hasRecording) ...[
+                const SizedBox(height: 8),
+                RecordingList(
+                  recordings: practiceProv.recordings,
+                  playingPath: practiceProv.playingRecordingPath,
+                  isPlaying: practiceProv.isPlayingPlayback,
+                  compact: true,
+                  onPlay: (recording) => practiceProv.startPlayback(recording),
+                  onRename: (recording) =>
+                      practiceProv.renameRecording(recording, recording.name),
+                  onDelete: (recording) =>
+                      practiceProv.deleteRecording(recording),
+                ),
+              ],
               TextButton(
                 onPressed: practiceProv.closeAudioRecorder,
                 child: Text(context.translate('close_recorder')),
@@ -1810,8 +1805,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                         ),
                                       ),
                                       const SizedBox(height: 14),
-                                    ] else if (practiceProv.recordedAudioPath !=
-                                        null) ...[
+                                    ] else if (practiceProv
+                                        .recordings
+                                        .isNotEmpty) ...[
                                       SizedBox(
                                         height: 57,
                                         child: Row(
@@ -1829,9 +1825,13 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                             Flexible(
                                               child: Text(
                                                 context.translate(
-                                                  kIsWeb
-                                                      ? 'recording_web_session_only'
-                                                      : 'recording_saved_temp',
+                                                  'recording_count_format',
+                                                  [
+                                                    practiceProv
+                                                        .recordings
+                                                        .length
+                                                        .toString(),
+                                                  ],
                                                 ),
                                                 textAlign: TextAlign.center,
                                                 style: TextStyle(
@@ -1872,9 +1872,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                           MainAxisAlignment.center,
                                       children: [
                                         // Record button (Mic)
-                                        if (!practiceProv.isRecording &&
-                                            practiceProv.recordedAudioPath ==
-                                                null)
+                                        if (!practiceProv.isRecording)
                                           IconButton.filled(
                                             style: IconButton.styleFrom(
                                               backgroundColor: Colors.redAccent,
@@ -1925,81 +1923,28 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                             onPressed:
                                                 practiceProv.stopRecording,
                                           ),
-
-                                        // Play snippet button
-                                        if (practiceProv.recordedAudioPath !=
-                                                null &&
-                                            !practiceProv.isPlayingPlayback)
-                                          IconButton.filled(
-                                            style: IconButton.styleFrom(
-                                              backgroundColor:
-                                                  AppTheme.primaryColor(
-                                                    context,
-                                                  ),
-                                              minimumSize: const Size(50, 50),
-                                            ),
-                                            icon: Icon(
-                                              Icons.play_arrow_rounded,
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.onPrimary,
-                                              size: 24,
-                                            ),
-                                            tooltip: context.translate(
-                                              'play_recording_btn',
-                                            ),
-                                            onPressed:
-                                                practiceProv.startPlayback,
-                                          ),
-
-                                        // Pause snippet playback button
-                                        if (practiceProv.isPlayingPlayback)
-                                          IconButton.filled(
-                                            style: IconButton.styleFrom(
-                                              backgroundColor:
-                                                  AppTheme.surfaceColor(
-                                                    context,
-                                                  ),
-                                              minimumSize: const Size(50, 50),
-                                              side: BorderSide(
-                                                color: AppTheme.borderColor(
-                                                  context,
-                                                ),
-                                              ),
-                                            ),
-                                            icon: Icon(
-                                              Icons.stop_rounded,
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.onSurface,
-                                              size: 24,
-                                            ),
-                                            tooltip: context.translate(
-                                              'stop_playback_btn',
-                                            ),
-                                            onPressed:
-                                                practiceProv.stopPlayback,
-                                          ),
-
-                                        if (practiceProv.recordedAudioPath !=
-                                            null) ...[
-                                          const SizedBox(width: 20),
-                                          // Delete snippet button
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.delete_outline_rounded,
-                                              color: Colors.redAccent,
-                                              size: 24,
-                                            ),
-                                            tooltip: context.translate(
-                                              'delete_recording',
-                                            ),
-                                            onPressed:
-                                                practiceProv.deleteRecording,
-                                          ),
-                                        ],
                                       ],
                                     ),
+
+                                    if (practiceProv.recordings.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      RecordingList(
+                                        recordings: practiceProv.recordings,
+                                        playingPath:
+                                            practiceProv.playingRecordingPath,
+                                        isPlaying:
+                                            practiceProv.isPlayingPlayback,
+                                        onPlay: (recording) => practiceProv
+                                            .startPlayback(recording),
+                                        onRename: (recording) =>
+                                            practiceProv.renameRecording(
+                                              recording,
+                                              recording.name,
+                                            ),
+                                        onDelete: (recording) => practiceProv
+                                            .deleteRecording(recording),
+                                      ),
+                                    ],
 
                                     const SizedBox(height: 10),
 

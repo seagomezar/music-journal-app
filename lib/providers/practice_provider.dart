@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
@@ -7,6 +6,7 @@ import '../models/routine.dart';
 import '../models/exercise.dart';
 import '../models/piece.dart';
 import '../models/session_record.dart';
+import '../models/session_recording.dart';
 import '../services/analytics_service.dart';
 import '../models/pitch_tracking.dart';
 import '../models/practice_appearance_preferences.dart';
@@ -92,8 +92,9 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
        _persistSoundCues = persistSoundCues,
        _persistReducedMotion = persistReducedMotion,
        _persistShowCelebrations = persistShowCelebrations {
-    _audioService.onPlaybackChanged = (_) {
+    _audioService.onPlaybackChanged = (isPlaying) {
       if (_isDisposed) return;
+      if (!isPlaying) _playingRecordingPath = null;
       unawaited(_syncMetronomeAudioSuppression());
       notifyListeners();
     };
@@ -155,7 +156,9 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
   // Audio recording
   bool _isAudioRecorderActive = false;
-  String? _recordedAudioPath;
+  final List<SessionRecording> _recordings = [];
+  String? _playingRecordingPath;
+  int _nextRecordingNumber = 1;
 
   // Metronome variables
   bool _metronomeOn = false;
@@ -196,7 +199,10 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   Map<String, int> get rehearsedPiecesDuration => _rehearsedPiecesDuration;
   String? get activePieceId => _activePieceId;
   bool get isAudioRecorderActive => _isAudioRecorderActive;
-  String? get recordedAudioPath => _recordedAudioPath;
+  List<SessionRecording> get recordings => List.unmodifiable(_recordings);
+  String? get recordedAudioPath =>
+      _recordings.isEmpty ? null : _recordings.last.storagePath;
+  String? get playingRecordingPath => _playingRecordingPath;
 
   bool get isRecording => _audioService.isRecording;
   bool get isPlayingPlayback => _audioService.isPlaying;
@@ -355,7 +361,8 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _activePieceId = null;
     _activePieceTitle = null;
     _isAudioRecorderActive = false;
-    _recordedAudioPath = null;
+    _recordings.clear();
+    _nextRecordingNumber = 1;
     _isTunerVisible = true;
     _pitchReading = null;
     notesController.clear();
@@ -664,36 +671,81 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   Future<void> stopRecording() async {
     final path = await _audioService.stopRecording();
     if (path != null) {
-      _recordedAudioPath = path;
+      _recordings.add(
+        SessionRecording(
+          id: 'recording_${const Uuid().v7()}',
+          name: 'Recording ${_nextRecordingNumber++}',
+          createdAt: DateTime.now(),
+          storagePath: path,
+        ),
+      );
     }
     await _syncMetronomeAudioSuppression();
     notifyListeners();
   }
 
-  Future<void> startPlayback() async {
-    if (_recordedAudioPath != null) {
-      await _setMetronomeSoundSuppressed(true);
-      try {
-        await _audioService.startPlayback(_recordedAudioPath!);
-      } catch (e) {
-        await _syncMetronomeAudioSuppression();
-        debugPrint('Playback error: $e');
-      }
-      notifyListeners();
+  Future<void> startPlayback([SessionRecording? recording]) async {
+    final selected =
+        recording ?? (_recordings.isEmpty ? null : _recordings.last);
+    if (selected == null) return;
+    if (_playingRecordingPath == selected.storagePath &&
+        _audioService.isPlaying) {
+      await stopPlayback();
+      return;
     }
+    await _setMetronomeSoundSuppressed(true);
+    try {
+      await _audioService.startPlayback(selected.storagePath);
+      _playingRecordingPath = selected.storagePath;
+    } catch (e) {
+      _playingRecordingPath = null;
+      await _syncMetronomeAudioSuppression();
+      debugPrint('Playback error: $e');
+    }
+    notifyListeners();
   }
 
   Future<void> stopPlayback() async {
     await _audioService.stopPlayback();
+    _playingRecordingPath = null;
     await _syncMetronomeAudioSuppression();
     notifyListeners();
   }
 
-  Future<void> deleteRecording() async {
-    await _audioService.deleteRecording(_recordedAudioPath);
-    _recordedAudioPath = null;
+  Future<void> deleteRecording([SessionRecording? recording]) async {
+    final selected =
+        recording ?? (_recordings.isEmpty ? null : _recordings.last);
+    if (selected == null) return;
+    await _audioService.deleteRecording(selected.storagePath);
+    _recordings.removeWhere((item) => item.id == selected.id);
+    if (_playingRecordingPath == selected.storagePath) {
+      _playingRecordingPath = null;
+    }
     await _syncMetronomeAudioSuppression();
     notifyListeners();
+  }
+
+  Future<void> renameRecording(SessionRecording recording, String name) async {
+    final normalized = name.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'A recording name is required.');
+    }
+    final index = _recordings.indexWhere((item) => item.id == recording.id);
+    if (index == -1) return;
+    _recordings[index] = recording.copyWith(name: normalized);
+    notifyListeners();
+  }
+
+  Future<void> _deleteAllRecordings() async {
+    final stoppedPath = await _audioService.stopRecording();
+    if (stoppedPath != null) {
+      await _audioService.deleteRecording(stoppedPath);
+    }
+    for (final recording in List<SessionRecording>.from(_recordings)) {
+      await _audioService.deleteRecording(recording.storagePath);
+    }
+    _recordings.clear();
+    _playingRecordingPath = null;
   }
 
   Future<void> closeAudioRecorder() async {
@@ -972,9 +1024,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       exerciseResults: exerciseResults,
       rehearsedPieces: rehearsedList,
       notes: notesController.text,
-      // Browser recorder URLs are tied to the current page and cannot be
-      // restored after a reload, so they must not be persisted to history.
-      audioFilePath: kIsWeb ? null : _recordedAudioPath,
+      recordings: List<SessionRecording>.from(_recordings),
     );
 
     return record;
@@ -992,7 +1042,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _activeStopwatch.stop();
     _stopMetronome();
     await stopPitchCapture();
-    await _audioService.deleteRecording(_recordedAudioPath);
+    await _deleteAllRecordings();
     _resetSessionState();
     await _applyScreenAwakePreferenceSafely();
     notifyListeners();
@@ -1014,7 +1064,9 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _activePieceId = null;
     _activePieceTitle = null;
     _isAudioRecorderActive = false;
-    _recordedAudioPath = null;
+    _recordings.clear();
+    _playingRecordingPath = null;
+    _nextRecordingNumber = 1;
     _metronomeOn = false;
     _metronomeSoundSuppressed = false;
     _stopMetronomeVisual();
@@ -1082,11 +1134,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     unawaited(_disableScreenAwakeSafely());
     unawaited(_pitchTracking.dispose());
     if (_isActive) {
-      unawaited(
-        _audioService
-            .deleteRecording(_recordedAudioPath)
-            .whenComplete(_audioService.dispose),
-      );
+      unawaited(_deleteAllRecordings().whenComplete(_audioService.dispose));
     } else {
       unawaited(_audioService.dispose());
     }

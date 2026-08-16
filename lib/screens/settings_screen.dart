@@ -15,6 +15,7 @@ import '../models/practice_appearance_preferences.dart';
 import '../services/database_service.dart';
 import '../services/journal_backup_service.dart';
 import '../theme/app_theme.dart';
+import 'recording_library_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -284,6 +285,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.library_music_outlined),
+              title: Text(context.translate('recording_library')),
+              subtitle: Text(context.translate('recording_library_subtitle')),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const RecordingLibraryScreen(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Text(

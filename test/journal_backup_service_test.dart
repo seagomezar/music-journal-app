@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flute/models/exercise.dart';
 import 'package:flute/models/routine.dart';
 import 'package:flute/models/session_record.dart';
+import 'package:flute/models/session_recording.dart';
 import 'package:flute/models/pitch_tracking.dart';
 import 'package:flute/services/journal_backup_service.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,6 +90,31 @@ void main() {
           .onPitchPercentage,
       closeTo(88.89, 0.01),
     );
+  });
+
+  test('excludes all recording metadata from journal backups', () {
+    final withRecordings = session.copyWith(
+      recordings: [
+        SessionRecording(
+          id: 'recording-1',
+          name: 'Final take',
+          createdAt: DateTime.utc(2026, 7, 20, 15, 1),
+          storagePath: '/private/device/final.m4a',
+        ),
+      ],
+    );
+
+    final source = service.createBackup(
+      routines: const [],
+      sessions: [withRecordings],
+      appVersion: '1.0.0',
+    );
+
+    expect(source, isNot(contains('recording-1')));
+    expect(source, isNot(contains('Final take')));
+    expect(source, isNot(contains('/private/device/final.m4a')));
+    final decoded = service.parseBytes(Uint8List.fromList(utf8.encode(source)));
+    expect(decoded.sessions.single.recordings, isEmpty);
   });
 
   test('imports version 2 exercise results without pitch summaries', () {

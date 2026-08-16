@@ -41,6 +41,7 @@ class AudioService {
   bool _recordingCaptureActive = false;
   bool _isPlaying = false;
   String? _lastRecordedPath;
+  String? _pendingRecordingPath;
 
   bool get isRecording => _isRecording;
   bool get isPlaying => _isPlaying;
@@ -73,7 +74,8 @@ class AudioService {
 
       await _captureLifecycle.begin(AudioCaptureKind.recording);
       _recordingCaptureActive = true;
-      final path = kIsWeb ? '' : await _storageService.createRecordingPath();
+      final path = await _storageService.createRecordingPath();
+      _pendingRecordingPath = path;
       _recordStateSubscription ??= _recorder.onStateChanged().listen((state) {
         if (state == RecordState.stop) {
           _isRecording = false;
@@ -88,6 +90,7 @@ class AudioService {
     } catch (e) {
       debugPrint('Error starting audio recording: $e');
       _isRecording = false;
+      _pendingRecordingPath = null;
       await _recordStateSubscription?.cancel();
       _recordStateSubscription = null;
       await _endRecordingCapture();
@@ -101,17 +104,25 @@ class AudioService {
   Future<String?> _stopRecordingInternal() async {
     try {
       if (!_isRecording) return null;
-      final path = await _recorder.stop();
+      final transientPath = await _recorder.stop();
       _isRecording = false;
-      _lastRecordedPath = path;
-      return path;
+      if (transientPath == null) return null;
+      final targetPath = await _storageService.persistRecording(
+        transientPath,
+        _pendingRecordingPath ?? await _storageService.createRecordingPath(),
+      );
+      _pendingRecordingPath = null;
+      _lastRecordedPath = targetPath;
+      return targetPath;
     } catch (e) {
       debugPrint('Error stopping audio recording: $e');
       _isRecording = false;
+      _pendingRecordingPath = null;
       return null;
     } finally {
       await _recordStateSubscription?.cancel();
       _recordStateSubscription = null;
+      _pendingRecordingPath = null;
       await _endRecordingCapture();
     }
   }
@@ -133,10 +144,11 @@ class AudioService {
 
   Future<void> startPlayback(String path) async {
     try {
+      final playablePath = await _storageService.playableRecordingPath(path);
       if (kIsWeb || path.startsWith('http') || path.startsWith('blob:')) {
-        await _player.play(UrlSource(path));
+        await _player.play(UrlSource(playablePath));
       } else {
-        await _player.play(DeviceFileSource(path));
+        await _player.play(DeviceFileSource(playablePath));
       }
       _setPlaying(true);
     } catch (e) {
@@ -158,7 +170,10 @@ class AudioService {
   }
 
   Future<void> deleteRecording(String? path) async {
-    final stoppedPath = await stopRecording();
+    String? stoppedPath;
+    if (path == null || (_isRecording && path == _pendingRecordingPath)) {
+      stoppedPath = await stopRecording();
+    }
     await stopPlayback();
     final pathToDelete = path ?? stoppedPath ?? _lastRecordedPath;
     await _storageService.deleteManagedFile(pathToDelete);

@@ -1,5 +1,6 @@
 import 'exercise.dart';
 import 'pitch_tracking.dart';
+import 'session_recording.dart';
 
 class SessionExerciseRecord {
   final Exercise exercise;
@@ -86,7 +87,7 @@ class SessionRecord {
   final List<SessionExerciseRecord> exerciseResults;
   final List<SessionPieceRecord> rehearsedPieces;
   final String notes;
-  final String? audioFilePath;
+  final List<SessionRecording> recordings;
 
   SessionRecord({
     required this.id,
@@ -99,11 +100,26 @@ class SessionRecord {
     this.exerciseResults = const [],
     required this.rehearsedPieces,
     required this.notes,
-    this.audioFilePath,
+    List<SessionRecording> recordings = const [],
+    String? audioFilePath,
   }) : startUtcOffsetMinutes =
            startUtcOffsetMinutes ?? startTime.timeZoneOffset.inMinutes,
        endUtcOffsetMinutes =
-           endUtcOffsetMinutes ?? endTime.timeZoneOffset.inMinutes;
+           endUtcOffsetMinutes ?? endTime.timeZoneOffset.inMinutes,
+       recordings = List.unmodifiable(
+         recordings.isNotEmpty
+             ? recordings
+             : audioFilePath == null
+             ? const <SessionRecording>[]
+             : [
+                 SessionRecording(
+                   id: 'legacy_$id',
+                   name: 'Recording 1',
+                   createdAt: startTime,
+                   storagePath: audioFilePath,
+                 ),
+               ],
+       );
 
   DateTime get localStartTime => _wallTime(startTime, startUtcOffsetMinutes);
   DateTime get localEndTime => _wallTime(endTime, endUtcOffsetMinutes);
@@ -135,8 +151,27 @@ class SessionRecord {
         .toList(),
     'rehearsedPieces': rehearsedPieces.map((p) => p.toJson()).toList(),
     'notes': notes,
-    'audioFilePath': audioFilePath,
+    'recordings': recordings.map((recording) => recording.toJson()).toList(),
   };
+
+  String? get audioFilePath =>
+      recordings.isEmpty ? null : recordings.first.storagePath;
+
+  SessionRecord copyWith({List<SessionRecording>? recordings}) {
+    return SessionRecord(
+      id: id,
+      startTime: startTime,
+      endTime: endTime,
+      startUtcOffsetMinutes: startUtcOffsetMinutes,
+      endUtcOffsetMinutes: endUtcOffsetMinutes,
+      totalDurationInSeconds: totalDurationInSeconds,
+      completedExercises: completedExercises,
+      exerciseResults: exerciseResults,
+      rehearsedPieces: rehearsedPieces,
+      notes: notes,
+      recordings: recordings ?? this.recordings,
+    );
+  }
 
   factory SessionRecord.fromJson(Map<String, dynamic> json) {
     final startTime = DateTime.parse(json['startTime'] as String);
@@ -177,6 +212,15 @@ class SessionRecord {
               .toList() ??
           [],
       notes: json['notes'] as String? ?? '',
+      recordings:
+          (json['recordings'] as List<dynamic>?)
+              ?.map(
+                (recording) => SessionRecording.fromJson(
+                  recording as Map<String, dynamic>,
+                ),
+              )
+              .toList() ??
+          const [],
       audioFilePath: json['audioFilePath'] as String?,
     );
   }

@@ -1,7 +1,52 @@
+import 'dart:typed_data';
+import 'dart:js_interop';
+
+import 'package:hive_ce_flutter/hive_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:web/web.dart' as web;
+
 class FileStorageService {
   FileStorageService({Object? rootOverride});
 
-  Future<String> createRecordingPath() async => '';
+  static const _recordingPrefix = 'recording://';
+  Box<Uint8List>? _recordingBox;
+  final _playbackUrls = <String, String>{};
+
+  Future<Box<Uint8List>> _recordings() async {
+    return _recordingBox ??= await Hive.openBox<Uint8List>(
+      'flute_recording_blobs',
+    );
+  }
+
+  Future<String> createRecordingPath() async =>
+      '$_recordingPrefix${DateTime.now().microsecondsSinceEpoch}';
+
+  Future<String> persistRecording(String? sourcePath, String targetPath) async {
+    if (sourcePath == null || sourcePath.isEmpty) {
+      throw StateError('The browser did not produce an audio recording.');
+    }
+    final response = await http.get(Uri.parse(sourcePath));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError('The browser recording could not be saved.');
+    }
+    final key = _keyFor(targetPath);
+    final box = await _recordings();
+    await box.put(key, Uint8List.fromList(response.bodyBytes));
+    web.URL.revokeObjectURL(sourcePath);
+    return targetPath;
+  }
+
+  Future<String> playableRecordingPath(String path) async {
+    if (!path.startsWith(_recordingPrefix)) return path;
+    final existing = _playbackUrls[path];
+    if (existing != null) return existing;
+    final bytes = (await _recordings()).get(_keyFor(path));
+    if (bytes == null) throw StateError('Recording file not found.');
+    final blob = web.Blob([bytes.toJS].toJS);
+    final url = web.URL.createObjectURL(blob);
+    _playbackUrls[path] = url;
+    return url;
+  }
 
   Future<String> importPdf(String sourcePath, {String? originalName}) {
     throw UnsupportedError(
@@ -9,9 +54,24 @@ class FileStorageService {
     );
   }
 
-  Future<bool> isManagedPath(String path) async => false;
+  Future<bool> isManagedPath(String path) async =>
+      path.startsWith(_recordingPrefix);
 
-  Future<void> deleteManagedFile(String? path) async {}
+  Future<void> deleteManagedFile(String? path) async {
+    if (path == null || !path.startsWith(_recordingPrefix)) return;
+    await (await _recordings()).delete(_keyFor(path));
+    final url = _playbackUrls.remove(path);
+    if (url != null) web.URL.revokeObjectURL(url);
+  }
 
-  Future<void> deleteAllManagedFiles() async {}
+  Future<void> deleteAllManagedFiles() async {
+    final box = await _recordings();
+    await box.clear();
+    for (final url in _playbackUrls.values) {
+      web.URL.revokeObjectURL(url);
+    }
+    _playbackUrls.clear();
+  }
+
+  String _keyFor(String path) => path.substring(_recordingPrefix.length);
 }

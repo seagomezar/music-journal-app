@@ -6,10 +6,12 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../providers/history_provider.dart';
 import '../providers/localization_provider.dart';
+import '../models/session_record.dart';
 import '../services/audio_service.dart';
 import '../services/local_file_availability.dart';
 import '../theme/app_theme.dart';
 import 'manual_session_screen.dart';
+import '../widgets/recording_list.dart';
 
 class CalendarHistoryView extends StatefulWidget {
   const CalendarHistoryView({super.key});
@@ -95,8 +97,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
   Future<void> _deleteSession(
     BuildContext context,
     HistoryProvider provider,
-    String id,
-    String? audioPath,
+    SessionRecord session,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -117,10 +118,12 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
     );
     if (confirmed != true) return;
     try {
-      if (_currentlyPlayingPath == audioPath) {
+      if (session.recordings.any(
+        (recording) => recording.storagePath == _currentlyPlayingPath,
+      )) {
         await _playbackService.stopPlayback();
       }
-      await provider.deleteSession(id);
+      await provider.deleteSession(session.id);
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -350,9 +353,6 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                       itemCount: selectedDaySessions.length,
                       itemBuilder: (context, index) {
                         final session = selectedDaySessions[index];
-                        final isSessionPlaying =
-                            _currentlyPlayingPath == session.audioFilePath &&
-                            _isPlaying;
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 14),
@@ -415,8 +415,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                       onPressed: () => _deleteSession(
                                         context,
                                         historyProv,
-                                        session.id,
-                                        session.audioFilePath,
+                                        session,
                                       ),
                                     ),
                                   ],
@@ -654,81 +653,34 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                 ],
 
                                 // Audio Playback
-                                if (session.audioFilePath != null) ...[
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.borderColor(
-                                        context,
-                                      ).withValues(alpha: 0.3),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: AppTheme.borderColor(
-                                          context,
-                                        ).withValues(alpha: 0.5),
-                                      ),
+                                if (session.recordings.isNotEmpty) ...[
+                                  Text(
+                                    context.translate(
+                                      'recorded_self_evaluation_title',
                                     ),
-                                    child: Row(
-                                      children: [
-                                        IconButton(
-                                          tooltip: context.translate(
-                                            isSessionPlaying
-                                                ? 'stop_playback_btn'
-                                                : 'play_recording_btn',
-                                          ),
-                                          style: IconButton.styleFrom(
-                                            backgroundColor: isSessionPlaying
-                                                ? AppTheme.primaryColor(context)
-                                                : AppTheme.accentColor(context),
-                                            foregroundColor: Colors.white,
-                                            minimumSize: const Size(36, 36),
-                                          ),
-                                          icon: Icon(
-                                            isSessionPlaying
-                                                ? Icons.stop_rounded
-                                                : Icons.play_arrow_rounded,
-                                            size: 20,
-                                          ),
-                                          onPressed: () => _handleAudioPlayback(
-                                            session.audioFilePath!,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                context.translate(
-                                                  'recorded_self_evaluation_title',
-                                                ),
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              Text(
-                                                isSessionPlaying
-                                                    ? context.translate(
-                                                        'playing_back_audio',
-                                                      )
-                                                    : context.translate(
-                                                        'audio_attached',
-                                                      ),
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  color:
-                                                      AppTheme.textSecondaryColor(
-                                                        context,
-                                                      ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.accentColor(context),
                                     ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  RecordingList(
+                                    recordings: session.recordings,
+                                    playingPath: _currentlyPlayingPath,
+                                    isPlaying: _isPlaying,
+                                    compact: true,
+                                    onPlay: (recording) => _handleAudioPlayback(
+                                      recording.storagePath,
+                                    ),
+                                    onRename: (recording) =>
+                                        historyProv.renameRecording(
+                                          session.id,
+                                          recording,
+                                          recording.name,
+                                        ),
+                                    onDelete: (recording) => historyProv
+                                        .deleteRecording(session.id, recording),
                                   ),
                                 ],
                               ],
