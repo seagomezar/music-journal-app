@@ -68,4 +68,4 @@ limitations.
 
 ## Review notes
 
-The app does not require a login. Enter a display name to create a local profile. To test recording: start a practice session, open Self-Evaluation Recorder, grant microphone permission, record, stop, and play the result. Recording is stopped automatically when the recorder closes, the session finishes or is discarded, or the app backgrounds. Settings includes Privacy Policy, Terms and Conditions, Support, and Erase all data.
+The app does not require a login. Enter a display name to create a local profile. To test recording: start a practice session, open Self-Evaluation Recorder, grant microphone permission, record, stop, and play the result. On supported mobile builds, recording continues through screen lock and stops when the recorder closes, the session finishes or is discarded, or app data is erased. Settings includes Privacy Policy, Terms and Conditions, Support, and Erase all data.

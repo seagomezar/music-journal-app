@@ -3,10 +3,13 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flute/models/pitch_tracking.dart';
+import 'package:flute/services/capture_lifecycle_service.dart';
 import 'package:flute/services/pitch_tracking_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('MPM pitch detector', () {
     for (final frequency in [261.6256, 440.0, 1046.502]) {
       test('detects ${frequency.toStringAsFixed(1)} Hz within two cents', () {
@@ -66,7 +69,11 @@ void main() {
     'streaming tracker handles split PCM bytes and scores stable frames',
     () async {
       final input = _FakePitchAudioInput();
-      final tracker = PitchTrackingService(audioInput: input);
+      final lifecycle = _FakeCaptureLifecycleController();
+      final tracker = PitchTrackingService(
+        audioInput: input,
+        captureLifecycle: lifecycle,
+      );
       final stableReading = Completer<PitchReading>();
       tracker.onReading = (reading) {
         if (reading?.isStable == true && !stableReading.isCompleted) {
@@ -95,6 +102,8 @@ void main() {
       expect(summary, isNotNull);
       expect(summary!.analyzedMilliseconds, 43);
       expect(summary.inTuneMilliseconds, summary.analyzedMilliseconds);
+      expect(lifecycle.started, [AudioCaptureKind.pitchTracking]);
+      expect(lifecycle.ended, [AudioCaptureKind.pitchTracking]);
       await tracker.dispose();
     },
   );
@@ -235,6 +244,22 @@ class _FakePitchAudioInput implements PitchAudioInput {
   @override
   Future<void> dispose() async {
     unawaited(_controller.close());
+  }
+}
+
+class _FakeCaptureLifecycleController
+    implements AudioCaptureLifecycleController {
+  final List<AudioCaptureKind> started = [];
+  final List<AudioCaptureKind> ended = [];
+
+  @override
+  Future<void> begin(AudioCaptureKind kind) async {
+    started.add(kind);
+  }
+
+  @override
+  Future<void> end(AudioCaptureKind kind) async {
+    ended.add(kind);
   }
 }
 

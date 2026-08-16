@@ -3,16 +3,24 @@ import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'file_storage_service.dart';
+import 'capture_lifecycle_service.dart';
 
 class AudioService {
-  AudioService({FileStorageService? storageService, this.onPlaybackChanged})
-    : _storageService = storageService ?? FileStorageService();
+  AudioService({
+    FileStorageService? storageService,
+    AudioCaptureLifecycleController? captureLifecycle,
+    this.onPlaybackChanged,
+  }) : _storageService = storageService ?? FileStorageService(),
+       _captureLifecycle =
+           captureLifecycle ?? PlatformAudioCaptureLifecycleController();
 
   final FileStorageService _storageService;
+  final AudioCaptureLifecycleController _captureLifecycle;
   ValueChanged<bool>? onPlaybackChanged;
   AudioRecorder? _recorderInstance;
   AudioPlayer? _playerInstance;
   StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<RecordState>? _recordStateSubscription;
   Future<String?>? _pendingStopRecording;
 
   AudioRecorder get _recorder => _recorderInstance ??= AudioRecorder();
@@ -53,13 +61,22 @@ class AudioService {
   }
 
   Future<void> startRecording() async {
+    var captureKeepAliveStarted = false;
     try {
       if (_isRecording) return;
       if (!await _recorder.hasPermission()) {
         throw StateError('Microphone permission was not granted.');
       }
 
+      await _captureLifecycle.begin(AudioCaptureKind.recording);
+      captureKeepAliveStarted = true;
       final path = kIsWeb ? '' : await _storageService.createRecordingPath();
+      _recordStateSubscription ??= _recorder.onStateChanged().listen((state) {
+        if (state == RecordState.stop) {
+          _isRecording = false;
+          unawaited(_captureLifecycle.end(AudioCaptureKind.recording));
+        }
+      });
       await _recorder.start(
         const RecordConfig(encoder: AudioEncoder.aacLc),
         path: path,
@@ -68,6 +85,11 @@ class AudioService {
     } catch (e) {
       debugPrint('Error starting audio recording: $e');
       _isRecording = false;
+      await _recordStateSubscription?.cancel();
+      _recordStateSubscription = null;
+      if (captureKeepAliveStarted) {
+        await _captureLifecycle.end(AudioCaptureKind.recording);
+      }
       rethrow;
     }
   }
@@ -95,6 +117,10 @@ class AudioService {
       debugPrint('Error stopping audio recording: $e');
       _isRecording = false;
       return null;
+    } finally {
+      await _recordStateSubscription?.cancel();
+      _recordStateSubscription = null;
+      await _captureLifecycle.end(AudioCaptureKind.recording);
     }
   }
 
@@ -138,6 +164,7 @@ class AudioService {
     await stopRecording();
     await stopPlayback();
     await _playerStateSubscription?.cancel();
+    await _recordStateSubscription?.cancel();
     await _recorderInstance?.dispose();
     await _playerInstance?.dispose();
   }

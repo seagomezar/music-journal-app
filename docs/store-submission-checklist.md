@@ -14,7 +14,8 @@
 
 ## Product checks
 
-- [x] Recording stops after close, finish, discard, and background (automated tests and Android smoke test)
+- [x] Recording and tuner capture remain active through supported screen-lock/background states and stop after close, finish, discard, or erase (automated lifecycle tests)
+- [ ] Verify screen-lock/background capture on physical Android and iPhone builds, plus hidden-tab suspension behavior in a browser
 - [ ] Verify recording cleanup after forced process termination on physical devices
 - [x] Permission denial is recoverable and microphone-independent features remain usable
 - [x] Session-save failures do not exit or discard the active session

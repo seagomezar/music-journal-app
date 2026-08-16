@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 
 import '../models/pitch_tracking.dart';
+import 'capture_lifecycle_service.dart';
 
 enum PitchCaptureMode { tuning, tracking }
 
@@ -50,8 +51,12 @@ class RecordPitchAudioInput implements PitchAudioInput {
 }
 
 class PitchTrackingService {
-  PitchTrackingService({PitchAudioInput? audioInput})
-    : _audioInput = audioInput ?? RecordPitchAudioInput();
+  PitchTrackingService({
+    PitchAudioInput? audioInput,
+    AudioCaptureLifecycleController? captureLifecycle,
+  }) : _audioInput = audioInput ?? RecordPitchAudioInput(),
+       _captureLifecycle =
+           captureLifecycle ?? PlatformAudioCaptureLifecycleController();
 
   static const sampleRate = 48000;
   static const frameSize = 2048;
@@ -72,6 +77,7 @@ class PitchTrackingService {
   ];
 
   final PitchAudioInput _audioInput;
+  final AudioCaptureLifecycleController _captureLifecycle;
   final List<int> _pendingSamples = [];
   int? _pendingByte;
   final List<int> _recentMidiNotes = [];
@@ -114,18 +120,23 @@ class PitchTrackingService {
     _trackingStartedAt = mode == PitchCaptureMode.tracking
         ? DateTime.now()
         : null;
+    var captureKeepAliveStarted = false;
     try {
+      await _captureLifecycle.begin(AudioCaptureKind.pitchTracking);
+      captureKeepAliveStarted = true;
       final stream = await _audioInput.start();
       _isListening = true;
       _subscription = stream.listen(
         (bytes) => _acceptBytes(bytes, excludeFrame: excludeFrame),
         onError: (_) => unawaited(stop()),
         onDone: () {
-          _isListening = false;
-          onReading?.call(null);
+          unawaited(stop());
         },
       );
     } catch (_) {
+      if (captureKeepAliveStarted) {
+        await _captureLifecycle.end(AudioCaptureKind.pitchTracking);
+      }
       _mode = null;
       _trackingStartedAt = null;
       rethrow;
@@ -236,6 +247,7 @@ class PitchTrackingService {
     } catch (_) {
       // The input may already have stopped after an interruption.
     }
+    await _captureLifecycle.end(AudioCaptureKind.pitchTracking);
     await _analysisQueue;
     _mode = null;
     _trackingStartedAt = null;

@@ -11,14 +11,20 @@ import '../services/analytics_service.dart';
 import '../models/pitch_tracking.dart';
 import '../models/practice_appearance_preferences.dart';
 import '../services/audio_service.dart';
+import '../services/capture_lifecycle_service.dart';
 import '../services/metronome_audio_service.dart';
 import '../services/pitch_tracking_service.dart';
 import '../services/screen_awake_service.dart';
 
 class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
+  static final AudioCaptureLifecycleController
+  _defaultCaptureLifecycleController =
+      PlatformAudioCaptureLifecycleController();
+
   PracticeProvider({
     AudioService? audioService,
     PitchTrackingService? pitchTrackingService,
+    AudioCaptureLifecycleController? captureLifecycleController,
     MetronomeAudioController? metronomeAudioController,
     ScreenAwakeController? screenAwakeController,
     Stopwatch? activeStopwatch,
@@ -44,8 +50,20 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     Future<void> Function(bool)? persistSoundCues,
     Future<void> Function(bool)? persistReducedMotion,
     Future<void> Function(bool)? persistShowCelebrations,
-  }) : _audioService = audioService ?? AudioService(),
-       _pitchTracking = pitchTrackingService ?? PitchTrackingService(),
+  }) : _audioService =
+           audioService ??
+           AudioService(
+             captureLifecycle:
+                 captureLifecycleController ??
+                 _defaultCaptureLifecycleController,
+           ),
+       _pitchTracking =
+           pitchTrackingService ??
+           PitchTrackingService(
+             captureLifecycle:
+                 captureLifecycleController ??
+                 _defaultCaptureLifecycleController,
+           ),
        _metronomeAudio =
            metronomeAudioController ?? NoopMetronomeAudioController(),
        _screenAwake = screenAwakeController ?? NoopScreenAwakeController(),
@@ -1031,9 +1049,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       _timer?.cancel();
       _stopMetronomeVisual();
       unawaited(_applyScreenAwakePreferenceSafely());
-      unawaited(stopRecording());
       unawaited(stopPlayback());
-      unawaited(stopPitchCapture());
       notifyListeners();
       return;
     }

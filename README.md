@@ -65,6 +65,8 @@ same-origin` and `Cross-Origin-Embedder-Policy: require-corp`.
 
 The browser version keeps profile and journal data in browser storage. PDF importing/viewing is mobile-only, and browser recordings are available only during the active practice session; they are not retained in history. Clearing site data or using private browsing can remove browser-stored journal data.
 
+On Android and iOS, an explicitly started recording or tuner measurement continues through supported screen-lock and background audio states. The app shows a native capture indicator while microphone capture is active. Browsers may suspend microphone capture while a hidden tab is inactive; the app preserves any measurement completed before that interruption.
+
 Android release builds require a configured upload key. Unsigned previews must explicitly set `BUILD_UNSIGNED=true`; release builds never fall back to the debug key.
 
 ```bash

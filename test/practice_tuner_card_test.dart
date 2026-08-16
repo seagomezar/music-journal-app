@@ -5,6 +5,7 @@ import 'package:flute/models/exercise.dart';
 import 'package:flute/models/routine.dart';
 import 'package:flute/providers/localization_provider.dart';
 import 'package:flute/providers/practice_provider.dart';
+import 'package:flute/services/capture_lifecycle_service.dart';
 import 'package:flute/services/pitch_tracking_service.dart';
 import 'package:flute/widgets/practice_tuner_card.dart';
 import 'package:flutter/material.dart';
@@ -12,44 +13,48 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 void main() {
-  testWidgets('idle tuner persists A4 and hide stops microphone capture', (
-    tester,
-  ) async {
-    final input = _FakeInput();
-    var persistedReference = 0;
-    final provider = PracticeProvider(
-      pitchTrackingService: PitchTrackingService(audioInput: input),
-      persistTunerReference: (value) async => persistedReference = value,
-    )..startSession(null);
-    await _pumpTuner(tester, provider);
+  testWidgets(
+    'idle tuner persists A4 and explicit hide stops microphone capture',
+    (tester) async {
+      final input = _FakeInput();
+      var persistedReference = 0;
+      final provider = PracticeProvider(
+        pitchTrackingService: PitchTrackingService(
+          audioInput: input,
+          captureLifecycle: NoopAudioCaptureLifecycleController(),
+        ),
+        persistTunerReference: (value) async => persistedReference = value,
+      )..startSession(null);
+      await _pumpTuner(tester, provider);
 
-    expect(find.text('A4 = 440 Hz'), findsOneWidget);
-    expect(find.text('Tune'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('increase_tuner_reference')));
-    await tester.pumpAndSettle();
-    expect(find.text('A4 = 441 Hz'), findsOneWidget);
-    expect(persistedReference, 441);
+      expect(find.text('A4 = 440 Hz'), findsOneWidget);
+      expect(find.text('Tune'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('increase_tuner_reference')));
+      await tester.pumpAndSettle();
+      expect(find.text('A4 = 441 Hz'), findsOneWidget);
+      expect(persistedReference, 441);
 
-    await tester.tap(find.byKey(const ValueKey('start_pitch_capture')));
-    await tester.pumpAndSettle();
-    expect(provider.isPitchListening, true);
-    expect(find.text('Stop listening'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('start_pitch_capture')));
+      await tester.pumpAndSettle();
+      expect(provider.isPitchListening, true);
+      expect(find.text('Stop listening'), findsOneWidget);
 
-    final hideTuner = find.byKey(const ValueKey('hide_tuner'));
-    await tester.ensureVisible(hideTuner);
-    await tester.tap(hideTuner);
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(const Duration(seconds: 2));
-      while (provider.isTunerVisible && DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
-    });
-    await tester.pump();
-    expect(provider.isPitchListening, false);
-    expect(find.byKey(const ValueKey('show_tuner')), findsOneWidget);
-    provider.dispose();
-    await tester.pump();
-  });
+      final hideTuner = find.byKey(const ValueKey('hide_tuner'));
+      await tester.ensureVisible(hideTuner);
+      await tester.tap(hideTuner);
+      await tester.runAsync(() async {
+        final deadline = DateTime.now().add(const Duration(seconds: 2));
+        while (provider.isTunerVisible && DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+      });
+      await tester.pump();
+      expect(provider.isPitchListening, false);
+      expect(find.byKey(const ValueKey('show_tuner')), findsOneWidget);
+      provider.dispose();
+      await tester.pump();
+    },
+  );
 
   testWidgets('active exercise offers tracked scoring in Spanish', (
     tester,
@@ -63,7 +68,10 @@ void main() {
     );
     final provider =
         PracticeProvider(
-          pitchTrackingService: PitchTrackingService(audioInput: input),
+          pitchTrackingService: PitchTrackingService(
+            audioInput: input,
+            captureLifecycle: NoopAudioCaptureLifecycleController(),
+          ),
         )..startSession(
           Routine(
             id: 'warmup',

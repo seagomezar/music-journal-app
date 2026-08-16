@@ -609,7 +609,7 @@ const _privacyEn = <(String, String)>[
   ),
   (
     'Microphone',
-    'Microphone access is requested only when you choose to use the tuner, track exercise intonation, or make a self-evaluation recording. Tuner and pitch analysis run locally on your device; analyzed audio is not saved or transmitted. Recording stops when you stop or close the recorder, finish or discard a session, background the app, or erase app data.',
+    'Microphone access is requested only when you choose to use the tuner, track exercise intonation, or make a self-evaluation recording. Tuner and pitch analysis run locally on your device; analyzed audio is not saved or transmitted. Capture continues during supported screen-lock and background states and stops when you stop or close the recorder, finish or discard a session, or erase app data. Browsers may suspend microphone capture while a hidden tab is inactive.',
   ),
   (
     'Sharing and retention',
@@ -637,7 +637,7 @@ const _privacyEs = <(String, String)>[
   ),
   (
     'Micrófono',
-    'El acceso al micrófono se solicita solo cuando decides usar el afinador, medir la afinación durante un ejercicio o crear una grabación de autoevaluación. El afinador y el análisis de afinación se ejecutan localmente; el audio analizado no se guarda ni se transmite. La grabación se detiene al cerrar la grabadora, finalizar o descartar la sesión, enviar la app al fondo o borrar los datos.',
+    'El acceso al micrófono se solicita solo cuando decides usar el afinador, medir la afinación durante un ejercicio o crear una grabación de autoevaluación. El afinador y el análisis de afinación se ejecutan localmente; el audio analizado no se guarda ni se transmite. La captura continúa durante los estados compatibles de bloqueo de pantalla y segundo plano, y se detiene al cerrar la grabadora, finalizar o descartar la sesión, o borrar los datos. Los navegadores pueden suspender el micrófono cuando una pestaña oculta queda inactiva.',
   ),
   (
     'Uso compartido y conservación',

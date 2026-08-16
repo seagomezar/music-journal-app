@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -17,8 +19,10 @@ import 'package:flute/providers/routine_provider.dart';
 import 'package:flute/screens/active_practice_view.dart';
 import 'package:flute/screens/manual_session_screen.dart';
 import 'package:flute/services/audio_service.dart';
+import 'package:flute/services/capture_lifecycle_service.dart';
 import 'package:flute/services/file_storage_service.dart';
 import 'package:flute/services/metronome_audio_service.dart';
+import 'package:flute/services/pitch_tracking_service.dart';
 import 'package:flute/services/screen_awake_service.dart';
 import 'package:flute/theme/app_theme.dart';
 import 'package:provider/provider.dart';
@@ -62,6 +66,47 @@ class FakeAudioService extends AudioService {
 
   @override
   Future<void> dispose() async {}
+}
+
+class FakeCaptureLifecycleController
+    implements AudioCaptureLifecycleController {
+  final List<AudioCaptureKind> started = [];
+  final List<AudioCaptureKind> ended = [];
+
+  @override
+  Future<void> begin(AudioCaptureKind kind) async {
+    started.add(kind);
+  }
+
+  @override
+  Future<void> end(AudioCaptureKind kind) async {
+    ended.add(kind);
+  }
+}
+
+class FakePitchAudioInput implements PitchAudioInput {
+  final _samples = StreamController<Uint8List>();
+  bool started = false;
+  bool stopped = false;
+
+  @override
+  Future<bool> hasPermission() async => true;
+
+  @override
+  Future<Stream<Uint8List>> start() async {
+    started = true;
+    return _samples.stream;
+  }
+
+  @override
+  Future<void> stop() async {
+    stopped = true;
+  }
+
+  @override
+  Future<void> dispose() async {
+    await _samples.close();
+  }
 }
 
 class FakeMetronomeAudioController implements MetronomeAudioController {
@@ -360,6 +405,56 @@ void main() {
         provider.dispose();
       },
     );
+
+    test('Screen lock preserves recording and tuner capture', () async {
+      final audio = FakeAudioService();
+      final captureLifecycle = FakeCaptureLifecycleController();
+      final pitchInput = FakePitchAudioInput();
+      final tracker = PitchTrackingService(
+        audioInput: pitchInput,
+        captureLifecycle: captureLifecycle,
+      );
+      final provider = PracticeProvider(
+        audioService: audio,
+        pitchTrackingService: tracker,
+      );
+      provider.startSession(null);
+
+      provider.activateAudioRecorder();
+      await provider.startRecording();
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+      ]) {
+        provider.didChangeAppLifecycleState(state);
+        expect(audio.recording, true);
+        expect(audio.stopRecordingCalls, 0);
+      }
+      await provider.stopRecording();
+
+      final started = await provider.startPitchCapture(trackExercise: false);
+      expect(started, true);
+      expect(pitchInput.started, true);
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+      ]) {
+        provider.didChangeAppLifecycleState(state);
+        expect(tracker.isListening, true);
+        expect(pitchInput.stopped, false);
+      }
+      expect(
+        captureLifecycle.started,
+        contains(AudioCaptureKind.pitchTracking),
+      );
+
+      await provider.cancelSession();
+      expect(pitchInput.stopped, true);
+      expect(captureLifecycle.ended, contains(AudioCaptureKind.pitchTracking));
+      provider.dispose();
+    });
 
     test('A manually paused clock stays paused across screen lock', () async {
       final stopwatch = FakeStopwatch();
