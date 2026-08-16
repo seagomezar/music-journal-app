@@ -22,23 +22,12 @@ class AudioService {
   StreamSubscription<PlayerState>? _playerStateSubscription;
   StreamSubscription<RecordState>? _recordStateSubscription;
   Future<void> _recordingOperationQueue = Future<void>.value();
+  Future<void> _playbackOperationQueue = Future<void>.value();
+  int _playbackGeneration = 0;
 
   AudioRecorder get _recorder => _recorderInstance ??= AudioRecorder();
 
-  AudioPlayer get _player {
-    if (_playerInstance == null) {
-      _playerInstance = AudioPlayer();
-      _playerStateSubscription = _playerInstance!.onPlayerStateChanged.listen((
-        state,
-      ) {
-        if (state == PlayerState.completed || state == PlayerState.stopped) {
-          unawaited(_releasePlayingStoragePath());
-        }
-        _setPlaying(state == PlayerState.playing);
-      });
-    }
-    return _playerInstance!;
-  }
+  AudioPlayer get _player => _playerInstance ??= AudioPlayer();
 
   bool _isRecording = false;
   bool _recordingCaptureActive = false;
@@ -147,44 +136,103 @@ class AudioService {
     return result;
   }
 
-  Future<void> startPlayback(String path) async {
+  Future<T> _enqueuePlaybackOperation<T>(Future<T> Function() operation) {
+    final result = _playbackOperationQueue.then((_) => operation());
+    _playbackOperationQueue = result.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    );
+    return result;
+  }
+
+  Future<void> startPlayback(String path) =>
+      _enqueuePlaybackOperation(() => _startPlaybackInternal(path));
+
+  Future<void> _startPlaybackInternal(String path) async {
     if (_isRecording) {
       throw StateError('Cannot play a recording while recording.');
     }
-    await stopPlayback();
-    var resolvedPath = false;
+    await _stopPlaybackInternal();
     try {
       final playablePath = await _storageService.playableRecordingPath(path);
-      resolvedPath = true;
+      final generation = _playbackGeneration;
+      final player = _player;
       _playingStoragePath = path;
+      _playerStateSubscription = player.onPlayerStateChanged.listen((state) {
+        if (!_isCurrentPlayback(player, path, generation)) return;
+        if (state == PlayerState.completed || state == PlayerState.stopped) {
+          unawaited(_finishPlayback(player, path, generation));
+        }
+        _setPlaying(state == PlayerState.playing);
+      });
       if (kIsWeb || path.startsWith('http') || path.startsWith('blob:')) {
-        await _player.play(UrlSource(playablePath));
+        await player.play(UrlSource(playablePath));
       } else {
-        await _player.play(DeviceFileSource(playablePath));
+        await player.play(DeviceFileSource(playablePath));
       }
       _setPlaying(true);
     } catch (e) {
-      if (resolvedPath) await _releasePlayingStoragePath(path);
+      await _stopPlaybackInternal();
       debugPrint('Error playing audio: $e');
       rethrow;
     }
   }
 
-  Future<void> pausePlayback() async {
-    await _player.pause();
-    await _releasePlayingStoragePath();
-    _setPlaying(false);
-  }
+  bool _isCurrentPlayback(AudioPlayer player, String path, int generation) =>
+      generation == _playbackGeneration &&
+      identical(_playerInstance, player) &&
+      _playingStoragePath == path;
 
-  Future<void> stopPlayback() async {
-    if (_playerInstance != null) {
-      await _player.stop();
+  Future<void> _finishPlayback(
+    AudioPlayer player,
+    String path,
+    int generation,
+  ) async {
+    if (!_isCurrentPlayback(player, path, generation)) return;
+    await _releasePlayingStoragePath(path, generation);
+    if (generation == _playbackGeneration &&
+        identical(_playerInstance, player)) {
+      _setPlaying(false);
     }
-    await _releasePlayingStoragePath();
+  }
+
+  Future<void> pausePlayback() =>
+      _enqueuePlaybackOperation(_pausePlaybackInternal);
+
+  Future<void> _pausePlaybackInternal() async {
+    final player = _playerInstance;
+    final generation = _playbackGeneration;
+    final path = _playingStoragePath;
+    if (player != null) await player.pause();
+    if (generation != _playbackGeneration) return;
+    await _releasePlayingStoragePath(path, generation);
     _setPlaying(false);
   }
 
-  Future<void> _releasePlayingStoragePath([String? expectedPath]) async {
+  Future<void> stopPlayback() =>
+      _enqueuePlaybackOperation(_stopPlaybackInternal);
+
+  Future<void> _stopPlaybackInternal() async {
+    _playbackGeneration++;
+    final subscription = _playerStateSubscription;
+    _playerStateSubscription = null;
+    await subscription?.cancel();
+    try {
+      await _playerInstance?.stop();
+    } finally {
+      await _releasePlayingStoragePath();
+      _setPlaying(false);
+    }
+  }
+
+  Future<void> _releasePlayingStoragePath([
+    String? expectedPath,
+    int? expectedGeneration,
+  ]) async {
+    if (expectedGeneration != null &&
+        expectedGeneration != _playbackGeneration) {
+      return;
+    }
     final path = _playingStoragePath;
     if (path == null || (expectedPath != null && expectedPath != path)) return;
     _playingStoragePath = null;

@@ -45,11 +45,11 @@ class HistoryProvider with ChangeNotifier {
           break;
         }
       }
-      await _db.deleteSession(id);
       for (final recording
           in session?.recordings ?? const <SessionRecording>[]) {
         await _storage.deleteManagedFile(recording.storagePath);
       }
+      await _db.deleteSession(id);
       await loadSessions();
     } catch (e) {
       debugPrint('Error deleting session: $e');
@@ -83,15 +83,11 @@ class HistoryProvider with ChangeNotifier {
   ) async {
     final session = _sessionById(sessionId);
     if (session == null) return;
+    await _storage.deleteManagedFile(recording.storagePath);
     final updatedRecordings = session.recordings
         .where((item) => item.id != recording.id)
         .toList();
     await saveSession(session.copyWith(recordings: updatedRecordings));
-    try {
-      await _storage.deleteManagedFile(recording.storagePath);
-    } catch (error) {
-      debugPrint('Error deleting recording file: $error');
-    }
   }
 
   SessionRecord? _sessionById(String id) {
