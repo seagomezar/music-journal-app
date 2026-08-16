@@ -19,6 +19,16 @@ class AppTheme {
     0xFF434843,
   ); // Medium gray-green text
 
+  // Low-glare night palette. It keeps the same forest/sage/brass identity
+  // while reducing luminance for evening practice.
+  static const Color darkBackground = Color(0xFF101713);
+  static const Color darkSurface = Color(0xFF141E18);
+  static const Color darkCardBg = Color(0xFF1D2A22);
+  static const Color darkBorder = Color(0xFF4D6253);
+  static const Color darkTextPrimary = Color(0xFFF1F4EF);
+  static const Color darkTextSecondary = Color(0xFFC1CEC2);
+  static const Color darkPrimary = Color(0xFF9BC9A5);
+
   static const LinearGradient brandGradient = LinearGradient(
     colors: [primary, Color(0xFF1B3022)],
     begin: Alignment.topLeft,
@@ -32,93 +42,140 @@ class AppTheme {
   );
 
   static ThemeData get lightTheme {
+    return _buildTheme(
+      brightness: Brightness.light,
+      backgroundColor: background,
+      surfaceColor: surface,
+      cardColor: cardBg,
+      borderColor: border,
+      foregroundColor: textPrimary,
+      mutedColor: textSecondary,
+      statusBarBrightness: Brightness.dark,
+    );
+  }
+
+  static ThemeData get darkTheme {
+    return _buildTheme(
+      brightness: Brightness.dark,
+      backgroundColor: darkBackground,
+      surfaceColor: darkSurface,
+      cardColor: darkCardBg,
+      borderColor: darkBorder,
+      foregroundColor: darkTextPrimary,
+      mutedColor: darkTextSecondary,
+      statusBarBrightness: Brightness.light,
+    );
+  }
+
+  static ThemeData _buildTheme({
+    required Brightness brightness,
+    required Color backgroundColor,
+    required Color surfaceColor,
+    required Color cardColor,
+    required Color borderColor,
+    required Color foregroundColor,
+    required Color mutedColor,
+    required Brightness statusBarBrightness,
+  }) {
+    final isDark = brightness == Brightness.dark;
+    final effectivePrimary = isDark ? darkPrimary : primary;
+    final effectiveOnPrimary = isDark ? darkBackground : Colors.white;
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
-      primaryColor: primary,
-      scaffoldBackgroundColor: background,
-      colorScheme: const ColorScheme.light(
-        primary: primary,
+      brightness: brightness,
+      primaryColor: effectivePrimary,
+      scaffoldBackgroundColor: backgroundColor,
+      colorScheme: ColorScheme(
+        brightness: brightness,
+        primary: effectivePrimary,
         secondary: secondary,
-        surface: surface,
+        surface: surfaceColor,
+        onSurface: foregroundColor,
+        onPrimary: effectiveOnPrimary,
+        onSecondary: Colors.white,
+        onError: Colors.white,
         error: Color(0xFFBA1A1A),
       ),
       cardTheme: CardThemeData(
-        color: cardBg,
+        color: cardColor,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: border, width: 1),
+          side: BorderSide(color: borderColor, width: 1),
         ),
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
-        foregroundColor: textPrimary,
+        foregroundColor: foregroundColor,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-          statusBarBrightness: Brightness.light,
-          systemNavigationBarColor: background,
-          systemNavigationBarIconBrightness: Brightness.dark,
+          statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+          statusBarBrightness: statusBarBrightness,
+          systemNavigationBarColor: backgroundColor,
+          systemNavigationBarIconBrightness: isDark
+              ? Brightness.light
+              : Brightness.dark,
         ),
       ),
       textTheme: TextTheme(
-        headlineLarge: const TextStyle(
+        headlineLarge: TextStyle(
           fontFamily: 'serif',
           fontSize: 32,
           fontWeight: FontWeight.bold,
-          color: textPrimary,
+          color: foregroundColor,
           letterSpacing: -0.5,
         ),
-        headlineMedium: const TextStyle(
+        headlineMedium: TextStyle(
           fontFamily: 'serif',
           fontSize: 24,
           fontWeight: FontWeight.bold,
-          color: textPrimary,
+          color: foregroundColor,
           letterSpacing: -0.5,
         ),
-        titleLarge: const TextStyle(
+        titleLarge: TextStyle(
           fontFamily: 'serif',
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: foregroundColor,
         ),
-        titleMedium: const TextStyle(
+        titleMedium: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: foregroundColor,
         ),
-        bodyLarge: const TextStyle(fontSize: 16, color: textPrimary),
-        bodyMedium: const TextStyle(fontSize: 14, color: textSecondary),
-        labelLarge: const TextStyle(
+        bodyLarge: TextStyle(fontSize: 16, color: foregroundColor),
+        bodyMedium: TextStyle(fontSize: 14, color: mutedColor),
+        labelLarge: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
-          color: textPrimary,
+          color: foregroundColor,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: cardBg.withValues(alpha: 0.5),
-        labelStyle: const TextStyle(color: textSecondary),
-        hintStyle: const TextStyle(color: textSecondary),
+        fillColor: cardColor.withValues(alpha: 0.5),
+        labelStyle: TextStyle(color: mutedColor),
+        hintStyle: TextStyle(color: mutedColor),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: border, width: 1),
+          borderSide: BorderSide(color: borderColor, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: border, width: 1),
+          borderSide: BorderSide(color: borderColor, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primary, width: 2),
+          borderSide: BorderSide(color: effectivePrimary, width: 2),
         ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: background,
-        selectedItemColor: primary,
-        unselectedItemColor: textSecondary,
+      dividerColor: borderColor,
+      iconTheme: IconThemeData(color: foregroundColor),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: backgroundColor,
+        selectedItemColor: effectivePrimary,
+        unselectedItemColor: mutedColor,
         selectedLabelStyle: TextStyle(fontWeight: FontWeight.bold),
         type: BottomNavigationBarType.fixed,
       ),
@@ -132,21 +189,30 @@ class AppTheme {
     double borderRadius = 16,
     Color? customColor,
   }) {
-    return Container(
-      padding: padding ?? const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: customColor ?? cardBg,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: border, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    return Builder(
+      builder: (context) => Container(
+        padding: padding ?? const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: customColor ?? Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(borderRadius),
+          border: Border.all(color: Theme.of(context).dividerColor, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? 0.18
+                    : 0.04,
+              ),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        // ListTile paints its ink/background on the nearest Material. Keep
+        // that Material inside the decorated card so interactive tiles do not
+        // trigger Flutter's invisible-ink assertion in debug/test builds.
+        child: Material(type: MaterialType.transparency, child: child),
       ),
-      child: child,
     );
   }
 }

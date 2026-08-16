@@ -42,6 +42,16 @@ flutter devices
 flutter test integration_test/app_smoke_test.dart -d <ios-simulator-id>
 ```
 
+The simulator cannot accept the native iOS microphone permission sheet from
+Flutter's widget harness. Use this variant for a deterministic simulator run;
+run without the define on a physical device (or after granting microphone
+permission) to exercise native pitch capture and recording:
+
+```bash
+flutter test integration_test/app_smoke_test.dart -d <ios-simulator-id> \
+  --dart-define=FLUTE_SKIP_NATIVE_AUDIO=true
+```
+
 Run or build the browser version with:
 
 ```bash

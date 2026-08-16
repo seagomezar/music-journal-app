@@ -11,6 +11,7 @@ import '../providers/history_provider.dart';
 import '../providers/localization_provider.dart';
 import '../providers/practice_provider.dart';
 import '../providers/routine_provider.dart';
+import '../models/practice_appearance_preferences.dart';
 import '../services/database_service.dart';
 import '../services/journal_backup_service.dart';
 import '../theme/app_theme.dart';
@@ -72,6 +73,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SnackBar(content: Text(context.translate('backup_active_session'))),
     );
     return false;
+  }
+
+  Future<void> _savePracticePreference(Future<void> Function() change) async {
+    try {
+      await change();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.translate('preference_save_error'))),
+      );
+    }
   }
 
   Future<void> _exportJournal() async {
@@ -298,6 +310,123 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }
                 }
               },
+            ),
+            const SizedBox(height: 8),
+            AppTheme.glassCard(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.translate('appearance_feedback'),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    context.translate('appearance_feedback_subtitle'),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<PracticeVisualMode>(
+                    initialValue: practiceProvider.visualMode,
+                    decoration: InputDecoration(
+                      labelText: context.translate('practice_visual_mode'),
+                      helperText: context.translate(
+                        'practice_visual_mode_subtitle',
+                      ),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: PracticeVisualMode.focused,
+                        child: Text(context.translate('focused_mode')),
+                      ),
+                      DropdownMenuItem(
+                        value: PracticeVisualMode.full,
+                        child: Text(context.translate('full_mode')),
+                      ),
+                    ],
+                    onChanged: (mode) {
+                      if (mode != null) {
+                        _savePracticePreference(
+                          () => practiceProvider.setVisualMode(mode),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<ThemeMode>(
+                    initialValue: practiceProvider.themeMode,
+                    decoration: InputDecoration(
+                      labelText: context.translate('theme_mode'),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: ThemeMode.system,
+                        child: Text(context.translate('theme_system')),
+                      ),
+                      DropdownMenuItem(
+                        value: ThemeMode.light,
+                        child: Text(context.translate('theme_light')),
+                      ),
+                      DropdownMenuItem(
+                        value: ThemeMode.dark,
+                        child: Text(context.translate('theme_dark')),
+                      ),
+                    ],
+                    onChanged: (mode) {
+                      if (mode != null) {
+                        _savePracticePreference(
+                          () => practiceProvider.setThemeMode(mode),
+                        );
+                      }
+                    },
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.vibration_outlined),
+                    title: Text(context.translate('haptics')),
+                    subtitle: Text(context.translate('haptics_subtitle')),
+                    value: practiceProvider.hapticsEnabled,
+                    onChanged: (value) => _savePracticePreference(
+                      () => practiceProvider.setHapticsEnabled(value),
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.notifications_none_rounded),
+                    title: Text(context.translate('sound_cues')),
+                    subtitle: Text(context.translate('sound_cues_subtitle')),
+                    value: practiceProvider.soundCuesEnabled,
+                    onChanged: (value) => _savePracticePreference(
+                      () => practiceProvider.setSoundCuesEnabled(value),
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.motion_photos_off_outlined),
+                    title: Text(context.translate('reduced_motion')),
+                    subtitle: Text(
+                      context.translate('reduced_motion_subtitle'),
+                    ),
+                    value: practiceProvider.reducedMotion,
+                    onChanged: (value) => _savePracticePreference(
+                      () => practiceProvider.setReducedMotion(value),
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.celebration_outlined),
+                    title: Text(context.translate('show_celebrations')),
+                    subtitle: Text(
+                      context.translate('show_celebrations_subtitle'),
+                    ),
+                    value: practiceProvider.showCelebrations,
+                    onChanged: (value) => _savePracticePreference(
+                      () => practiceProvider.setShowCelebrations(value),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const Divider(height: 32),
             Padding(

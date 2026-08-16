@@ -42,6 +42,18 @@
       min-height: 100%;
       background: #FAF9F7;
     }
+
+    /* Flutter's shadow-DOM glass pane is a custom element. Explicitly sizing
+       it keeps the canvas visible in current Chrome/Safari web runtimes. */
+    flutter-view,
+    flt-glass-pane {
+      display: block;
+    }
+
+    flt-glass-pane {
+      position: absolute;
+      inset: 0;
+    }
   </style>
 </head>
 <body>

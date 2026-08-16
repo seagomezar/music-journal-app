@@ -59,6 +59,7 @@ class NoopMetronomeAudioController implements MetronomeAudioController {
 
 class MetronomeAudioService implements MetronomeAudioController {
   _MetronomeAudioHandler? _handler;
+  Future<void>? _initialization;
 
   @override
   ValueChanged<bool>? onExternalPlayingChanged;
@@ -68,6 +69,20 @@ class MetronomeAudioService implements MetronomeAudioController {
 
   Future<void> initialize() async {
     if (_handler != null) return;
+    final inFlight = _initialization;
+    if (inFlight != null) return inFlight;
+    final initialization = _initialize();
+    _initialization = initialization;
+    try {
+      await initialization;
+    } finally {
+      if (identical(_initialization, initialization)) {
+        _initialization = null;
+      }
+    }
+  }
+
+  Future<void> _initialize() async {
     final engine = SoLoud.instance;
     if (!engine.isInitialized) {
       await engine.init(
@@ -99,6 +114,7 @@ class MetronomeAudioService implements MetronomeAudioController {
 
   @override
   Future<void> start({required int bpm, required double volume}) async {
+    await initialize();
     await _handler?.startMetronome(bpm: bpm, volume: volume);
   }
 

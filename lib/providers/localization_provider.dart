@@ -361,6 +361,28 @@ class LocalizationProvider with ChangeNotifier {
     'keep_screen_awake': 'Keep screen awake during practice',
     'keep_screen_awake_subtitle':
         'Prevents automatic screen lock only while a practice session is open.',
+    'appearance_feedback': 'Appearance & feedback',
+    'appearance_feedback_subtitle':
+        'Shape the practice space around your attention and comfort.',
+    'practice_visual_mode': 'Practice layout',
+    'exercise_label': 'Exercise',
+    'practice_visual_mode_subtitle':
+        'Focused keeps one exercise in view; Full shows the complete workspace.',
+    'focused_mode': 'Focused',
+    'full_mode': 'Full workspace',
+    'theme_mode': 'Theme',
+    'theme_system': 'Use device setting',
+    'theme_light': 'Light',
+    'theme_dark': 'Dark',
+    'haptics': 'Gentle touch feedback',
+    'haptics_subtitle': 'A small cue when an exercise starts or completes.',
+    'sound_cues': 'Sound cues',
+    'sound_cues_subtitle': 'A soft optional cue for practice transitions.',
+    'reduced_motion': 'Reduce motion',
+    'reduced_motion_subtitle': 'Use calmer transitions and fewer animations.',
+    'show_celebrations': 'Show encouraging completion cues',
+    'show_celebrations_subtitle':
+        'Keep progress feedback supportive and easy to turn off.',
     'preference_save_error': 'The preference could not be saved.',
     'invalid_weekly_goal': 'Enter a weekly goal from 1 to 10,080 minutes.',
     'enter_valid_name': 'Please enter a valid name',
@@ -689,6 +711,30 @@ class LocalizationProvider with ChangeNotifier {
     'keep_screen_awake': 'Mantener la pantalla activa durante la práctica',
     'keep_screen_awake_subtitle':
         'Evita el bloqueo automático solo mientras haya una sesión de práctica abierta.',
+    'appearance_feedback': 'Apariencia y feedback',
+    'appearance_feedback_subtitle':
+        'Adapta el espacio de práctica a tu atención y comodidad.',
+    'practice_visual_mode': 'Diseño de práctica',
+    'exercise_label': 'Ejercicio',
+    'practice_visual_mode_subtitle':
+        'Enfocado muestra un ejercicio; Completo muestra todo el espacio.',
+    'focused_mode': 'Enfocado',
+    'full_mode': 'Espacio completo',
+    'theme_mode': 'Tema',
+    'theme_system': 'Usar ajuste del dispositivo',
+    'theme_light': 'Claro',
+    'theme_dark': 'Oscuro',
+    'haptics': 'Feedback táctil suave',
+    'haptics_subtitle': 'Una señal breve al iniciar o completar un ejercicio.',
+    'sound_cues': 'Señales de sonido',
+    'sound_cues_subtitle':
+        'Una señal suave opcional para los cambios de práctica.',
+    'reduced_motion': 'Reducir movimiento',
+    'reduced_motion_subtitle':
+        'Usa transiciones más tranquilas y menos animaciones.',
+    'show_celebrations': 'Mostrar señales de finalización',
+    'show_celebrations_subtitle':
+        'Mantén el feedback de progreso amable y fácil de desactivar.',
     'preference_save_error': 'No se pudo guardar la preferencia.',
     'invalid_weekly_goal': 'Ingresa una meta semanal entre 1 y 10.080 minutos.',
     'enter_valid_name': 'Por favor ingresa un nombre válido',

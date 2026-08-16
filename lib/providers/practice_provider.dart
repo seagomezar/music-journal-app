@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import '../models/routine.dart';
 import '../models/exercise.dart';
@@ -8,6 +9,7 @@ import '../models/piece.dart';
 import '../models/session_record.dart';
 import '../services/analytics_service.dart';
 import '../models/pitch_tracking.dart';
+import '../models/practice_appearance_preferences.dart';
 import '../services/audio_service.dart';
 import '../services/metronome_audio_service.dart';
 import '../services/pitch_tracking_service.dart';
@@ -25,11 +27,23 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     double metronomeVolume = 0.7,
     int tunerReferenceHz = 440,
     int tunerToleranceCents = 10,
+    PracticeVisualMode visualMode = PracticeVisualMode.focused,
+    ThemeMode themeMode = ThemeMode.system,
+    bool hapticsEnabled = true,
+    bool soundCuesEnabled = true,
+    bool reducedMotion = false,
+    bool showCelebrations = true,
     Future<void> Function(bool)? persistKeepScreenAwake,
     Future<void> Function(bool)? persistMetronomeSound,
     Future<void> Function(double)? persistMetronomeVolume,
     Future<void> Function(int)? persistTunerReference,
     Future<void> Function(int)? persistTunerTolerance,
+    Future<void> Function(PracticeVisualMode)? persistVisualMode,
+    Future<void> Function(ThemeMode)? persistThemeMode,
+    Future<void> Function(bool)? persistHaptics,
+    Future<void> Function(bool)? persistSoundCues,
+    Future<void> Function(bool)? persistReducedMotion,
+    Future<void> Function(bool)? persistShowCelebrations,
   }) : _audioService = audioService ?? AudioService(),
        _pitchTracking = pitchTrackingService ?? PitchTrackingService(),
        _metronomeAudio =
@@ -43,11 +57,23 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
        _tunerToleranceCents = const {5, 10, 20}.contains(tunerToleranceCents)
            ? tunerToleranceCents
            : 10,
+       _visualMode = visualMode,
+       _themeMode = themeMode,
+       _hapticsEnabled = hapticsEnabled,
+       _soundCuesEnabled = soundCuesEnabled,
+       _reducedMotion = reducedMotion,
+       _showCelebrations = showCelebrations,
        _persistKeepScreenAwake = persistKeepScreenAwake,
        _persistMetronomeSound = persistMetronomeSound,
        _persistMetronomeVolume = persistMetronomeVolume,
        _persistTunerReference = persistTunerReference,
-       _persistTunerTolerance = persistTunerTolerance {
+       _persistTunerTolerance = persistTunerTolerance,
+       _persistVisualMode = persistVisualMode,
+       _persistThemeMode = persistThemeMode,
+       _persistHaptics = persistHaptics,
+       _persistSoundCues = persistSoundCues,
+       _persistReducedMotion = persistReducedMotion,
+       _persistShowCelebrations = persistShowCelebrations {
     _audioService.onPlaybackChanged = (_) {
       if (_isDisposed) return;
       unawaited(_syncMetronomeAudioSuppression());
@@ -71,6 +97,12 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   final Future<void> Function(double)? _persistMetronomeVolume;
   final Future<void> Function(int)? _persistTunerReference;
   final Future<void> Function(int)? _persistTunerTolerance;
+  final Future<void> Function(PracticeVisualMode)? _persistVisualMode;
+  final Future<void> Function(ThemeMode)? _persistThemeMode;
+  final Future<void> Function(bool)? _persistHaptics;
+  final Future<void> Function(bool)? _persistSoundCues;
+  final Future<void> Function(bool)? _persistReducedMotion;
+  final Future<void> Function(bool)? _persistShowCelebrations;
   bool _isDisposed = false;
   bool _isInForeground = true;
 
@@ -83,6 +115,12 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   Timer? _timer;
   final Stopwatch _activeStopwatch;
   bool _keepScreenAwake;
+  PracticeVisualMode _visualMode;
+  ThemeMode _themeMode;
+  bool _hapticsEnabled;
+  bool _soundCuesEnabled;
+  bool _reducedMotion;
+  bool _showCelebrations;
 
   // Active exercises completion
   final Set<String> _completedExerciseIds = {};
@@ -128,6 +166,12 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   bool get isPaused => _isPaused;
   int get secondsElapsed => _secondsElapsed;
   bool get keepScreenAwake => _keepScreenAwake;
+  PracticeVisualMode get visualMode => _visualMode;
+  ThemeMode get themeMode => _themeMode;
+  bool get hapticsEnabled => _hapticsEnabled;
+  bool get soundCuesEnabled => _soundCuesEnabled;
+  bool get reducedMotion => _reducedMotion;
+  bool get showCelebrations => _showCelebrations;
   Set<String> get completedExerciseIds => _completedExerciseIds;
   String? get activeExerciseId => _activeExerciseId;
   Map<String, int> get exercisePracticedBpms => _exercisePracticedBpms;
@@ -158,6 +202,103 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   ExercisePitchSummary? get livePitchSummary => _pitchTracking.currentSummary();
 
   // Action methods
+  Future<void> setVisualMode(PracticeVisualMode mode) async {
+    if (_visualMode == mode) return;
+    final previous = _visualMode;
+    _visualMode = mode;
+    notifyListeners();
+    try {
+      await _persistVisualMode?.call(mode);
+    } catch (_) {
+      _visualMode = previous;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    if (_themeMode == mode) return;
+    final previous = _themeMode;
+    _themeMode = mode;
+    notifyListeners();
+    try {
+      await _persistThemeMode?.call(mode);
+    } catch (_) {
+      _themeMode = previous;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> setHapticsEnabled(bool enabled) async {
+    await _setBooleanPreference(
+      value: enabled,
+      get: () => _hapticsEnabled,
+      set: (value) => _hapticsEnabled = value,
+      persist: _persistHaptics,
+    );
+  }
+
+  Future<void> setSoundCuesEnabled(bool enabled) async {
+    await _setBooleanPreference(
+      value: enabled,
+      get: () => _soundCuesEnabled,
+      set: (value) => _soundCuesEnabled = value,
+      persist: _persistSoundCues,
+    );
+  }
+
+  Future<void> setReducedMotion(bool enabled) async {
+    await _setBooleanPreference(
+      value: enabled,
+      get: () => _reducedMotion,
+      set: (value) => _reducedMotion = value,
+      persist: _persistReducedMotion,
+    );
+  }
+
+  Future<void> setShowCelebrations(bool enabled) async {
+    await _setBooleanPreference(
+      value: enabled,
+      get: () => _showCelebrations,
+      set: (value) => _showCelebrations = value,
+      persist: _persistShowCelebrations,
+    );
+  }
+
+  Future<void> _setBooleanPreference({
+    required bool value,
+    required bool Function() get,
+    required void Function(bool) set,
+    required Future<void> Function(bool)? persist,
+  }) async {
+    if (get() == value) return;
+    final previous = get();
+    set(value);
+    notifyListeners();
+    try {
+      await persist?.call(value);
+    } catch (_) {
+      set(previous);
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  void _providePracticeCue({bool strong = false}) {
+    if (_hapticsEnabled) {
+      unawaited(
+        (strong
+                ? HapticFeedback.mediumImpact()
+                : HapticFeedback.selectionClick())
+            .catchError((_) {}),
+      );
+    }
+    if (_soundCuesEnabled) {
+      unawaited(SystemSound.play(SystemSoundType.click).catchError((_) {}));
+    }
+  }
+
   Future<void> setKeepScreenAwake(bool enabled) async {
     if (_keepScreenAwake == enabled) return;
     final previous = _keepScreenAwake;
@@ -327,6 +468,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     } else {
       _startMetronome();
     }
+    _providePracticeCue();
   }
 
   void stopExercise(String id) {
@@ -365,6 +507,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _exerciseDurationMilliseconds[id] =
         (_exerciseDurationMilliseconds[id] ?? 0) + elapsed.clamp(0, 86400000);
     if (markCompleted) _completedExerciseIds.add(id);
+    if (markCompleted && _showCelebrations) _providePracticeCue();
     if (isTrackingPitch) unawaited(stopPitchCapture(exerciseId: id));
     _activeExerciseId = null;
     _activeExerciseStartedAtMilliseconds = null;
@@ -794,6 +937,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   }
 
   void completeSession() {
+    if (_showCelebrations) _providePracticeCue(strong: true);
     _resetSessionState();
     unawaited(_applyScreenAwakePreferenceSafely());
     notifyListeners();

@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import '../models/user_profile.dart';
 import '../models/routine.dart';
 import '../models/exercise.dart';
 import '../models/piece.dart';
 import '../models/session_record.dart';
+import '../models/practice_appearance_preferences.dart';
 import 'file_storage_service.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 
 class DatabaseService {
   static const int _currentSeedVersion = 1;
@@ -16,6 +18,12 @@ class DatabaseService {
   static const String _metronomeVolumeKey = 'metronome_volume';
   static const String _tunerReferenceKey = 'tuner_reference_hz';
   static const String _tunerToleranceKey = 'tuner_tolerance_cents';
+  static const String _practiceVisualModeKey = 'practice_visual_mode';
+  static const String _themeModeKey = 'theme_mode';
+  static const String _hapticsKey = 'practice_haptics';
+  static const String _soundCuesKey = 'practice_sound_cues';
+  static const String _reducedMotionKey = 'practice_reduced_motion';
+  static const String _showCelebrationsKey = 'practice_show_celebrations';
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
@@ -288,6 +296,64 @@ class DatabaseService {
         ? toleranceCents
         : 10;
     await _profileBox.put(_tunerToleranceKey, value);
+  }
+
+  PracticeVisualMode getPracticeVisualMode() {
+    final value = _profileBox.get(
+      _practiceVisualModeKey,
+      defaultValue: PracticeVisualMode.focused.name,
+    );
+    return PracticeVisualMode.values.firstWhere(
+      (mode) => mode.name == value,
+      orElse: () => PracticeVisualMode.focused,
+    );
+  }
+
+  Future<void> setPracticeVisualMode(PracticeVisualMode mode) async {
+    await _profileBox.put(_practiceVisualModeKey, mode.name);
+  }
+
+  ThemeMode getThemeMode() {
+    final value = _profileBox.get(
+      _themeModeKey,
+      defaultValue: ThemeMode.system.name,
+    );
+    return ThemeMode.values.firstWhere(
+      (mode) => mode.name == value,
+      orElse: () => ThemeMode.system,
+    );
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    await _profileBox.put(_themeModeKey, mode.name);
+  }
+
+  bool getHapticsEnabled() =>
+      _profileBox.get(_hapticsKey, defaultValue: true) as bool;
+
+  Future<void> setHapticsEnabled(bool enabled) async {
+    await _profileBox.put(_hapticsKey, enabled);
+  }
+
+  bool getSoundCuesEnabled() =>
+      _profileBox.get(_soundCuesKey, defaultValue: true) as bool;
+
+  Future<void> setSoundCuesEnabled(bool enabled) async {
+    await _profileBox.put(_soundCuesKey, enabled);
+  }
+
+  bool getReducedMotion() =>
+      _profileBox.get(_reducedMotionKey, defaultValue: false) as bool;
+
+  Future<void> setReducedMotion(bool enabled) async {
+    await _profileBox.put(_reducedMotionKey, enabled);
+  }
+
+  bool getShowCelebrations() =>
+      _profileBox.get(_showCelebrationsKey, defaultValue: true) as bool;
+
+  Future<void> setShowCelebrations(bool enabled) async {
+    await _profileBox.put(_showCelebrationsKey, enabled);
   }
 
   Future<void> clearAllUserData() async {

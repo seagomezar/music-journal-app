@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'services/database_service.dart';
@@ -27,10 +28,15 @@ void main() async {
   await dbService.init();
 
   final metronomeAudioService = MetronomeAudioService();
-  try {
-    await metronomeAudioService.initialize();
-  } catch (error) {
-    debugPrint('Background metronome initialization failed: $error');
+  // Browsers block AudioContext creation until a user gesture. Keep the
+  // journal UI bootable and let the first metronome tap initialize audio
+  // lazily; native platforms can still warm the engine during startup.
+  if (!kIsWeb) {
+    try {
+      await metronomeAudioService.initialize();
+    } catch (error) {
+      debugPrint('Background metronome initialization failed: $error');
+    }
   }
 
   // Initialize Date Formatting for Calendar
@@ -56,11 +62,23 @@ void main() async {
             metronomeVolume: dbService.getMetronomeVolume(),
             tunerReferenceHz: dbService.getTunerReferenceHz(),
             tunerToleranceCents: dbService.getTunerToleranceCents(),
+            visualMode: dbService.getPracticeVisualMode(),
+            themeMode: dbService.getThemeMode(),
+            hapticsEnabled: dbService.getHapticsEnabled(),
+            soundCuesEnabled: dbService.getSoundCuesEnabled(),
+            reducedMotion: dbService.getReducedMotion(),
+            showCelebrations: dbService.getShowCelebrations(),
             persistKeepScreenAwake: dbService.setKeepScreenAwake,
             persistMetronomeSound: dbService.setMetronomeSoundEnabled,
             persistMetronomeVolume: dbService.setMetronomeVolume,
             persistTunerReference: dbService.setTunerReferenceHz,
             persistTunerTolerance: dbService.setTunerToleranceCents,
+            persistVisualMode: dbService.setPracticeVisualMode,
+            persistThemeMode: dbService.setThemeMode,
+            persistHaptics: dbService.setHapticsEnabled,
+            persistSoundCues: dbService.setSoundCuesEnabled,
+            persistReducedMotion: dbService.setReducedMotion,
+            persistShowCelebrations: dbService.setShowCelebrations,
           ),
         ),
       ],
@@ -74,9 +92,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final practiceProvider = context.watch<PracticeProvider>();
     return MaterialApp(
       title: context.translate('app_title'),
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: practiceProvider.themeMode,
       debugShowCheckedModeBanner: false,
       locale: Locale(context.watch<LocalizationProvider>().localeCode),
       supportedLocales: const [Locale('en'), Locale('es')],

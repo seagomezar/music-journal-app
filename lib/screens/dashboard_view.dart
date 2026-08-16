@@ -46,10 +46,9 @@ class _DashboardViewState extends State<DashboardView> {
             children: [
               Text(
                 context.translate('update_goal_desc'),
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontSize: 13),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -67,13 +66,13 @@ class _DashboardViewState extends State<DashboardView> {
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 context.translate('cancel'),
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
               ),
               onPressed: () {
                 final mins = int.tryParse(_goalController.text);
@@ -132,7 +131,7 @@ class _DashboardViewState extends State<DashboardView> {
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: AppTheme.primary,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       backgroundImage: user?.photoUrl != null
                           ? NetworkImage(user!.photoUrl!)
                           : null,
@@ -141,10 +140,10 @@ class _DashboardViewState extends State<DashboardView> {
                               (user?.name.isNotEmpty == true)
                                   ? user!.name[0].toUpperCase()
                                   : 'F',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             )
                           : null,
@@ -184,9 +183,11 @@ class _DashboardViewState extends State<DashboardView> {
                     ),
                     IconButton(
                       tooltip: context.translate('settings'),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.settings_outlined,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.72),
                       ),
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
@@ -240,10 +241,9 @@ class _DashboardViewState extends State<DashboardView> {
                           const SizedBox(width: 4),
                           Text(
                             '/ $weeklyGoal ${context.translate('minutes')}',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              color: AppTheme.textSecondary,
-                            ),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.copyWith(fontSize: 15),
                           ),
                         ],
                       ),
@@ -266,10 +266,9 @@ class _DashboardViewState extends State<DashboardView> {
                         context.translate('weekly_goal_target', [
                           (weeklyProgress * 100).toStringAsFixed(0),
                         ]),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(fontSize: 12),
                       ),
                     ],
                   ),
@@ -345,15 +344,15 @@ class _DashboardViewState extends State<DashboardView> {
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary.withValues(
-                          alpha: 0.15,
-                        ),
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.15),
                         foregroundColor: AppTheme.primaryAccent,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(
-                            color: AppTheme.primary,
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
                             width: 0.5,
                           ),
                         ),
@@ -399,7 +398,7 @@ class _DashboardViewState extends State<DashboardView> {
                         child: Text(
                           context.translate('no_routines_configured'),
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppTheme.textSecondary),
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ),
                     ),
@@ -428,9 +427,9 @@ class _DashboardViewState extends State<DashboardView> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withValues(
-                                    alpha: 0.1,
-                                  ),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Icon(
@@ -456,10 +455,10 @@ class _DashboardViewState extends State<DashboardView> {
                                         'technical_exercises_count',
                                         [routine.exercises.length.toString()],
                                       ),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.textSecondary,
-                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(fontSize: 12),
                                     ),
                                   ],
                                 ),
@@ -514,11 +513,10 @@ class _DashboardViewState extends State<DashboardView> {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontSize: 28,
                     height: 1,
                     fontWeight: FontWeight.w900,
-                    color: AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -526,11 +524,9 @@ class _DashboardViewState extends State<DashboardView> {
                   title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.15,
-                    color: AppTheme.textSecondary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontSize: 12, height: 1.15),
                 ),
               ],
             ),

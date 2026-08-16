@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,12 +18,14 @@ import 'package:flute/providers/repertoire_provider.dart';
 import 'package:flute/providers/routine_provider.dart';
 import 'package:flute/screens/main_shell.dart';
 import 'package:flute/services/database_service.dart';
+import 'package:flute/theme/app_theme.dart';
 
 /// Loads the real Roboto + Material Icons fonts (bundled with the Flutter SDK)
 /// so the widget lays out with production text metrics instead of the wide
 /// placeholder test glyphs, which would otherwise force spurious overflows.
 /// Resolved via FLUTTER_ROOT so it works on any machine, including CI.
 Future<void> _loadRealFonts() async {
+  if (kIsWeb) return;
   final root = Platform.environment['FLUTTER_ROOT'];
   if (root == null) return;
   final fontDir = '$root/bin/cache/artifacts/material_fonts';
@@ -100,7 +103,7 @@ class FakeRoutineProvider extends RoutineProvider {
   ];
 }
 
-Widget _wrapShell(LocalizationProvider loc) {
+Widget _wrapShell(LocalizationProvider loc, {ThemeData? theme}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<AuthProvider>(create: (_) => FakeAuthProvider()),
@@ -118,7 +121,10 @@ Widget _wrapShell(LocalizationProvider loc) {
       ),
       ChangeNotifierProvider<LocalizationProvider>.value(value: loc),
     ],
-    child: const MaterialApp(home: MainShell()),
+    child: MaterialApp(
+      theme: theme ?? ThemeData.light(),
+      home: const MainShell(),
+    ),
   );
 }
 
@@ -132,12 +138,14 @@ void main() {
 
     // Route path_provider (used by Hive.initFlutter) at a real temp dir so the
     // DatabaseService singleton persists locale changes for real.
-    final dir = await Directory.systemTemp.createTemp('flute_hive_dash_');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async => dir.path,
-        );
+    if (!kIsWeb) {
+      final dir = await Directory.systemTemp.createTemp('flute_hive_dash_');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => dir.path,
+          );
+    }
     await DatabaseService().init();
     await DatabaseService().setPreferredLocale('en');
   });
@@ -179,5 +187,27 @@ void main() {
       expect(DatabaseService().getPreferredLocale(), 'es');
       expect(loc.isSpanish, isTrue);
     },
+    skip: kIsWeb,
   );
+
+  testWidgets('dashboard renders in the browser test runner', (tester) async {
+    final loc = LocalizationProvider(initialLocale: 'en');
+    await tester.pumpWidget(_wrapShell(loc));
+    await tester.pump();
+    expect(find.text('Dashboard'), findsWidgets);
+    expect(find.text('Welcome back,'), findsOneWidget);
+  }, skip: !kIsWeb);
+
+  testWidgets('dark dashboard keeps statistics readable', (tester) async {
+    final loc = LocalizationProvider(initialLocale: 'en');
+    await tester.pumpWidget(_wrapShell(loc, theme: AppTheme.darkTheme));
+    await tester.pumpAndSettle();
+
+    final streak = tester.widget<Text>(find.text('4 Days'));
+    expect(streak.style?.color, AppTheme.darkTextPrimary);
+    expect(
+      tester.widget<Text>(find.text('Current Streak')).style?.color,
+      AppTheme.darkTextSecondary,
+    );
+  });
 }
