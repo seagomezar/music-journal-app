@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import '../models/exercise.dart';
 import '../models/routine.dart';
 import '../models/session_record.dart';
+import '../models/pitch_tracking.dart';
 
 class JournalBackupException implements Exception {
   const JournalBackupException(this.message);
@@ -55,7 +56,7 @@ class JournalImportPlan {
 
 class JournalBackupService {
   static const format = 'flute-practice-coach-journal';
-  static const schemaVersion = 1;
+  static const schemaVersion = 3;
   static const maxBackupBytes = 20 * 1024 * 1024;
 
   String createBackup({
@@ -117,11 +118,9 @@ class JournalBackupService {
       min: 1,
       max: 1000000,
     );
-    if (version != schemaVersion) {
+    if (version > schemaVersion) {
       throw JournalBackupException(
-        version > schemaVersion
-            ? 'This backup was created by a newer app version.'
-            : 'This backup version is no longer supported.',
+        'This backup was created by a newer app version.',
       );
     }
 
@@ -148,6 +147,7 @@ class JournalBackupService {
       final session = _parseSession(
         sessionValues[index],
         '\$.sessions[$index]',
+        version,
       );
       if (!sessionIds.add(session.id)) {
         throw JournalBackupException(
@@ -247,6 +247,7 @@ class JournalBackupService {
         endUtcOffsetMinutes: incoming.endUtcOffsetMinutes,
         totalDurationInSeconds: incoming.totalDurationInSeconds,
         completedExercises: incoming.completedExercises,
+        exerciseResults: incoming.exerciseResults,
         rehearsedPieces: incoming.rehearsedPieces,
         notes: incoming.notes,
       );
@@ -296,6 +297,16 @@ class JournalBackupService {
     'totalDurationInSeconds': session.totalDurationInSeconds,
     'completedExercises': session.completedExercises
         .map(_exerciseJson)
+        .toList(),
+    'exerciseResults': session.exerciseResults
+        .map(
+          (result) => {
+            'exercise': _exerciseJson(result.exercise),
+            'durationInSeconds': result.durationInSeconds,
+            'practicedBpm': result.practicedBpm,
+            'pitchSummary': result.pitchSummary?.toJson(),
+          },
+        )
         .toList(),
     'rehearsedPieces': session.rehearsedPieces
         .map(
@@ -361,9 +372,13 @@ class JournalBackupService {
     );
   }
 
-  static SessionRecord _parseSession(dynamic value, String path) {
+  static SessionRecord _parseSession(
+    dynamic value,
+    String path,
+    int schemaVersion,
+  ) {
     final map = _object(value, path);
-    _keys(map, path, const {
+    final expectedKeys = <String>{
       'id',
       'startTime',
       'endTime',
@@ -373,7 +388,9 @@ class JournalBackupService {
       'completedExercises',
       'rehearsedPieces',
       'notes',
-    });
+    };
+    if (schemaVersion >= 2) expectedKeys.add('exerciseResults');
+    _keys(map, path, expectedKeys);
     final startTime = _timestamp(map['startTime'], '$path.startTime');
     final endTime = _timestamp(map['endTime'], '$path.endTime');
     if (endTime.isBefore(startTime)) {
@@ -398,6 +415,59 @@ class JournalBackupService {
           '$path.completedExercises[$index]',
         ),
       );
+    }
+
+    final exerciseResults = <SessionExerciseRecord>[];
+    if (schemaVersion >= 2) {
+      final resultValues = _list(
+        map['exerciseResults'],
+        '$path.exerciseResults',
+        max: 1000,
+      );
+      final resultExerciseIds = <String>{};
+      for (var index = 0; index < resultValues.length; index++) {
+        final resultPath = '$path.exerciseResults[$index]';
+        final result = _object(resultValues[index], resultPath);
+        final resultKeys = <String>{
+          'exercise',
+          'durationInSeconds',
+          'practicedBpm',
+        };
+        if (schemaVersion >= 3) resultKeys.add('pitchSummary');
+        _keys(result, resultPath, resultKeys);
+        final exercise = _parseExercise(
+          result['exercise'],
+          '$resultPath.exercise',
+        );
+        if (!resultExerciseIds.add(exercise.id)) {
+          throw JournalBackupException(
+            'Duplicate exercise result ID at $resultPath.',
+          );
+        }
+        exerciseResults.add(
+          SessionExerciseRecord(
+            exercise: exercise,
+            durationInSeconds: _integer(
+              result['durationInSeconds'],
+              '$resultPath.durationInSeconds',
+              min: 0,
+              max: 86400,
+            ),
+            practicedBpm: _integer(
+              result['practicedBpm'],
+              '$resultPath.practicedBpm',
+              min: 40,
+              max: 240,
+            ),
+            pitchSummary: schemaVersion >= 3
+                ? _parsePitchSummary(
+                    result['pitchSummary'],
+                    '$resultPath.pitchSummary',
+                  )
+                : null,
+          ),
+        );
+      }
     }
 
     final pieceValues = _list(
@@ -463,6 +533,7 @@ class JournalBackupService {
         max: 86400,
       ),
       completedExercises: completedExercises,
+      exerciseResults: exerciseResults,
       rehearsedPieces: pieces,
       notes: _string(map['notes'], '$path.notes', max: 50000),
     );
@@ -480,6 +551,60 @@ class JournalBackupService {
       result[entry.key as String] = entry.value;
     }
     return result;
+  }
+
+  static ExercisePitchSummary? _parsePitchSummary(dynamic value, String path) {
+    if (value == null) return null;
+    final map = _object(value, path);
+    _keys(map, path, const {
+      'inTuneMilliseconds',
+      'analyzedMilliseconds',
+      'trackingMilliseconds',
+      'referenceHz',
+      'toleranceCents',
+    });
+    final analyzed = _integer(
+      map['analyzedMilliseconds'],
+      '$path.analyzedMilliseconds',
+      min: 0,
+      max: 86400000,
+    );
+    final inTune = _integer(
+      map['inTuneMilliseconds'],
+      '$path.inTuneMilliseconds',
+      min: 0,
+      max: 86400000,
+    );
+    final tracking = _integer(
+      map['trackingMilliseconds'],
+      '$path.trackingMilliseconds',
+      min: 0,
+      max: 86400000,
+    );
+    if (inTune > analyzed || analyzed > tracking) {
+      throw JournalBackupException('$path contains inconsistent durations.');
+    }
+    final tolerance = _integer(
+      map['toleranceCents'],
+      '$path.toleranceCents',
+      min: 5,
+      max: 20,
+    );
+    if (!const {5, 10, 20}.contains(tolerance)) {
+      throw JournalBackupException('$path.toleranceCents is unsupported.');
+    }
+    return ExercisePitchSummary(
+      inTuneMilliseconds: inTune,
+      analyzedMilliseconds: analyzed,
+      trackingMilliseconds: tracking,
+      referenceHz: _integer(
+        map['referenceHz'],
+        '$path.referenceHz',
+        min: 420,
+        max: 460,
+      ),
+      toleranceCents: tolerance,
+    );
   }
 
   static List<dynamic> _list(dynamic value, String path, {required int max}) {

@@ -225,9 +225,9 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                 ),
                                 width: 6,
                                 height: 6,
-                                decoration: const BoxDecoration(
+                                decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: AppTheme.primaryAccent,
+                                  color: AppTheme.accentColor(context),
                                 ),
                               );
                             }).toList(),
@@ -242,12 +242,17 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                   headerStyle: HeaderStyle(
                     formatButtonVisible: true,
                     formatButtonDecoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.15),
+                      color: AppTheme.primaryColor(
+                        context,
+                      ).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.primary, width: 0.5),
+                      border: Border.all(
+                        color: AppTheme.primaryColor(context),
+                        width: 0.5,
+                      ),
                     ),
-                    formatButtonTextStyle: const TextStyle(
-                      color: AppTheme.primaryAccent,
+                    formatButtonTextStyle: TextStyle(
+                      color: AppTheme.accentColor(context),
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
@@ -259,12 +264,17 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                   ),
                   calendarStyle: CalendarStyle(
                     todayDecoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.3),
+                      color: AppTheme.primaryColor(
+                        context,
+                      ).withValues(alpha: 0.3),
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.primary, width: 1),
+                      border: Border.all(
+                        color: AppTheme.primaryColor(context),
+                        width: 1,
+                      ),
                     ),
-                    selectedDecoration: const BoxDecoration(
-                      color: AppTheme.secondary,
+                    selectedDecoration: BoxDecoration(
+                      color: AppTheme.secondaryColor(context),
                       shape: BoxShape.circle,
                     ),
                     weekendTextStyle: const TextStyle(color: Colors.redAccent),
@@ -281,9 +291,9 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.history_edu_rounded,
-                    color: AppTheme.primaryAccent,
+                    color: AppTheme.accentColor(context),
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -307,9 +317,9 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                     context.translate('recorded_count_format', [
                       selectedDaySessions.length.toString(),
                     ]),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.textSecondary,
+                      color: AppTheme.textSecondaryColor(context),
                     ),
                   ),
                 ],
@@ -325,7 +335,9 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                       child: Text(
                         context.translate('no_sessions_on_day'),
                         style: TextStyle(
-                          color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                          color: AppTheme.textSecondaryColor(
+                            context,
+                          ).withValues(alpha: 0.7),
                           fontSize: 13,
                         ),
                       ),
@@ -344,7 +356,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 14),
-                          color: AppTheme.surface,
+                          color: AppTheme.surfaceColor(context),
                           child: Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Column(
@@ -353,10 +365,12 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                 // Time & Duration Header
                                 Row(
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.watch_later_outlined,
                                       size: 16,
-                                      color: AppTheme.textSecondary,
+                                      color: AppTheme.textSecondaryColor(
+                                        context,
+                                      ),
                                     ),
                                     const SizedBox(width: 6),
                                     Expanded(
@@ -374,9 +388,9 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primary.withValues(
-                                          alpha: 0.15,
-                                        ),
+                                        color: AppTheme.primaryColor(
+                                          context,
+                                        ).withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -384,8 +398,8 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                           context,
                                           session.totalDurationInSeconds,
                                         ),
-                                        style: const TextStyle(
-                                          color: AppTheme.primaryAccent,
+                                        style: TextStyle(
+                                          color: AppTheme.accentColor(context),
                                           fontWeight: FontWeight.bold,
                                           fontSize: 11,
                                         ),
@@ -408,54 +422,142 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                   ],
                                 ),
 
-                                const Divider(
+                                Divider(
                                   height: 20,
-                                  color: AppTheme.border,
+                                  color: AppTheme.borderColor(context),
                                 ),
 
                                 // Exercises Done
-                                if (session.completedExercises.isNotEmpty) ...[
+                                if (session.completedExercises.isNotEmpty ||
+                                    session.exerciseResults.isNotEmpty) ...[
                                   Text(
                                     context.translate(
                                       'technical_exercises_completed_title',
                                     ),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
-                                      color: AppTheme.primaryAccent,
+                                      color: AppTheme.accentColor(context),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 6,
-                                    children: session.completedExercises.map((
-                                      ex,
-                                    ) {
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.border.withValues(
-                                            alpha: 0.4,
+                                    children: [
+                                      ...session.exerciseResults.map((result) {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
                                           ),
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          border: Border.all(
-                                            color: AppTheme.border.withValues(
-                                              alpha: 0.5,
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.accentColor(
+                                              context,
+                                            ).withValues(alpha: 0.08),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            border: Border.all(
+                                              color: AppTheme.accentColor(
+                                                context,
+                                              ).withValues(alpha: 0.25),
                                             ),
                                           ),
-                                        ),
-                                        child: Text(
-                                          '${ex.name} (${ex.targetBpm} BPM ${ex.articulation})',
-                                          style: const TextStyle(fontSize: 11),
-                                        ),
-                                      );
-                                    }).toList(),
+                                          child: Text(
+                                            context.translate(
+                                              result.pitchSummary != null &&
+                                                      result
+                                                          .pitchSummary!
+                                                          .hasEnoughData
+                                                  ? 'exercise_result_with_pitch_format'
+                                                  : 'exercise_result_format',
+                                              result.pitchSummary != null &&
+                                                      result
+                                                          .pitchSummary!
+                                                          .hasEnoughData
+                                                  ? [
+                                                      result.exercise.name,
+                                                      _formatDuration(
+                                                        context,
+                                                        result
+                                                            .durationInSeconds,
+                                                      ),
+                                                      result.practicedBpm
+                                                          .toString(),
+                                                      result
+                                                          .pitchSummary!
+                                                          .onPitchPercentage
+                                                          .round()
+                                                          .toString(),
+                                                      _formatDuration(
+                                                        context,
+                                                        result
+                                                                .pitchSummary!
+                                                                .analyzedMilliseconds ~/
+                                                            1000,
+                                                      ),
+                                                      result
+                                                          .pitchSummary!
+                                                          .referenceHz
+                                                          .toString(),
+                                                      result
+                                                          .pitchSummary!
+                                                          .toleranceCents
+                                                          .toString(),
+                                                    ]
+                                                  : [
+                                                      result.exercise.name,
+                                                      _formatDuration(
+                                                        context,
+                                                        result
+                                                            .durationInSeconds,
+                                                      ),
+                                                      result.practicedBpm
+                                                          .toString(),
+                                                    ],
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                      ...session.completedExercises
+                                          .where(
+                                            (exercise) =>
+                                                !session.exerciseResults.any(
+                                                  (result) =>
+                                                      result.exercise.id ==
+                                                      exercise.id,
+                                                ),
+                                          )
+                                          .map((ex) {
+                                            return Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.borderColor(
+                                                  context,
+                                                ).withValues(alpha: 0.4),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: AppTheme.borderColor(
+                                                    context,
+                                                  ).withValues(alpha: 0.5),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '${ex.name} (${ex.targetBpm} BPM ${ex.articulation})',
+                                                style: TextStyle(fontSize: 11),
+                                              ),
+                                            );
+                                          }),
+                                    ],
                                   ),
                                   const SizedBox(height: 12),
                                 ],
@@ -466,10 +568,10 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                     context.translate(
                                       'repertoire_rehearsed_title',
                                     ),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
-                                      color: AppTheme.secondary,
+                                      color: AppTheme.secondaryColor(context),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -483,16 +585,19 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                         ),
                                         child: Row(
                                           children: [
-                                            const Icon(
+                                            Icon(
                                               Icons.music_note_rounded,
                                               size: 14,
-                                              color: AppTheme.textSecondary,
+                                              color:
+                                                  AppTheme.textSecondaryColor(
+                                                    context,
+                                                  ),
                                             ),
                                             const SizedBox(width: 6),
                                             Expanded(
                                               child: Text(
                                                 piece.pieceTitle,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w600,
                                                 ),
@@ -506,9 +611,12 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                                       piece.durationInSeconds,
                                                     ),
                                                   ]),
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 11,
-                                                color: AppTheme.textSecondary,
+                                                color:
+                                                    AppTheme.textSecondaryColor(
+                                                      context,
+                                                    ),
                                               ),
                                             ),
                                           ],
@@ -525,18 +633,20 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                     context.translate(
                                       'practice_session_notes_title',
                                     ),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
-                                      color: AppTheme.textPrimary,
+                                      color: AppTheme.textPrimaryColor(context),
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     session.notes,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
-                                      color: AppTheme.textSecondary,
+                                      color: AppTheme.textSecondaryColor(
+                                        context,
+                                      ),
                                       fontStyle: FontStyle.italic,
                                     ),
                                   ),
@@ -548,14 +658,14 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.border.withValues(
-                                        alpha: 0.3,
-                                      ),
+                                      color: AppTheme.borderColor(
+                                        context,
+                                      ).withValues(alpha: 0.3),
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
-                                        color: AppTheme.border.withValues(
-                                          alpha: 0.5,
-                                        ),
+                                        color: AppTheme.borderColor(
+                                          context,
+                                        ).withValues(alpha: 0.5),
                                       ),
                                     ),
                                     child: Row(
@@ -568,8 +678,8 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                           ),
                                           style: IconButton.styleFrom(
                                             backgroundColor: isSessionPlaying
-                                                ? AppTheme.primary
-                                                : AppTheme.primaryAccent,
+                                                ? AppTheme.primaryColor(context)
+                                                : AppTheme.accentColor(context),
                                             foregroundColor: Colors.white,
                                             minimumSize: const Size(36, 36),
                                           ),
@@ -593,7 +703,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                                 context.translate(
                                                   'recorded_self_evaluation_title',
                                                 ),
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -606,9 +716,12 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                                     : context.translate(
                                                         'audio_attached',
                                                       ),
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 10,
-                                                  color: AppTheme.textSecondary,
+                                                  color:
+                                                      AppTheme.textSecondaryColor(
+                                                        context,
+                                                      ),
                                                 ),
                                               ),
                                             ],

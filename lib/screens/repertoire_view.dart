@@ -154,9 +154,12 @@ class _RepertoireViewState extends State<RepertoireView> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.surface,
+                        color: AppTheme.surfaceColor(context),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.border, width: 1),
+                        border: Border.all(
+                          color: AppTheme.borderColor(context),
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -175,8 +178,8 @@ class _RepertoireViewState extends State<RepertoireView> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: _selectedPdfName != null
-                                    ? AppTheme.textPrimary
-                                    : AppTheme.textSecondary,
+                                    ? AppTheme.textPrimaryColor(context)
+                                    : AppTheme.textSecondaryColor(context),
                               ),
                             ),
                           ),
@@ -204,13 +207,15 @@ class _RepertoireViewState extends State<RepertoireView> {
                       : () => Navigator.of(context).pop(),
                   child: Text(
                     context.translate('cancel'),
-                    style: const TextStyle(color: AppTheme.textSecondary),
+                    style: TextStyle(
+                      color: AppTheme.textSecondaryColor(context),
+                    ),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppTheme.primaryColor(context),
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   onPressed: isSaving
                       ? null
@@ -347,9 +352,9 @@ class _RepertoireViewState extends State<RepertoireView> {
                               context.translate('score_sheet_format', [
                                 piece.pdfPath!.split(RegExp(r'[\\/]')).last,
                               ]),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: AppTheme.textSecondary,
+                                color: AppTheme.textSecondaryColor(context),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -359,9 +364,9 @@ class _RepertoireViewState extends State<RepertoireView> {
                       const SizedBox(height: 8),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primary,
-                          side: const BorderSide(
-                            color: AppTheme.primary,
+                          foregroundColor: AppTheme.primaryColor(context),
+                          side: BorderSide(
+                            color: AppTheme.primaryColor(context),
                             width: 1,
                           ),
                           shape: RoundedRectangleBorder(
@@ -394,7 +399,7 @@ class _RepertoireViewState extends State<RepertoireView> {
                         },
                       ),
                     ],
-                    const Divider(height: 24, color: AppTheme.border),
+                    Divider(height: 24, color: AppTheme.borderColor(context)),
 
                     // Progress Slider
                     Text(
@@ -402,7 +407,7 @@ class _RepertoireViewState extends State<RepertoireView> {
                         localCompleted.toString(),
                         piece.measuresTotal.toString(),
                       ]),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -413,9 +418,9 @@ class _RepertoireViewState extends State<RepertoireView> {
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 8,
-                        backgroundColor: AppTheme.border,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          AppTheme.secondary,
+                        backgroundColor: AppTheme.borderColor(context),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.secondaryColor(context),
                         ),
                       ),
                     ),
@@ -423,8 +428,8 @@ class _RepertoireViewState extends State<RepertoireView> {
                       Slider(
                         min: 0,
                         max: piece.measuresTotal.toDouble(),
-                        activeColor: AppTheme.secondary,
-                        inactiveColor: AppTheme.border,
+                        activeColor: AppTheme.secondaryColor(context),
+                        inactiveColor: AppTheme.borderColor(context),
                         value: localCompleted.toDouble(),
                         onChanged: (double val) {
                           setDialogState(() {
@@ -437,7 +442,7 @@ class _RepertoireViewState extends State<RepertoireView> {
                     const SizedBox(height: 12),
                     Text(
                       context.translate('focus_notes_label'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -447,9 +452,9 @@ class _RepertoireViewState extends State<RepertoireView> {
                       piece.notes.isEmpty
                           ? context.translate('no_focus_notes')
                           : piece.notes,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppTheme.textSecondary,
+                        color: AppTheme.textSecondaryColor(context),
                       ),
                     ),
                   ],
@@ -507,13 +512,15 @@ class _RepertoireViewState extends State<RepertoireView> {
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(
                     context.translate('cancel'),
-                    style: const TextStyle(color: AppTheme.textSecondary),
+                    style: TextStyle(
+                      color: AppTheme.textSecondaryColor(context),
+                    ),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppTheme.primaryColor(context),
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   onPressed: () async {
                     try {
@@ -559,9 +566,9 @@ class _RepertoireViewState extends State<RepertoireView> {
         actions: [
           IconButton(
             tooltip: context.translate('add_piece'),
-            icon: const Icon(
+            icon: Icon(
               Icons.add_circle_outline_rounded,
-              color: AppTheme.primaryAccent,
+              color: AppTheme.accentColor(context),
               size: 28,
             ),
             onPressed: () => _showAddPieceDialog(context),
@@ -582,7 +589,9 @@ class _RepertoireViewState extends State<RepertoireView> {
                       Icon(
                         Icons.library_music_rounded,
                         size: 72,
-                        color: AppTheme.border.withValues(alpha: 0.5),
+                        color: AppTheme.borderColor(
+                          context,
+                        ).withValues(alpha: 0.5),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -596,7 +605,9 @@ class _RepertoireViewState extends State<RepertoireView> {
                       Text(
                         context.translate('repertoire_empty_desc'),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppTheme.textSecondary),
+                        style: TextStyle(
+                          color: AppTheme.textSecondaryColor(context),
+                        ),
                       ),
                     ],
                   ),
@@ -643,9 +654,13 @@ class _RepertoireViewState extends State<RepertoireView> {
                                           child: CircularProgressIndicator(
                                             value: piece.progressPercentage,
                                             strokeWidth: 5,
-                                            backgroundColor: AppTheme.border
-                                                .withValues(alpha: 0.5),
-                                            color: AppTheme.secondary,
+                                            backgroundColor:
+                                                AppTheme.borderColor(
+                                                  context,
+                                                ).withValues(alpha: 0.5),
+                                            color: AppTheme.secondaryColor(
+                                              context,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -669,11 +684,11 @@ class _RepertoireViewState extends State<RepertoireView> {
                                 piece.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'serif',
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: AppTheme.textPrimary,
+                                  color: AppTheme.textPrimaryColor(context),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -683,9 +698,9 @@ class _RepertoireViewState extends State<RepertoireView> {
                                     : piece.composer,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
-                                  color: AppTheme.textSecondary,
+                                  color: AppTheme.textSecondaryColor(context),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -700,9 +715,11 @@ class _RepertoireViewState extends State<RepertoireView> {
                                       piece.measuresCompleted.toString(),
                                       piece.measuresTotal.toString(),
                                     ]),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 10,
-                                      color: AppTheme.textSecondary,
+                                      color: AppTheme.textSecondaryColor(
+                                        context,
+                                      ),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -712,14 +729,14 @@ class _RepertoireViewState extends State<RepertoireView> {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.surface,
+                                      color: AppTheme.surfaceColor(context),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       '${piece.targetBpm} BPM',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 9,
-                                        color: AppTheme.primaryAccent,
+                                        color: AppTheme.accentColor(context),
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),

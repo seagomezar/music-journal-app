@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seagomezar.github.io/music-journal-app/journal-backup-schema-v3.json",
+  "title": "Flute Practice Coach Journal Backup v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schemaVersion", "exportedAt", "appVersion", "routines", "sessions"],
+  "properties": {
+    "format": { "const": "flute-practice-coach-journal" },
+    "schemaVersion": { "const": 3 },
+    "exportedAt": { "type": "string", "format": "date-time", "maxLength": 40 },
+    "appVersion": { "type": "string", "maxLength": 50 },
+    "routines": { "type": "array", "maxItems": 10000, "items": { "$ref": "#/$defs/routine" } },
+    "sessions": { "type": "array", "maxItems": 100000, "items": { "$ref": "#/$defs/session" } }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[^\\u0000-\\u001F\\u007F]+$"
+    },
+    "exercise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "targetBpm", "articulation"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "targetBpm": { "type": "integer", "minimum": 40, "maximum": 240 },
+        "articulation": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "pitchSummary": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["inTuneMilliseconds", "analyzedMilliseconds", "trackingMilliseconds", "referenceHz", "toleranceCents"],
+      "properties": {
+        "inTuneMilliseconds": { "type": "integer", "minimum": 0, "maximum": 86400000 },
+        "analyzedMilliseconds": { "type": "integer", "minimum": 0, "maximum": 86400000 },
+        "trackingMilliseconds": { "type": "integer", "minimum": 0, "maximum": 86400000 },
+        "referenceHz": { "type": "integer", "minimum": 420, "maximum": 460 },
+        "toleranceCents": { "enum": [5, 10, 20] }
+      }
+    },
+    "exerciseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exercise", "durationInSeconds", "practicedBpm", "pitchSummary"],
+      "properties": {
+        "exercise": { "$ref": "#/$defs/exercise" },
+        "durationInSeconds": { "type": "integer", "minimum": 0, "maximum": 86400 },
+        "practicedBpm": { "type": "integer", "minimum": 40, "maximum": 240 },
+        "pitchSummary": { "$ref": "#/$defs/pitchSummary" }
+      }
+    },
+    "routine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "exercises"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 5000 },
+        "exercises": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/exercise" } }
+      }
+    },
+    "sessionPiece": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pieceId", "pieceTitle", "durationInSeconds", "measuresWorked"],
+      "properties": {
+        "pieceId": { "$ref": "#/$defs/identifier" },
+        "pieceTitle": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "durationInSeconds": { "type": "integer", "minimum": 0, "maximum": 86400 },
+        "measuresWorked": { "type": "integer", "minimum": 0, "maximum": 10000 }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "startTime", "endTime", "startUtcOffsetMinutes", "endUtcOffsetMinutes", "totalDurationInSeconds", "completedExercises", "exerciseResults", "rehearsedPieces", "notes"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "startTime": { "type": "string", "format": "date-time", "maxLength": 40 },
+        "endTime": { "type": "string", "format": "date-time", "maxLength": 40 },
+        "startUtcOffsetMinutes": { "type": "integer", "minimum": -840, "maximum": 840 },
+        "endUtcOffsetMinutes": { "type": "integer", "minimum": -840, "maximum": 840 },
+        "totalDurationInSeconds": { "type": "integer", "minimum": 0, "maximum": 86400 },
+        "completedExercises": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/exercise" } },
+        "exerciseResults": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/exerciseResult" } },
+        "rehearsedPieces": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/sessionPiece" } },
+        "notes": { "type": "string", "maxLength": 50000 }
+      }
+    }
+  }
+}

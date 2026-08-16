@@ -23,9 +23,17 @@ class LocalizationProvider with ChangeNotifier {
 
   Future<void> setLocale(String langCode) async {
     if (langCode != 'en' && langCode != 'es') return;
+    if (_localeCode == langCode) return;
+    final previousLocaleCode = _localeCode;
     _localeCode = langCode;
-    await _db.setPreferredLocale(langCode);
     notifyListeners();
+    try {
+      await _db.setPreferredLocale(langCode);
+    } catch (_) {
+      _localeCode = previousLocaleCode;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   String translate(String key, [List<String>? args]) {
@@ -93,13 +101,39 @@ class LocalizationProvider with ChangeNotifier {
     'repertoire_tracking_subtitle':
         'Select the sheet music you are working on to accumulate time directly.',
     'none_technical_only': 'None (Technical Exercises Only)',
-    'visual_metronome': 'Visual Metronome',
+    'visual_metronome': 'Metronome',
     'tempo': 'Tempo: {} BPM',
+    'decrease_tempo': 'Decrease tempo by 1 BPM',
+    'increase_tempo': 'Increase tempo by 1 BPM',
+    'metronome_sound': 'Metronome sound',
+    'enable_metronome_sound': 'Turn metronome sound on',
+    'mute_metronome': 'Mute metronome sound',
+    'metronome_sound_suppressed':
+        'Sound is muted while recording or playing back audio.',
+    'tuner': 'Tuner',
+    'tuner_subtitle':
+        'Tune freely or measure your intonation during an exercise.',
+    'show_tuner': 'Show tuner',
+    'hide_tuner': 'Hide tuner and stop listening',
+    'decrease_tuner_reference': 'Lower the A4 reference by 1 Hz',
+    'increase_tuner_reference': 'Raise the A4 reference by 1 Hz',
+    'pitch_tolerance': 'On-pitch tolerance',
+    'play_a_note': 'Play a steady note',
+    'waiting_for_stable_pitch': 'Waiting for a stable pitch…',
+    'on_pitch_live': '{}% on pitch • {} analyzed',
+    'track_my_pitch': 'Track my pitch',
+    'tune_now': 'Tune',
+    'stop_pitch_tracking': 'Stop tracking',
+    'stop_listening': 'Stop listening',
+    'tuner_mic_error':
+        'The microphone is unavailable. Stop the recorder and check microphone permission.',
+    'tuner_headphones_hint':
+        'Headphones improve accuracy while the metronome is sounding.',
     'self_recorder': 'Self-Evaluation Recorder',
     'self_recorder_subtitle':
         'Record a passage, play it back, and listen to your tone and articulation.',
-    'open_self_recorder': 'Open Self-Recorder (Pauses Clock)',
-    'close_recorder': 'Close Recorder & Resume Clock',
+    'open_self_recorder': 'Open Self-Recorder',
+    'close_recorder': 'Close Recorder',
     'recording_paused': 'Recording Paused',
     'recording_stopped': 'Recording Stopped',
     'recording_playing': 'Playing Recording',
@@ -113,6 +147,10 @@ class LocalizationProvider with ChangeNotifier {
     'finish_session_subtitle_web':
         'Review your practice notes before saving. Session details are saved to history; browser recordings are not retained.',
     'practice_notes': 'Practice Notes',
+    'exercise_notes_draft_title': 'Exercises worked:',
+    'exercise_notes_draft_item': '• {} — {} BPM',
+    'exercise_notes_draft_item_pitch':
+        '• {} — {} BPM — {}% on pitch (A4 {} Hz, ±{}¢)',
     'keep_practicing': 'Keep Practicing',
     'save_finish': 'Save & Finish',
     'exit_practice_title': 'Exit Practice?',
@@ -121,6 +159,16 @@ class LocalizationProvider with ChangeNotifier {
     'discard_session_btn': 'Discard Session',
     'select_active_sheet': 'Select active sheet piece',
     'exercises_for_routine': 'Exercises for: {}',
+    'start_exercise': 'Start',
+    'resume_exercise': 'Again',
+    'stop_exercise': 'Stop',
+    'exercise_elapsed': 'Exercise: {}',
+    'practiced_tempo': '{} BPM practiced',
+    'exercise_result_format': '{} • {} • {} BPM',
+    'exercise_result_with_pitch_format':
+        '{} • {} • {} BPM • {}% on pitch • {} analyzed • A4 {} Hz • ±{}¢',
+    'exercise_tempo_save_error':
+        'The routine tempo could not be saved. The previous tempo was restored.',
     'recording_audio': 'Recording audio...',
     'recording_saved_temp': 'Practice recording saved on this device',
     'start_recording': 'Start recording',
@@ -136,6 +184,10 @@ class LocalizationProvider with ChangeNotifier {
     'new_routine_title': 'New Study Routine',
     'create_btn': 'Create',
     'add_exercise_to': 'Add Exercise to {}',
+    'edit_exercise_title': 'Edit Exercise in {}',
+    'edit_exercise': 'Edit exercise',
+    'reorder_exercise': 'Reorder exercise',
+    'reorder_exercises_hint': 'Drag the handle to reorder exercises.',
     'target_bpm_tempo': 'Target BPM (Tempo)',
     'add_btn': 'Add',
     'no_routines_configured_empty': 'No study routines configured.',
@@ -305,6 +357,33 @@ class LocalizationProvider with ChangeNotifier {
         'Enter an exercise name and a BPM from 40 to 240.',
     'routine_save_error': 'The routine could not be saved.',
     'routine_delete_error': 'The routine could not be deleted.',
+    'practice_preferences': 'Practice Preferences',
+    'keep_screen_awake': 'Keep screen awake during practice',
+    'keep_screen_awake_subtitle':
+        'Prevents automatic screen lock only while a practice session is open.',
+    'appearance_feedback': 'Appearance & feedback',
+    'appearance_feedback_subtitle':
+        'Shape the practice space around your attention and comfort.',
+    'practice_visual_mode': 'Practice layout',
+    'exercise_label': 'Exercise',
+    'practice_visual_mode_subtitle':
+        'Focused keeps one exercise in view; Full shows the complete workspace.',
+    'focused_mode': 'Focused',
+    'full_mode': 'Full workspace',
+    'theme_mode': 'Theme',
+    'theme_system': 'Use device setting',
+    'theme_light': 'Light',
+    'theme_dark': 'Dark',
+    'haptics': 'Gentle touch feedback',
+    'haptics_subtitle': 'A small cue when an exercise starts or completes.',
+    'sound_cues': 'Sound cues',
+    'sound_cues_subtitle': 'A soft optional cue for practice transitions.',
+    'reduced_motion': 'Reduce motion',
+    'reduced_motion_subtitle': 'Use calmer transitions and fewer animations.',
+    'show_celebrations': 'Show encouraging completion cues',
+    'show_celebrations_subtitle':
+        'Keep progress feedback supportive and easy to turn off.',
+    'preference_save_error': 'The preference could not be saved.',
     'invalid_weekly_goal': 'Enter a weekly goal from 1 to 10,080 minutes.',
     'enter_valid_name': 'Please enter a valid name',
     'enter_title_desc': 'Please enter a title and description',
@@ -372,13 +451,39 @@ class LocalizationProvider with ChangeNotifier {
     'repertoire_tracking_subtitle':
         'Selecciona la partitura en la que estás trabajando para acumular tiempo directamente.',
     'none_technical_only': 'Ninguna (Solo Ejercicios Técnicos)',
-    'visual_metronome': 'Metrónomo Visual',
+    'visual_metronome': 'Metrónomo',
     'tempo': 'Tempo: {} BPM',
+    'decrease_tempo': 'Reducir el tempo en 1 BPM',
+    'increase_tempo': 'Aumentar el tempo en 1 BPM',
+    'metronome_sound': 'Sonido del metrónomo',
+    'enable_metronome_sound': 'Activar sonido del metrónomo',
+    'mute_metronome': 'Silenciar sonido del metrónomo',
+    'metronome_sound_suppressed':
+        'El sonido se silencia durante la grabación o reproducción.',
+    'tuner': 'Afinador',
+    'tuner_subtitle':
+        'Afina libremente o mide tu afinación durante un ejercicio.',
+    'show_tuner': 'Mostrar afinador',
+    'hide_tuner': 'Ocultar afinador y dejar de escuchar',
+    'decrease_tuner_reference': 'Bajar la referencia de La4 en 1 Hz',
+    'increase_tuner_reference': 'Subir la referencia de La4 en 1 Hz',
+    'pitch_tolerance': 'Tolerancia de afinación',
+    'play_a_note': 'Toca una nota estable',
+    'waiting_for_stable_pitch': 'Esperando una nota estable…',
+    'on_pitch_live': '{}% afinado • {} analizado',
+    'track_my_pitch': 'Medir mi afinación',
+    'tune_now': 'Afinar',
+    'stop_pitch_tracking': 'Detener medición',
+    'stop_listening': 'Dejar de escuchar',
+    'tuner_mic_error':
+        'El micrófono no está disponible. Detén la grabadora y revisa el permiso del micrófono.',
+    'tuner_headphones_hint':
+        'Los audífonos mejoran la precisión mientras suena el metrónomo.',
     'self_recorder': 'Grabadora de Autoevaluación',
     'self_recorder_subtitle':
         'Graba un fragmento, ejecútalo y escucha tu tono y articulación.',
-    'open_self_recorder': 'Abrir Grabadora (Pausa el Reloj)',
-    'close_recorder': 'Cerrar Grabadora y Reanudar Reloj',
+    'open_self_recorder': 'Abrir Grabadora',
+    'close_recorder': 'Cerrar Grabadora',
     'recording_paused': 'Grabación Pausada',
     'recording_stopped': 'Grabación Detenida',
     'recording_playing': 'Reproduciendo Grabación',
@@ -391,6 +496,10 @@ class LocalizationProvider with ChangeNotifier {
     'finish_session_subtitle_web':
         'Revisa tus notas antes de guardar. Los detalles se guardan en el historial; las grabaciones del navegador no se conservan.',
     'practice_notes': 'Notas de Práctica',
+    'exercise_notes_draft_title': 'Ejercicios trabajados:',
+    'exercise_notes_draft_item': '• {} — {} BPM',
+    'exercise_notes_draft_item_pitch':
+        '• {} — {} BPM — {}% afinado (La4 {} Hz, ±{}¢)',
     'keep_practicing': 'Seguir Practicando',
     'save_finish': 'Guardar y Finalizar',
     'exit_practice_title': '¿Salir de la Práctica?',
@@ -399,6 +508,16 @@ class LocalizationProvider with ChangeNotifier {
     'discard_session_btn': 'Descartar Sesión',
     'select_active_sheet': 'Seleccionar partitura activa',
     'exercises_for_routine': 'Ejercicios para: {}',
+    'start_exercise': 'Iniciar',
+    'resume_exercise': 'Repetir',
+    'stop_exercise': 'Detener',
+    'exercise_elapsed': 'Ejercicio: {}',
+    'practiced_tempo': '{} BPM practicados',
+    'exercise_result_format': '{} • {} • {} BPM',
+    'exercise_result_with_pitch_format':
+        '{} • {} • {} BPM • {}% afinado • {} analizado • La4 {} Hz • ±{}¢',
+    'exercise_tempo_save_error':
+        'No se pudo guardar el tempo de la rutina. Se restauró el tempo anterior.',
     'recording_audio': 'Grabando audio...',
     'recording_saved_temp': 'Grabación guardada en este dispositivo',
     'start_recording': 'Iniciar grabación',
@@ -414,6 +533,11 @@ class LocalizationProvider with ChangeNotifier {
     'new_routine_title': 'Nueva Rutina de Estudio',
     'create_btn': 'Crear',
     'add_exercise_to': 'Añadir Ejercicio a {}',
+    'edit_exercise_title': 'Editar Ejercicio en {}',
+    'edit_exercise': 'Editar ejercicio',
+    'reorder_exercise': 'Reordenar ejercicio',
+    'reorder_exercises_hint':
+        'Arrastra el control para reordenar los ejercicios.',
     'target_bpm_tempo': 'BPM Objetivo (Tempo)',
     'add_btn': 'Añadir',
     'no_routines_configured_empty': 'No hay rutinas de estudio configuradas.',
@@ -583,6 +707,35 @@ class LocalizationProvider with ChangeNotifier {
     'invalid_exercise_values': 'Ingresa un nombre y un BPM entre 40 y 240.',
     'routine_save_error': 'No se pudo guardar la rutina.',
     'routine_delete_error': 'No se pudo eliminar la rutina.',
+    'practice_preferences': 'Preferencias de Práctica',
+    'keep_screen_awake': 'Mantener la pantalla activa durante la práctica',
+    'keep_screen_awake_subtitle':
+        'Evita el bloqueo automático solo mientras haya una sesión de práctica abierta.',
+    'appearance_feedback': 'Apariencia y feedback',
+    'appearance_feedback_subtitle':
+        'Adapta el espacio de práctica a tu atención y comodidad.',
+    'practice_visual_mode': 'Diseño de práctica',
+    'exercise_label': 'Ejercicio',
+    'practice_visual_mode_subtitle':
+        'Enfocado muestra un ejercicio; Completo muestra todo el espacio.',
+    'focused_mode': 'Enfocado',
+    'full_mode': 'Espacio completo',
+    'theme_mode': 'Tema',
+    'theme_system': 'Usar ajuste del dispositivo',
+    'theme_light': 'Claro',
+    'theme_dark': 'Oscuro',
+    'haptics': 'Feedback táctil suave',
+    'haptics_subtitle': 'Una señal breve al iniciar o completar un ejercicio.',
+    'sound_cues': 'Señales de sonido',
+    'sound_cues_subtitle':
+        'Una señal suave opcional para los cambios de práctica.',
+    'reduced_motion': 'Reducir movimiento',
+    'reduced_motion_subtitle':
+        'Usa transiciones más tranquilas y menos animaciones.',
+    'show_celebrations': 'Mostrar señales de finalización',
+    'show_celebrations_subtitle':
+        'Mantén el feedback de progreso amable y fácil de desactivar.',
+    'preference_save_error': 'No se pudo guardar la preferencia.',
     'invalid_weekly_goal': 'Ingresa una meta semanal entre 1 y 10.080 minutos.',
     'enter_valid_name': 'Por favor ingresa un nombre válido',
     'enter_title_desc': 'Por favor ingresa un título y una descripción',

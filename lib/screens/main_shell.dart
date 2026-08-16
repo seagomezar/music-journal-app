@@ -29,6 +29,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final practiceProv = Provider.of<PracticeProvider>(context);
+    final localizationProv = context.watch<LocalizationProvider>();
     final width = MediaQuery.sizeOf(context).width;
     final useDesktopNavigation = width >= 900;
     final extendDesktopNavigation = width >= 1180;
@@ -47,7 +48,7 @@ class _MainShellState extends State<MainShell> {
             NavigationRail(
               extended: extendDesktopNavigation,
               minExtendedWidth: 220,
-              backgroundColor: AppTheme.surface,
+              backgroundColor: AppTheme.surfaceColor(context),
               selectedIndex: _currentIndex,
               labelType: extendDesktopNavigation
                   ? NavigationRailLabelType.none
@@ -56,9 +57,9 @@ class _MainShellState extends State<MainShell> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Tooltip(
                   message: context.translate('app_title'),
-                  child: const CircleAvatar(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
+                  child: CircleAvatar(
+                    backgroundColor: AppTheme.primaryColor(context),
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     child: Icon(Icons.music_note_rounded),
                   ),
                 ),
@@ -68,26 +69,26 @@ class _MainShellState extends State<MainShell> {
                 NavigationRailDestination(
                   icon: const Icon(Icons.dashboard_outlined),
                   selectedIcon: const Icon(Icons.dashboard_rounded),
-                  label: Text(context.translate('dashboard_nav')),
+                  label: Text(localizationProv.translate('dashboard_nav')),
                 ),
                 NavigationRailDestination(
                   icon: const Icon(Icons.playlist_add_check_circle_outlined),
                   selectedIcon: const Icon(Icons.playlist_add_check_circle),
-                  label: Text(context.translate('routines')),
+                  label: Text(localizationProv.translate('routines')),
                 ),
                 NavigationRailDestination(
                   icon: const Icon(Icons.library_music_outlined),
                   selectedIcon: const Icon(Icons.library_music),
-                  label: Text(context.translate('repertoire')),
+                  label: Text(localizationProv.translate('repertoire')),
                 ),
                 NavigationRailDestination(
                   icon: const Icon(Icons.calendar_month_outlined),
                   selectedIcon: const Icon(Icons.calendar_month),
-                  label: Text(context.translate('history')),
+                  label: Text(localizationProv.translate('history')),
                 ),
               ],
             ),
-            const VerticalDivider(width: 1, color: AppTheme.border),
+            VerticalDivider(width: 1, color: AppTheme.borderColor(context)),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -112,8 +113,10 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       body: content,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppTheme.border, width: 1)),
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: AppTheme.borderColor(context), width: 1),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -122,22 +125,22 @@ class _MainShellState extends State<MainShell> {
             BottomNavigationBarItem(
               icon: const Icon(Icons.dashboard_outlined),
               activeIcon: const Icon(Icons.dashboard_rounded),
-              label: context.translate('dashboard_nav'),
+              label: localizationProv.translate('dashboard_nav'),
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.playlist_add_check_circle_outlined),
               activeIcon: const Icon(Icons.playlist_add_check_circle),
-              label: context.translate('routines'),
+              label: localizationProv.translate('routines'),
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.library_music_outlined),
               activeIcon: const Icon(Icons.library_music),
-              label: context.translate('repertoire'),
+              label: localizationProv.translate('repertoire'),
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.calendar_month_outlined),
               activeIcon: const Icon(Icons.calendar_month),
-              label: context.translate('history'),
+              label: localizationProv.translate('history'),
             ),
           ],
         ),
@@ -177,16 +180,23 @@ class _MainShellState extends State<MainShell> {
                   horizontal: 16,
                   vertical: 12,
                 ),
-                customColor: AppTheme.primary.withValues(alpha: 0.95),
+                customColor: AppTheme.primaryColor(
+                  context,
+                ).withValues(alpha: 0.95),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.white24,
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onPrimary.withValues(alpha: 0.24),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.music_note, color: Colors.white),
+                      child: Icon(
+                        Icons.music_note,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -196,9 +206,9 @@ class _MainShellState extends State<MainShell> {
                         children: [
                           Text(
                             context.translate('active_practice_session'),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           ),
                           Text(
@@ -207,9 +217,11 @@ class _MainShellState extends State<MainShell> {
                                     practiceProv.activeRoutine!.title,
                                   ])
                                 : context.translate('free_study_piece'),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Colors.white70,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -217,17 +229,17 @@ class _MainShellState extends State<MainShell> {
                     ),
                     Text(
                       _formatDuration(practiceProv.secondsElapsed),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                         fontSize: 18,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(
+                    Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: 16,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
                   ],
                 ),

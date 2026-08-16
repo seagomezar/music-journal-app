@@ -1,0 +1,54 @@
+name: Publish landing page and web app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.44.0
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter build web --release --wasm --base-href /${{ github.event.repository.name }}/app/
+
+      - name: Assemble Pages artifact
+        env:
+          PLAUSIBLE_DOMAIN: ${{ vars.PLAUSIBLE_DOMAIN }}
+        run: |
+          mkdir -p docs/app
+          cp -R build/web/. docs/app/
+          if [ -n "$PLAUSIBLE_DOMAIN" ]; then
+            perl -0pi -e 's/data-plausible-domain=""/data-plausible-domain="'"$PLAUSIBLE_DOMAIN"'"/g' docs/index.html docs/index-es.html
+            perl -0pi -e 's/name="plausible-domain" content=""/name="plausible-domain" content="'"$PLAUSIBLE_DOMAIN"'"/g' docs/app/index.html
+          fi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4

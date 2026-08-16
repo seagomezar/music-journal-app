@@ -65,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen>
     final double screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.backgroundColor(context),
       body: Stack(
         children: [
           // Background Ambient Elements (Subtle Gold/Brass and Forest Green Tonal Shifts)
@@ -79,9 +79,9 @@ class _SplashScreenState extends State<SplashScreen>
                 height: screenWidth * 0.7,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.primaryAccent.withValues(
-                    alpha: 0.06,
-                  ), // Gold/Brass accent
+                  color: AppTheme.accentColor(
+                    context,
+                  ).withValues(alpha: 0.06), // Gold/Brass accent
                 ),
               ),
             ),
@@ -96,9 +96,9 @@ class _SplashScreenState extends State<SplashScreen>
                 height: screenWidth * 0.7,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.primary.withValues(
-                    alpha: 0.08,
-                  ), // Forest Green primary
+                  color: AppTheme.primaryColor(
+                    context,
+                  ).withValues(alpha: 0.08), // Forest Green primary
                 ),
               ),
             ),
@@ -120,11 +120,11 @@ class _SplashScreenState extends State<SplashScreen>
                   // App Title (EB Garamond)
                   Text(
                     context.translate('app_title'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 36,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.primary,
+                      color: AppTheme.primaryColor(context),
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -133,10 +133,10 @@ class _SplashScreenState extends State<SplashScreen>
                   // App Subtitle (Hanken Grotesk)
                   Text(
                     context.translate('app_subtitle'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: AppTheme.textSecondary,
+                      color: AppTheme.textSecondaryColor(context),
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -144,8 +144,8 @@ class _SplashScreenState extends State<SplashScreen>
                   const Spacer(flex: 2),
 
                   // Spinkit Loading Animation
-                  const SpinKitDoubleBounce(
-                    color: AppTheme.primaryAccent,
+                  SpinKitDoubleBounce(
+                    color: AppTheme.accentColor(context),
                     size: 40.0,
                   ),
 

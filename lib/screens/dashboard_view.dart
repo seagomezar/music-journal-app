@@ -46,10 +46,9 @@ class _DashboardViewState extends State<DashboardView> {
             children: [
               Text(
                 context.translate('update_goal_desc'),
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontSize: 13),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -67,13 +66,13 @@ class _DashboardViewState extends State<DashboardView> {
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 context.translate('cancel'),
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
               ),
               onPressed: () {
                 final mins = int.tryParse(_goalController.text);
@@ -105,6 +104,7 @@ class _DashboardViewState extends State<DashboardView> {
     final historyProv = Provider.of<HistoryProvider>(context);
     final routineProv = Provider.of<RoutineProvider>(context);
     final practiceProv = Provider.of<PracticeProvider>(context, listen: false);
+    final localizationProv = context.watch<LocalizationProvider>();
 
     final user = authProv.user;
     final weeklyGoal = user?.weeklyPracticeGoalMinutes ?? 120;
@@ -131,7 +131,7 @@ class _DashboardViewState extends State<DashboardView> {
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: AppTheme.primary,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       backgroundImage: user?.photoUrl != null
                           ? NetworkImage(user!.photoUrl!)
                           : null,
@@ -140,10 +140,10 @@ class _DashboardViewState extends State<DashboardView> {
                               (user?.name.isNotEmpty == true)
                                   ? user!.name[0].toUpperCase()
                                   : 'F',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             )
                           : null,
@@ -167,25 +167,27 @@ class _DashboardViewState extends State<DashboardView> {
                         ],
                       ),
                     ),
-                    Consumer<LocalizationProvider>(
-                      builder: (context, locProv, _) {
-                        return IconButton(
-                          tooltip: locProv.isSpanish ? 'English' : 'Español',
-                          icon: const Icon(
-                            Icons.language_rounded,
-                            color: AppTheme.primaryAccent,
-                          ),
-                          onPressed: () {
-                            locProv.setLocale(locProv.isSpanish ? 'en' : 'es');
-                          },
+                    IconButton(
+                      tooltip: localizationProv.isSpanish
+                          ? 'English'
+                          : 'Español',
+                      icon: Icon(
+                        Icons.language_rounded,
+                        color: AppTheme.accentColor(context),
+                      ),
+                      onPressed: () {
+                        localizationProv.setLocale(
+                          localizationProv.isSpanish ? 'en' : 'es',
                         );
                       },
                     ),
                     IconButton(
                       tooltip: context.translate('settings'),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.settings_outlined,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.72),
                       ),
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
@@ -212,10 +214,10 @@ class _DashboardViewState extends State<DashboardView> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.edit_rounded,
                               size: 18,
-                              color: AppTheme.primaryAccent,
+                              color: AppTheme.accentColor(context),
                             ),
                             tooltip: context.translate('update_goal_title'),
                             onPressed: () =>
@@ -230,19 +232,18 @@ class _DashboardViewState extends State<DashboardView> {
                         children: [
                           Text(
                             '$weeklyMins',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w900,
-                              color: AppTheme.primaryAccent,
+                              color: AppTheme.accentColor(context),
                             ),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '/ $weeklyGoal ${context.translate('minutes')}',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              color: AppTheme.textSecondary,
-                            ),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.copyWith(fontSize: 15),
                           ),
                         ],
                       ),
@@ -252,11 +253,11 @@ class _DashboardViewState extends State<DashboardView> {
                         child: LinearProgressIndicator(
                           value: weeklyProgress,
                           minHeight: 10,
-                          backgroundColor: AppTheme.border.withValues(
-                            alpha: 0.5,
-                          ),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppTheme.primaryAccent,
+                          backgroundColor: AppTheme.borderColor(
+                            context,
+                          ).withValues(alpha: 0.5),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppTheme.accentColor(context),
                           ),
                         ),
                       ),
@@ -265,10 +266,9 @@ class _DashboardViewState extends State<DashboardView> {
                         context.translate('weekly_goal_target', [
                           (weeklyProgress * 100).toStringAsFixed(0),
                         ]),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(fontSize: 12),
                       ),
                     ],
                   ),
@@ -284,7 +284,7 @@ class _DashboardViewState extends State<DashboardView> {
                       crossAxisCount: useFourColumns ? 4 : 2,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
-                      childAspectRatio: useFourColumns ? 1.18 : 1,
+                      mainAxisExtent: 112,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
@@ -344,15 +344,15 @@ class _DashboardViewState extends State<DashboardView> {
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary.withValues(
-                          alpha: 0.15,
-                        ),
-                        foregroundColor: AppTheme.primaryAccent,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.15),
+                        foregroundColor: AppTheme.accentColor(context),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(
-                            color: AppTheme.primary,
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
                             width: 0.5,
                           ),
                         ),
@@ -398,7 +398,7 @@ class _DashboardViewState extends State<DashboardView> {
                         child: Text(
                           context.translate('no_routines_configured'),
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppTheme.textSecondary),
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ),
                     ),
@@ -427,14 +427,14 @@ class _DashboardViewState extends State<DashboardView> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withValues(
-                                    alpha: 0.1,
-                                  ),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.playlist_play_rounded,
-                                  color: AppTheme.primaryAccent,
+                                  color: AppTheme.accentColor(context),
                                 ),
                               ),
                               const SizedBox(width: 14),
@@ -455,18 +455,18 @@ class _DashboardViewState extends State<DashboardView> {
                                         'technical_exercises_count',
                                         [routine.exercises.length.toString()],
                                       ),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.textSecondary,
-                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(fontSize: 12),
                                     ),
                                   ],
                                 ),
                               ),
-                              const Icon(
+                              Icon(
                                 Icons.play_circle_fill_rounded,
                                 size: 36,
-                                color: AppTheme.primaryAccent,
+                                color: AppTheme.accentColor(context),
                               ),
                             ],
                           ),
@@ -491,45 +491,45 @@ class _DashboardViewState extends State<DashboardView> {
     required Color iconColor,
   }) {
     return AppTheme.glassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
-          const SizedBox(height: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontSize: 28,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
+                const SizedBox(height: 6),
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontSize: 12, height: 1.15),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

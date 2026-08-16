@@ -35,7 +35,7 @@ Flute Practice Coach gives flutists a calm, private place to structure daily pra
 
 Create technical routines for long tones, scales, articulation, and other exercises. Organize repertoire, attach PDF scores, set target tempos, and track measure progress. During practice, use the visual metronome, time each piece, make notes, and record a short passage for self-evaluation.
 
-Your journal is managed locally by the app and is not uploaded to us. The app has no advertising, analytics, or online account. Imported scores and recordings are stored in private app storage and can be deleted individually or erased together from Settings. Your operating system may separately include app data in a backup you enable.
+Your journal is managed locally by the app and is not uploaded to us. The app has no advertising or online account. The deployed web version may send optional aggregate usage events through Plausible when configured; it never sends journal, profile, audio, or pitch data. Imported scores and recordings are stored in private app storage and can be deleted individually or erased together from Settings. Your operating system may separately include app data in a backup you enable.
 
 Key features:
 
@@ -43,17 +43,27 @@ Key features:
 - Repertoire and measure-progress tracking
 - PDF score viewer with temporary page annotations
 - Visual metronome from 40 to 240 BPM
+- Exercise-level tempo controls and optional local pitch tracking with A4 reference adjustment
 - Practice timer, notes, statistics, calendar, and streaks
 - Optional private self-evaluation recordings
 - English and Spanish interface
 - Local-first app-managed storage with an in-app erase-data control
 
+## Evidence-informed positioning
+
+The app is designed around structured goals, focused feedback, and reflection—
+practice behaviors discussed in music-learning research. Store copy must not
+claim that the app itself guarantees faster improvement or makes someone a
+better flutist. See the [evidence brief](research/flutist-practice-evidence.md)
+and [claim ledger](research/claim-ledger.csv) for approved wording and source
+limitations.
+
 ## Privacy declarations
 
 - Apple App Privacy: `Data Not Collected`, provided archive inspection confirms no dependency transmits data.
 - Google Play Data Safety: no data collected or shared by the app; profile data, notes, PDFs, and recordings are managed locally. Platform backups are controlled separately by the user and operating-system provider.
-- Permission purpose: microphone is used only after the user opens the self-recorder and starts recording.
-- Tracking: none.
+- Permission purpose: microphone is used only after the user explicitly starts the tuner, pitch tracking, or self-recorder. Tuner audio is analyzed locally and is not saved or transmitted.
+- Mobile-app tracking: none; optional aggregate measurement for the deployed web version is described in the Privacy Policy.
 - Ads: none.
 
 ## Review notes

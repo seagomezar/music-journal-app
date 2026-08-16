@@ -182,7 +182,7 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
             children: [
               Text(
                 context.translate('manual_session_description'),
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: TextStyle(color: AppTheme.textSecondaryColor(context)),
               ),
               const SizedBox(height: 20),
               AppTheme.glassCard(
@@ -201,7 +201,7 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
                         onTap: _isSaving ? null : _selectDate,
                       ),
                     ),
-                    const Divider(color: AppTheme.border),
+                    Divider(color: AppTheme.borderColor(context)),
                     Material(
                       type: MaterialType.transparency,
                       child: ListTile(

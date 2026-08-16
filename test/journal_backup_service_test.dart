@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flute/models/exercise.dart';
 import 'package:flute/models/routine.dart';
 import 'package:flute/models/session_record.dart';
+import 'package:flute/models/pitch_tracking.dart';
 import 'package:flute/services/journal_backup_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -29,6 +30,20 @@ void main() {
     endUtcOffsetMinutes: -300,
     totalDurationInSeconds: 1800,
     completedExercises: [exercise],
+    exerciseResults: [
+      SessionExerciseRecord(
+        exercise: exercise,
+        durationInSeconds: 300,
+        practicedBpm: 66,
+        pitchSummary: const ExercisePitchSummary(
+          inTuneMilliseconds: 240000,
+          analyzedMilliseconds: 270000,
+          trackingMilliseconds: 300000,
+          referenceHz: 440,
+          toleranceCents: 10,
+        ),
+      ),
+    ],
     rehearsedPieces: [
       SessionPieceRecord(
         pieceId: 'piece-1',
@@ -59,6 +74,63 @@ void main() {
     expect(decoded.sessions.single.audioFilePath, isNull);
     expect(decoded.sessions.single.startUtcOffsetMinutes, -300);
     expect(decoded.sessions.single.localStartTime.hour, 10);
+    expect(
+      decoded.sessions.single.exerciseResults.single.durationInSeconds,
+      300,
+    );
+    expect(decoded.sessions.single.exerciseResults.single.practicedBpm, 66);
+    expect(
+      decoded
+          .sessions
+          .single
+          .exerciseResults
+          .single
+          .pitchSummary!
+          .onPitchPercentage,
+      closeTo(88.89, 0.01),
+    );
+  });
+
+  test('imports version 2 exercise results without pitch summaries', () {
+    final document =
+        jsonDecode(
+              service.createBackup(
+                routines: [routine],
+                sessions: [session],
+                appVersion: '1.0.0',
+              ),
+            )
+            as Map<String, dynamic>;
+    document['schemaVersion'] = 2;
+    final sessions = document['sessions'] as List<dynamic>;
+    final results =
+        (sessions.single as Map<String, dynamic>)['exerciseResults']
+            as List<dynamic>;
+    (results.single as Map<String, dynamic>).remove('pitchSummary');
+
+    final decoded = service.parseBytes(
+      Uint8List.fromList(utf8.encode(jsonEncode(document))),
+    );
+    expect(decoded.sessions.single.exerciseResults.single.pitchSummary, isNull);
+  });
+
+  test('imports version 1 sessions without exercise results', () {
+    final source = service.createBackup(
+      routines: [routine],
+      sessions: [session],
+      appVersion: '1.0.0',
+    );
+    final document = jsonDecode(source) as Map<String, dynamic>;
+    document['schemaVersion'] = 1;
+    final sessions = document['sessions'] as List<dynamic>;
+    (sessions.single as Map<String, dynamic>).remove('exerciseResults');
+
+    final decoded = service.parseBytes(
+      Uint8List.fromList(utf8.encode(jsonEncode(document))),
+    );
+
+    expect(decoded.sessions.single.completedExercises, hasLength(1));
+    expect(decoded.sessions.single.exerciseResults, isEmpty);
   });
 
   test('rejects unexpected fields that could smuggle a device path', () {
@@ -140,6 +212,7 @@ void main() {
         endUtcOffsetMinutes: session.endUtcOffsetMinutes,
         totalDurationInSeconds: session.totalDurationInSeconds,
         completedExercises: session.completedExercises,
+        exerciseResults: session.exerciseResults,
         rehearsedPieces: session.rehearsedPieces,
         notes: 'Different local record',
         audioFilePath: '/private/existing.m4a',

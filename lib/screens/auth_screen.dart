@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/localization_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
+import '../services/analytics_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -36,12 +37,13 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
       if (context.mounted) {
+        AnalyticsService.track('onboarding_complete');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               '${context.translate('welcome_back')} ${authProv.user?.name}!',
             ),
-            backgroundColor: AppTheme.primary,
+            backgroundColor: AppTheme.primaryColor(context),
           ),
         );
       }
@@ -66,7 +68,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.primary.withValues(alpha: 0.15),
+                  color: AppTheme.primaryColor(context).withValues(alpha: 0.15),
                 ),
               ),
             ),
@@ -78,7 +80,9 @@ class _AuthScreenState extends State<AuthScreen> {
                 height: 250,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.secondary.withValues(alpha: 0.1),
+                  color: AppTheme.secondaryColor(
+                    context,
+                  ).withValues(alpha: 0.1),
                 ),
               ),
             ),
@@ -89,20 +93,25 @@ class _AuthScreenState extends State<AuthScreen> {
               right: 16,
               child: TextButton.icon(
                 style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.textPrimary,
-                  backgroundColor: AppTheme.surface.withValues(alpha: 0.7),
+                  foregroundColor: AppTheme.textPrimaryColor(context),
+                  backgroundColor: AppTheme.surfaceColor(
+                    context,
+                  ).withValues(alpha: 0.7),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
-                    side: const BorderSide(color: AppTheme.border, width: 1),
+                    side: BorderSide(
+                      color: AppTheme.borderColor(context),
+                      width: 1,
+                    ),
                   ),
                 ),
-                icon: const Icon(
+                icon: Icon(
                   Icons.language_rounded,
-                  color: AppTheme.primaryAccent,
+                  color: AppTheme.accentColor(context),
                   size: 18,
                 ),
                 label: Text(
@@ -149,9 +158,9 @@ class _AuthScreenState extends State<AuthScreen> {
                       const SizedBox(height: 40),
 
                       if (authProv.isLoading)
-                        const Center(
+                        Center(
                           child: SpinKitDoubleBounce(
-                            color: AppTheme.primaryAccent,
+                            color: AppTheme.accentColor(context),
                             size: 50.0,
                           ),
                         )
@@ -184,9 +193,11 @@ class _AuthScreenState extends State<AuthScreen> {
                                   controller: _nameController,
                                   decoration: InputDecoration(
                                     labelText: context.translate('your_name'),
-                                    prefixIcon: const Icon(
+                                    prefixIcon: Icon(
                                       Icons.person_outline_rounded,
-                                      color: AppTheme.textSecondary,
+                                      color: AppTheme.textSecondaryColor(
+                                        context,
+                                      ),
                                     ),
                                     hintText: locProv.isSpanish
                                         ? 'Ingresa tu nombre'

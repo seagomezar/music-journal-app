@@ -11,6 +11,7 @@ import '../providers/history_provider.dart';
 import '../providers/localization_provider.dart';
 import '../providers/practice_provider.dart';
 import '../providers/routine_provider.dart';
+import '../models/practice_appearance_preferences.dart';
 import '../services/database_service.dart';
 import '../services/journal_backup_service.dart';
 import '../theme/app_theme.dart';
@@ -40,7 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(dialogContext).colorScheme.error,
-              foregroundColor: Colors.white,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(dialogContext.translate('erase_data_action')),
@@ -57,6 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await practiceProvider.cancelSession();
       }
       await authProvider.eraseAllData();
+      await practiceProvider.resetPreferences();
       if (context.mounted) Navigator.of(context).pop();
     } catch (error) {
       if (!context.mounted) return;
@@ -72,6 +74,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SnackBar(content: Text(context.translate('backup_active_session'))),
     );
     return false;
+  }
+
+  Future<void> _savePracticePreference(Future<void> Function() change) async {
+    try {
+      await change();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.translate('preference_save_error'))),
+      );
+    }
   }
 
   Future<void> _exportJournal() async {
@@ -222,7 +235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 12),
               Text(
                 dialogContext.translate('backup_exclusions'),
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: TextStyle(color: AppTheme.textSecondaryColor(context)),
               ),
             ],
           ),
@@ -246,6 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final practiceProvider = context.watch<PracticeProvider>();
     return Scaffold(
       appBar: AppBar(title: Text(context.translate('settings'))),
       body: SafeArea(
@@ -257,9 +271,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 type: MaterialType.transparency,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    backgroundColor: AppTheme.primary,
-                    child: Icon(Icons.person_rounded, color: Colors.white),
+                  leading: CircleAvatar(
+                    backgroundColor: AppTheme.primaryColor(context),
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
                   ),
                   title: Text(user?.name ?? context.translate('local_profile')),
                   subtitle: Text(context.translate('local_only_data')),
@@ -270,9 +287,158 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Text(
+                context.translate('practice_preferences'),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppTheme.accentColor(context),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            SwitchListTile(
+              secondary: const Icon(Icons.light_mode_outlined),
+              title: Text(context.translate('keep_screen_awake')),
+              subtitle: Text(context.translate('keep_screen_awake_subtitle')),
+              value: practiceProvider.keepScreenAwake,
+              onChanged: (enabled) async {
+                try {
+                  await practiceProvider.setKeepScreenAwake(enabled);
+                } catch (error) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          context.translate('preference_save_error'),
+                        ),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+            AppTheme.glassCard(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.translate('appearance_feedback'),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    context.translate('appearance_feedback_subtitle'),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<PracticeVisualMode>(
+                    initialValue: practiceProvider.visualMode,
+                    decoration: InputDecoration(
+                      labelText: context.translate('practice_visual_mode'),
+                      helperText: context.translate(
+                        'practice_visual_mode_subtitle',
+                      ),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: PracticeVisualMode.focused,
+                        child: Text(context.translate('focused_mode')),
+                      ),
+                      DropdownMenuItem(
+                        value: PracticeVisualMode.full,
+                        child: Text(context.translate('full_mode')),
+                      ),
+                    ],
+                    onChanged: (mode) {
+                      if (mode != null) {
+                        _savePracticePreference(
+                          () => practiceProvider.setVisualMode(mode),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<ThemeMode>(
+                    initialValue: practiceProvider.themeMode,
+                    decoration: InputDecoration(
+                      labelText: context.translate('theme_mode'),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: ThemeMode.system,
+                        child: Text(context.translate('theme_system')),
+                      ),
+                      DropdownMenuItem(
+                        value: ThemeMode.light,
+                        child: Text(context.translate('theme_light')),
+                      ),
+                      DropdownMenuItem(
+                        value: ThemeMode.dark,
+                        child: Text(context.translate('theme_dark')),
+                      ),
+                    ],
+                    onChanged: (mode) {
+                      if (mode != null) {
+                        _savePracticePreference(
+                          () => practiceProvider.setThemeMode(mode),
+                        );
+                      }
+                    },
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.vibration_outlined),
+                    title: Text(context.translate('haptics')),
+                    subtitle: Text(context.translate('haptics_subtitle')),
+                    value: practiceProvider.hapticsEnabled,
+                    onChanged: (value) => _savePracticePreference(
+                      () => practiceProvider.setHapticsEnabled(value),
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.notifications_none_rounded),
+                    title: Text(context.translate('sound_cues')),
+                    subtitle: Text(context.translate('sound_cues_subtitle')),
+                    value: practiceProvider.soundCuesEnabled,
+                    onChanged: (value) => _savePracticePreference(
+                      () => practiceProvider.setSoundCuesEnabled(value),
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.motion_photos_off_outlined),
+                    title: Text(context.translate('reduced_motion')),
+                    subtitle: Text(
+                      context.translate('reduced_motion_subtitle'),
+                    ),
+                    value: practiceProvider.reducedMotion,
+                    onChanged: (value) => _savePracticePreference(
+                      () => practiceProvider.setReducedMotion(value),
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.celebration_outlined),
+                    title: Text(context.translate('show_celebrations')),
+                    subtitle: Text(
+                      context.translate('show_celebrations_subtitle'),
+                    ),
+                    value: practiceProvider.showCelebrations,
+                    onChanged: (value) => _savePracticePreference(
+                      () => practiceProvider.setShowCelebrations(value),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
                 context.translate('data_portability'),
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppTheme.primaryAccent,
+                  color: AppTheme.accentColor(context),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -435,7 +601,7 @@ const _privacyEn = <(String, String)>[
   ('Effective date', 'July 24, 2026'),
   (
     'Summary',
-    'Flute Practice Coach is a local-only practice journal. It does not use advertising, analytics, or an online account, and it does not sell personal data.',
+    'Flute Practice Coach is a local-first practice journal. It does not use advertising or an online account, and it does not sell personal data. The deployed web version may send optional aggregate app-launch, onboarding, and session-start events through Plausible when configured; it never sends journal, profile, audio, or pitch data.',
   ),
   (
     'Data stored on your device',
@@ -443,15 +609,15 @@ const _privacyEn = <(String, String)>[
   ),
   (
     'Microphone',
-    'Microphone access is requested only when you choose to make a self-evaluation recording. Recording stops when you stop or close the recorder, finish or discard a session, background the app, or erase app data.',
+    'Microphone access is requested only when you choose to use the tuner, track exercise intonation, or make a self-evaluation recording. Tuner and pitch analysis run locally on your device; analyzed audio is not saved or transmitted. Recording stops when you stop or close the recorder, finish or discard a session, background the app, or erase app data.',
   ),
   (
     'Sharing and retention',
-    'The app does not transmit your journal, PDFs, or recordings to us. If you export a journal backup, the operating system saves the file where you choose. Exported backups contain routines, session history, and notes, are not encrypted, and exclude recordings and PDFs. App-managed data remains until you delete individual content, erase all data in Settings, or uninstall the app.',
+    'The app does not transmit your journal, PDFs, or recordings to us. The deployed web version sends only the aggregate events described above when analytics are enabled. If you export a journal backup, the operating system saves the file where you choose. Exported backups contain routines, session history, and notes, are not encrypted, and exclude recordings and PDFs. App-managed data remains until you delete individual content, erase all data in Settings, or uninstall the app.',
   ),
   (
     'Your choices',
-    'You may deny microphone access and use all non-recording features. Settings provides an Erase all data action that permanently removes the local profile and all app-managed files.',
+    'You may deny microphone access and use all features that do not require it. Settings provides an Erase all data action that permanently removes the local profile and all app-managed files.',
   ),
   (
     'Support',
@@ -463,7 +629,7 @@ const _privacyEs = <(String, String)>[
   ('Fecha de vigencia', '24 de julio de 2026'),
   (
     'Resumen',
-    'Flute Practice Coach es un diario de práctica local. No utiliza publicidad, analítica ni cuentas en línea, y no vende datos personales.',
+    'Flute Practice Coach es un diario de práctica local. No utiliza publicidad ni cuentas en línea, y no vende datos personales. La versión web publicada puede enviar eventos agregados opcionales de inicio, incorporación y comienzo de sesión a través de Plausible cuando se configura; nunca envía tu diario, perfil, audio ni datos de afinación.',
   ),
   (
     'Datos guardados en tu dispositivo',
@@ -471,15 +637,15 @@ const _privacyEs = <(String, String)>[
   ),
   (
     'Micrófono',
-    'El acceso al micrófono se solicita solo cuando decides crear una grabación de autoevaluación. La grabación se detiene al cerrar la grabadora, finalizar o descartar la sesión, enviar la app al fondo o borrar los datos.',
+    'El acceso al micrófono se solicita solo cuando decides usar el afinador, medir la afinación durante un ejercicio o crear una grabación de autoevaluación. El afinador y el análisis de afinación se ejecutan localmente; el audio analizado no se guarda ni se transmite. La grabación se detiene al cerrar la grabadora, finalizar o descartar la sesión, enviar la app al fondo o borrar los datos.',
   ),
   (
     'Uso compartido y conservación',
-    'La app no nos transmite tu diario, archivos PDF ni grabaciones. Si exportas una copia del diario, el sistema operativo guarda el archivo donde elijas. Las copias contienen rutinas, historial y notas, no están cifradas y excluyen grabaciones y archivos PDF. Los datos permanecen hasta que elimines el contenido, borres todos los datos o desinstales la app.',
+    'La app no nos transmite tu diario, archivos PDF ni grabaciones. La versión web publicada solo envía los eventos agregados descritos arriba cuando se activa la analítica. Si exportas una copia del diario, el sistema operativo guarda el archivo donde elijas. Las copias contienen rutinas, historial y notas, no están cifradas y excluyen grabaciones y archivos PDF. Los datos permanecen hasta que elimines el contenido, borres todos los datos o desinstales la app.',
   ),
   (
     'Tus opciones',
-    'Puedes denegar el acceso al micrófono y usar todas las funciones que no requieren grabación. Ajustes incluye la opción Borrar todos los datos.',
+    'Puedes denegar el acceso al micrófono y usar todas las funciones que no lo requieren. Ajustes incluye la opción Borrar todos los datos.',
   ),
   (
     'Soporte',
