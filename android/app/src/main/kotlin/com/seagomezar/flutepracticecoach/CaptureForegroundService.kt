@@ -12,6 +12,8 @@ import android.os.Build
 import android.os.IBinder
 
 class CaptureForegroundService : Service() {
+    private val activeCaptureCounts = mutableMapOf<String, Int>()
+
     companion object {
         private const val ACTION_BEGIN = "com.seagomezar.flutepracticecoach.BEGIN_CAPTURE"
         private const val ACTION_END = "com.seagomezar.flutepracticecoach.END_CAPTURE"
@@ -31,8 +33,12 @@ class CaptureForegroundService : Service() {
             }
         }
 
-        fun stop(context: Context) {
-            context.stopService(Intent(context, CaptureForegroundService::class.java))
+        fun stop(context: Context, kind: String) {
+            val intent = Intent(context, CaptureForegroundService::class.java).apply {
+                action = ACTION_END
+                putExtra(EXTRA_KIND, kind)
+            }
+            context.startService(intent)
         }
     }
 
@@ -44,12 +50,22 @@ class CaptureForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_END -> {
-                stopForeground(true)
-                stopSelfResult(startId)
+                val kind = intent.getStringExtra(EXTRA_KIND).orEmpty()
+                val count = activeCaptureCounts[kind] ?: 0
+                if (count <= 1) {
+                    activeCaptureCounts.remove(kind)
+                } else {
+                    activeCaptureCounts[kind] = count - 1
+                }
+                if (activeCaptureCounts.isEmpty()) {
+                    stopForeground(true)
+                    stopSelfResult(startId)
+                }
             }
 
             else -> {
                 val kind = intent?.getStringExtra(EXTRA_KIND).orEmpty()
+                activeCaptureCounts[kind] = (activeCaptureCounts[kind] ?: 0) + 1
                 val notification = buildNotification(kind)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     startForeground(
@@ -95,9 +111,19 @@ class CaptureForegroundService : Service() {
             this,
             0,
             Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    PendingIntent.FLAG_IMMUTABLE
+                } else {
+                    0
+                },
         )
-        return Notification.Builder(this, CHANNEL_ID)
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+        } else {
+            Notification.Builder(this)
+        }
+        return builder
             .setContentTitle(title)
             .setContentText("Audio capture continues while the screen is locked")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)

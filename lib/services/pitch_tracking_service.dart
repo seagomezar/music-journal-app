@@ -83,12 +83,14 @@ class PitchTrackingService {
   final List<int> _recentMidiNotes = [];
   StreamSubscription<Uint8List>? _subscription;
   Future<void> _analysisQueue = Future.value();
+  Future<void> _captureOperationQueue = Future<void>.value();
   ValueChanged<PitchReading?>? onReading;
 
   PitchCaptureMode? _mode;
   int _referenceHz = 440;
   int _toleranceCents = 10;
   bool _isListening = false;
+  bool _pitchCaptureActive = false;
   bool _isDisposed = false;
   DateTime? _trackingStartedAt;
   int _inTuneSamples = 0;
@@ -102,9 +104,23 @@ class PitchTrackingService {
     required int referenceHz,
     required int toleranceCents,
     bool Function()? excludeFrame,
+  }) => _enqueueCaptureOperation(
+    () => _startInternal(
+      mode: mode,
+      referenceHz: referenceHz,
+      toleranceCents: toleranceCents,
+      excludeFrame: excludeFrame,
+    ),
+  );
+
+  Future<void> _startInternal({
+    required PitchCaptureMode mode,
+    required int referenceHz,
+    required int toleranceCents,
+    bool Function()? excludeFrame,
   }) async {
     if (_isDisposed) throw StateError('Pitch tracker has been disposed.');
-    if (_isListening) await stop();
+    if (_isListening) await _stopInternal();
     if (!await _audioInput.hasPermission()) {
       throw StateError('Microphone permission was not granted.');
     }
@@ -120,10 +136,9 @@ class PitchTrackingService {
     _trackingStartedAt = mode == PitchCaptureMode.tracking
         ? DateTime.now()
         : null;
-    var captureKeepAliveStarted = false;
     try {
       await _captureLifecycle.begin(AudioCaptureKind.pitchTracking);
-      captureKeepAliveStarted = true;
+      _pitchCaptureActive = true;
       final stream = await _audioInput.start();
       _isListening = true;
       _subscription = stream.listen(
@@ -134,9 +149,7 @@ class PitchTrackingService {
         },
       );
     } catch (_) {
-      if (captureKeepAliveStarted) {
-        await _captureLifecycle.end(AudioCaptureKind.pitchTracking);
-      }
+      await _endPitchCapture();
       _mode = null;
       _trackingStartedAt = null;
       rethrow;
@@ -231,9 +244,13 @@ class PitchTrackingService {
     );
   }
 
-  Future<ExercisePitchSummary?> stop() async {
+  Future<ExercisePitchSummary?> stop() =>
+      _enqueueCaptureOperation(_stopInternal);
+
+  Future<ExercisePitchSummary?> _stopInternal() async {
     final summary = currentSummary();
     if (!_isListening) {
+      await _endPitchCapture();
       _mode = null;
       _trackingStartedAt = null;
       onReading?.call(null);
@@ -247,7 +264,7 @@ class PitchTrackingService {
     } catch (_) {
       // The input may already have stopped after an interruption.
     }
-    await _captureLifecycle.end(AudioCaptureKind.pitchTracking);
+    await _endPitchCapture();
     await _analysisQueue;
     _mode = null;
     _trackingStartedAt = null;
@@ -256,6 +273,21 @@ class PitchTrackingService {
     _recentMidiNotes.clear();
     onReading?.call(null);
     return summary;
+  }
+
+  Future<void> _endPitchCapture() async {
+    if (!_pitchCaptureActive) return;
+    _pitchCaptureActive = false;
+    await _captureLifecycle.end(AudioCaptureKind.pitchTracking);
+  }
+
+  Future<T> _enqueueCaptureOperation<T>(Future<T> Function() operation) {
+    final result = _captureOperationQueue.then((_) => operation());
+    _captureOperationQueue = result.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    );
+    return result;
   }
 
   Future<void> dispose() async {

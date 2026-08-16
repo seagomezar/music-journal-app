@@ -11,25 +11,43 @@ abstract interface class AudioCaptureLifecycleController {
 class PlatformAudioCaptureLifecycleController
     implements AudioCaptureLifecycleController {
   static const _channel = MethodChannel('flute/capture_lifecycle');
+  final Map<AudioCaptureKind, int> _activeCaptures = {};
+  Future<void> _operationQueue = Future<void>.value();
 
   @override
-  Future<void> begin(AudioCaptureKind kind) async {
+  Future<void> begin(AudioCaptureKind kind) => _enqueue(() async {
+    await _invoke('begin', kind);
+    _activeCaptures[kind] = (_activeCaptures[kind] ?? 0) + 1;
+  });
+
+  @override
+  Future<void> end(AudioCaptureKind kind) => _enqueue(() async {
+    final count = _activeCaptures[kind] ?? 0;
+    if (count == 0) return;
+    await _invoke('end', kind);
+    if (count == 1) {
+      _activeCaptures.remove(kind);
+    } else {
+      _activeCaptures[kind] = count - 1;
+    }
+  });
+
+  Future<void> _invoke(String method, AudioCaptureKind kind) async {
     if (kIsWeb) return;
     try {
-      await _channel.invokeMethod<void>('begin', {'kind': kind.name});
+      await _channel.invokeMethod<void>(method, {'kind': kind.name});
     } on MissingPluginException {
       // Desktop targets do not currently provide a background capture host.
     }
   }
 
-  @override
-  Future<void> end(AudioCaptureKind kind) async {
-    if (kIsWeb) return;
-    try {
-      await _channel.invokeMethod<void>('end', {'kind': kind.name});
-    } on MissingPluginException {
-      // Desktop targets do not currently provide a background capture host.
-    }
+  Future<void> _enqueue(Future<void> Function() operation) {
+    final result = _operationQueue.then((_) => operation());
+    _operationQueue = result.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    );
+    return result;
   }
 }
 

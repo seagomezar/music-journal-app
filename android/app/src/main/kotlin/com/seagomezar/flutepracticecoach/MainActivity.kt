@@ -19,7 +19,8 @@ class MainActivity : AudioServiceActivity() {
                     }
 
                     "end" -> {
-                        CaptureForegroundService.stop(this)
+                        val kind = call.argument<String>("kind") ?: "audio"
+                        CaptureForegroundService.stop(this, kind)
                         result.success(null)
                     }
 

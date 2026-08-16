@@ -21,7 +21,7 @@ class AudioService {
   AudioPlayer? _playerInstance;
   StreamSubscription<PlayerState>? _playerStateSubscription;
   StreamSubscription<RecordState>? _recordStateSubscription;
-  Future<String?>? _pendingStopRecording;
+  Future<void> _recordingOperationQueue = Future<void>.value();
 
   AudioRecorder get _recorder => _recorderInstance ??= AudioRecorder();
 
@@ -38,6 +38,7 @@ class AudioService {
   }
 
   bool _isRecording = false;
+  bool _recordingCaptureActive = false;
   bool _isPlaying = false;
   String? _lastRecordedPath;
 
@@ -60,8 +61,10 @@ class AudioService {
     }
   }
 
-  Future<void> startRecording() async {
-    var captureKeepAliveStarted = false;
+  Future<void> startRecording() =>
+      _enqueueRecordingOperation(_startRecordingInternal);
+
+  Future<void> _startRecordingInternal() async {
     try {
       if (_isRecording) return;
       if (!await _recorder.hasPermission()) {
@@ -69,12 +72,12 @@ class AudioService {
       }
 
       await _captureLifecycle.begin(AudioCaptureKind.recording);
-      captureKeepAliveStarted = true;
+      _recordingCaptureActive = true;
       final path = kIsWeb ? '' : await _storageService.createRecordingPath();
       _recordStateSubscription ??= _recorder.onStateChanged().listen((state) {
         if (state == RecordState.stop) {
           _isRecording = false;
-          unawaited(_captureLifecycle.end(AudioCaptureKind.recording));
+          unawaited(_endRecordingCapture());
         }
       });
       await _recorder.start(
@@ -87,24 +90,13 @@ class AudioService {
       _isRecording = false;
       await _recordStateSubscription?.cancel();
       _recordStateSubscription = null;
-      if (captureKeepAliveStarted) {
-        await _captureLifecycle.end(AudioCaptureKind.recording);
-      }
+      await _endRecordingCapture();
       rethrow;
     }
   }
 
-  Future<String?> stopRecording() async {
-    final pendingStop = _pendingStopRecording;
-    if (pendingStop != null) return pendingStop;
-    final stopFuture = _stopRecordingInternal();
-    _pendingStopRecording = stopFuture;
-    try {
-      return await stopFuture;
-    } finally {
-      _pendingStopRecording = null;
-    }
-  }
+  Future<String?> stopRecording() =>
+      _enqueueRecordingOperation(_stopRecordingInternal);
 
   Future<String?> _stopRecordingInternal() async {
     try {
@@ -120,8 +112,23 @@ class AudioService {
     } finally {
       await _recordStateSubscription?.cancel();
       _recordStateSubscription = null;
-      await _captureLifecycle.end(AudioCaptureKind.recording);
+      await _endRecordingCapture();
     }
+  }
+
+  Future<void> _endRecordingCapture() async {
+    if (!_recordingCaptureActive) return;
+    _recordingCaptureActive = false;
+    await _captureLifecycle.end(AudioCaptureKind.recording);
+  }
+
+  Future<T> _enqueueRecordingOperation<T>(Future<T> Function() operation) {
+    final result = _recordingOperationQueue.then((_) => operation());
+    _recordingOperationQueue = result.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    );
+    return result;
   }
 
   Future<void> startPlayback(String path) async {
