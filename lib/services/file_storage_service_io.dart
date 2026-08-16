@@ -29,6 +29,14 @@ class FileStorageService {
         'practice_${DateTime.now().microsecondsSinceEpoch}.m4a';
   }
 
+  Future<String> persistRecording(String? sourcePath, String targetPath) async {
+    return targetPath;
+  }
+
+  Future<String> playableRecordingPath(String path) async => path;
+
+  Future<void> releasePlaybackUrl(String path) async {}
+
   Future<String> importPdf(String sourcePath, {String? originalName}) async {
     final source = File(sourcePath);
     if (!await source.exists()) {

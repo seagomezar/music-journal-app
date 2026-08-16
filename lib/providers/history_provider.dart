@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/session_record.dart';
+import '../models/session_recording.dart';
 import '../services/database_service.dart';
 import '../services/file_storage_service.dart';
 
@@ -44,13 +45,56 @@ class HistoryProvider with ChangeNotifier {
           break;
         }
       }
+      for (final recording
+          in session?.recordings ?? const <SessionRecording>[]) {
+        await _storage.deleteManagedFile(recording.storagePath);
+      }
       await _db.deleteSession(id);
-      await _storage.deleteManagedFile(session?.audioFilePath);
       await loadSessions();
     } catch (e) {
       debugPrint('Error deleting session: $e');
       rethrow;
     }
+  }
+
+  Future<void> renameRecording(
+    String sessionId,
+    SessionRecording recording,
+    String name,
+  ) async {
+    final normalized = name.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'A recording name is required.');
+    }
+    final session = _sessionById(sessionId);
+    if (session == null) return;
+    final updatedRecordings = session.recordings
+        .map(
+          (item) =>
+              item.id == recording.id ? item.copyWith(name: normalized) : item,
+        )
+        .toList();
+    await saveSession(session.copyWith(recordings: updatedRecordings));
+  }
+
+  Future<void> deleteRecording(
+    String sessionId,
+    SessionRecording recording,
+  ) async {
+    final session = _sessionById(sessionId);
+    if (session == null) return;
+    await _storage.deleteManagedFile(recording.storagePath);
+    final updatedRecordings = session.recordings
+        .where((item) => item.id != recording.id)
+        .toList();
+    await saveSession(session.copyWith(recordings: updatedRecordings));
+  }
+
+  SessionRecord? _sessionById(String id) {
+    for (final session in _sessions) {
+      if (session.id == id) return session;
+    }
+    return null;
   }
 
   // Group sessions by day

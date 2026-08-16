@@ -145,7 +145,7 @@ class LocalizationProvider with ChangeNotifier {
     'finish_session_subtitle':
         'Review your practice notes before saving. The session details and recordings will be logged to your history.',
     'finish_session_subtitle_web':
-        'Review your practice notes before saving. Session details are saved to history; browser recordings are not retained.',
+        'Review your practice notes before saving. Session details and browser recordings are saved to this browser’s history.',
     'practice_notes': 'Practice Notes',
     'exercise_notes_draft_title': 'Exercises worked:',
     'exercise_notes_draft_item': '• {} — {} BPM',
@@ -171,6 +171,22 @@ class LocalizationProvider with ChangeNotifier {
         'The routine tempo could not be saved. The previous tempo was restored.',
     'recording_audio': 'Recording audio...',
     'recording_saved_temp': 'Practice recording saved on this device',
+    'recording_count_format': '{} recordings saved in this session',
+    'recording_take_number': 'Take {}',
+    'recording_library': 'Recording Library',
+    'recording_library_subtitle':
+        'Listen to, rename, or delete recordings from saved sessions.',
+    'recording_library_empty': 'No saved recordings yet.',
+    'recording_actions': 'Recording actions',
+    'rename_recording': 'Rename',
+    'rename_recording_title': 'Rename recording',
+    'recording_name_label': 'Recording name',
+    'delete_recording_title': 'Delete recording?',
+    'delete_recording_confirm': 'Delete "{}"? This cannot be undone.',
+    'recording_rename_error': 'The recording name could not be saved.',
+    'recording_delete_error': 'The recording could not be deleted.',
+    'recording_save_error':
+        'The recording could not be saved. Try recording it again.',
     'start_recording': 'Start recording',
     'stop_recording': 'Stop recording',
     'delete_recording': 'Delete recording',
@@ -288,7 +304,7 @@ class LocalizationProvider with ChangeNotifier {
     'pdf_viewer_web_unavailable':
         'PDF score viewing is not available in the browser version.',
     'recording_web_session_only':
-        'Browser recordings can be reviewed during this session but are not saved to history.',
+        'Browser recordings are saved in this browser and remain available in your history.',
     'invalid_piece_values':
         'Enter a title, a BPM from 40 to 240, and measures from 0 to 10,000.',
     'piece_save_error': 'The repertoire piece could not be saved.',
@@ -494,7 +510,7 @@ class LocalizationProvider with ChangeNotifier {
     'finish_session_subtitle':
         'Revisa tus notas de práctica antes de guardar. Los detalles de la sesión y las grabaciones se guardarán en tu historial.',
     'finish_session_subtitle_web':
-        'Revisa tus notas antes de guardar. Los detalles se guardan en el historial; las grabaciones del navegador no se conservan.',
+        'Revisa tus notas antes de guardar. Los detalles y las grabaciones del navegador se guardan en el historial de este navegador.',
     'practice_notes': 'Notas de Práctica',
     'exercise_notes_draft_title': 'Ejercicios trabajados:',
     'exercise_notes_draft_item': '• {} — {} BPM',
@@ -520,6 +536,22 @@ class LocalizationProvider with ChangeNotifier {
         'No se pudo guardar el tempo de la rutina. Se restauró el tempo anterior.',
     'recording_audio': 'Grabando audio...',
     'recording_saved_temp': 'Grabación guardada en este dispositivo',
+    'recording_count_format': '{} grabaciones guardadas en esta sesión',
+    'recording_take_number': 'Toma {}',
+    'recording_library': 'Biblioteca de grabaciones',
+    'recording_library_subtitle':
+        'Escucha, cambia el nombre o elimina grabaciones de sesiones guardadas.',
+    'recording_library_empty': 'Aún no hay grabaciones guardadas.',
+    'recording_actions': 'Acciones de grabación',
+    'rename_recording': 'Cambiar nombre',
+    'rename_recording_title': 'Cambiar nombre de la grabación',
+    'recording_name_label': 'Nombre de la grabación',
+    'delete_recording_title': '¿Eliminar grabación?',
+    'delete_recording_confirm': '¿Eliminar "{}"? Esto no se puede deshacer.',
+    'recording_rename_error': 'No se pudo guardar el nombre de la grabación.',
+    'recording_delete_error': 'No se pudo eliminar la grabación.',
+    'recording_save_error':
+        'No se pudo guardar la grabación. Intenta grabarla de nuevo.',
     'start_recording': 'Iniciar grabación',
     'stop_recording': 'Detener grabación',
     'delete_recording': 'Eliminar grabación',
@@ -638,7 +670,7 @@ class LocalizationProvider with ChangeNotifier {
     'pdf_viewer_web_unavailable':
         'La visualización de PDF no está disponible en la versión web.',
     'recording_web_session_only':
-        'Las grabaciones del navegador se pueden revisar durante esta sesión, pero no se guardan en el historial.',
+        'Las grabaciones del navegador se guardan en este navegador y siguen disponibles en tu historial.',
     'invalid_piece_values':
         'Ingresa un título, un BPM entre 40 y 240 y compases entre 0 y 10.000.',
     'piece_save_error': 'No se pudo guardar la pieza del repertorio.',
