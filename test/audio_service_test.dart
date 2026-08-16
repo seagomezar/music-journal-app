@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:record_platform_interface/record_platform_interface.dart';
+import 'package:record/record.dart';
 import 'package:flute/services/audio_service.dart';
 import 'package:flute/services/capture_lifecycle_service.dart';
 import 'package:flute/services/file_storage_service.dart';
