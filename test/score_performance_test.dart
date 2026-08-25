@@ -11,6 +11,20 @@ class _FakeScreenAwakeController implements ScreenAwakeController {
   Future<void> setEnabled(bool enabled) async => states.add(enabled);
 }
 
+class _FailingScreenAwakeController implements ScreenAwakeController {
+  final states = <bool>[];
+  var failuresRemaining = 1;
+
+  @override
+  Future<void> setEnabled(bool enabled) async {
+    states.add(enabled);
+    if (failuresRemaining > 0) {
+      failuresRemaining -= 1;
+      throw StateError('platform failure');
+    }
+  }
+}
+
 void main() {
   test('score preferences serialize performance display controls', () {
     final preferences = ScoreViewPreferences(
@@ -53,6 +67,24 @@ void main() {
     expect(nextScoreSpread(1, 7, firstPageOnRight: true), 2);
     expect(nextScoreSpread(6, 7, firstPageOnRight: true), 6);
     expect(previousScoreSpread(2, firstPageOnRight: true), 1);
+    expect(
+      scorePageLabel(
+        page: 1,
+        pageCount: 7,
+        layoutMode: ScoreLayoutMode.twoPage,
+        firstPageOnRight: true,
+      ),
+      '1/7',
+    );
+    expect(
+      scorePageLabel(
+        page: 2,
+        pageCount: 7,
+        layoutMode: ScoreLayoutMode.twoPage,
+        firstPageOnRight: true,
+      ),
+      '2–3/7',
+    );
   });
 
   test('auto-scroll rate supports speed and duration pacing', () {
@@ -88,5 +120,16 @@ void main() {
     await coordinator.setPerformanceEnabled(false);
 
     expect(platform.states, [true, false]);
+  });
+
+  test('screen-awake coordinator recovers after a platform failure', () async {
+    final platform = _FailingScreenAwakeController();
+    final coordinator = ScreenAwakeCoordinator(platform);
+
+    await expectLater(coordinator.setEnabled(true), throwsStateError);
+    await coordinator.setEnabled(true);
+    await coordinator.setEnabled(false);
+
+    expect(platform.states, [true, true, false]);
   });
 }

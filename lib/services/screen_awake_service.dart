@@ -46,9 +46,15 @@ class ScreenAwakeCoordinator implements ScreenAwakeController {
       _activeReasons.remove(reason);
     }
     final shouldEnable = _activeReasons.isNotEmpty;
-    if (shouldEnable == _platformEnabled) return _updateQueue;
-    _platformEnabled = shouldEnable;
-    _updateQueue = _updateQueue.then((_) => _platform.setEnabled(shouldEnable));
-    return _updateQueue;
+    final operation = _updateQueue.then((_) async {
+      if (shouldEnable == _platformEnabled) return;
+      await _platform.setEnabled(shouldEnable);
+      _platformEnabled = shouldEnable;
+    });
+    _updateQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
   }
 }

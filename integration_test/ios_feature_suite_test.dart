@@ -10,8 +10,8 @@ import 'package:flute/services/file_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:pdf_document/pdf_document.dart' as pdf;
 import 'package:provider/provider.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
 import '../test/journal_backup_service_test.dart' as backup_tests;
 import '../test/pdf_annotation_test.dart' as annotation_tests;
@@ -50,17 +50,11 @@ void main() {
         }
       });
 
-      final sourceDocument = sf.PdfDocument();
-      for (var pageNumber = 1; pageNumber <= 2; pageNumber++) {
-        final page = sourceDocument.pages.add();
-        page.graphics.drawString(
-          'iOS score page $pageNumber',
-          sf.PdfStandardFont(sf.PdfFontFamily.helvetica, 24),
-        );
-      }
       final sourceFile = File('${temporaryDirectory.path}/source score.pdf');
-      await sourceFile.writeAsBytes(sourceDocument.saveSync(), flush: true);
-      sourceDocument.dispose();
+      await sourceFile.writeAsBytes(
+        pdf.PdfBlankDocument.create(pageCount: 2),
+        flush: true,
+      );
 
       final storage = FileStorageService(rootOverride: temporaryDirectory);
       final importedPath = await storage.importPdf(
@@ -121,14 +115,13 @@ void main() {
         'ios_imported_score',
       );
       expect(annotations?.hasAnnotations, isTrue);
-      final exportedBytes = await SyncfusionAnnotatedPdfExporter().build(
+      final exportedBytes = await OpenSourceAnnotatedPdfExporter().build(
         sourcePath: importedPath,
         annotations: annotations!,
       );
       expect(String.fromCharCodes(exportedBytes.take(4)), '%PDF');
-      final exportedDocument = sf.PdfDocument(inputBytes: exportedBytes);
-      expect(exportedDocument.pages.count, 2);
-      exportedDocument.dispose();
+      final exportedDocument = pdf.PdfDocument.open(exportedBytes);
+      expect(exportedDocument.pageCount, 2);
 
       await tester.tap(find.byTooltip('Performance mode'));
       await tester.pumpAndSettle();

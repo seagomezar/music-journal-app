@@ -1,8 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart' show Offset, Size;
-import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
+import 'package:pdf_document/pdf_document.dart' as pdf;
 
 import '../models/pdf_annotation.dart';
 
@@ -13,7 +12,7 @@ abstract class AnnotatedPdfExporter {
   });
 }
 
-class SyncfusionAnnotatedPdfExporter implements AnnotatedPdfExporter {
+class OpenSourceAnnotatedPdfExporter implements AnnotatedPdfExporter {
   @override
   Future<Uint8List> build({
     required String sourcePath,
@@ -33,48 +32,42 @@ Uint8List buildAnnotatedPdfBytes(Map<String, dynamic> input) {
   final annotations = PdfAnnotationDocument.fromJson(
     Map<String, dynamic>.from(input['annotations'] as Map),
   );
-  final document = sf.PdfDocument(inputBytes: sourceBytes);
-  try {
-    for (final entry in annotations.pages.entries) {
-      final pageIndex = entry.key - 1;
-      if (pageIndex < 0 || pageIndex >= document.pages.count) continue;
+  final document = pdf.PdfDocument.open(sourceBytes);
+  final editor = pdf.PdfEditor(document);
+  for (final entry in annotations.pages.entries) {
+    final pageIndex = entry.key - 1;
+    if (pageIndex < 0 || pageIndex >= document.pageCount) continue;
 
-      final page = document.pages[pageIndex];
-      final clientSize = page.getClientSize();
-      final pageSize = switch (page.rotation) {
-        sf.PdfPageRotateAngle.rotateAngle90 ||
-        sf.PdfPageRotateAngle.rotateAngle270 => Size(
-          clientSize.height,
-          clientSize.width,
-        ),
-        _ => clientSize,
-      };
-      for (final stroke in entry.value) {
-        if (stroke.points.isEmpty) continue;
-        final color = stroke.colorArgb;
-        final pen = sf.PdfPen(
-          sf.PdfColor((color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff),
-          width: stroke.widthInPdfPoints,
-          lineCap: sf.PdfLineCap.round,
-          lineJoin: sf.PdfLineJoin.round,
-        );
-        final points = stroke.points
-            .map(
-              (point) =>
-                  Offset(point.x * pageSize.width, point.y * pageSize.height),
-            )
-            .toList(growable: false);
-        if (points.length == 1) {
-          page.graphics.drawLine(pen, points.first, points.first);
-          continue;
-        }
-        for (var index = 0; index < points.length - 1; index++) {
-          page.graphics.drawLine(pen, points[index], points[index + 1]);
-        }
-      }
+    final page = document.page(pageIndex);
+    for (final stroke in entry.value) {
+      if (stroke.points.isEmpty) continue;
+      editor.addInk(
+        pageIndex,
+        [
+          stroke.points
+              .map((point) => _pointInPageSpace(point, page))
+              .toList(growable: false),
+        ],
+        color: stroke.colorArgb & 0x00ffffff,
+        strokeWidth: stroke.widthInPdfPoints,
+      );
+      editor.flattenAnnotations(
+        pageIndex,
+        annotations: [page.annotations.last],
+      );
     }
-    return Uint8List.fromList(document.saveSync());
-  } finally {
-    document.dispose();
   }
+  return editor.save();
+}
+
+(double, double) _pointInPageSpace(PdfAnnotationPoint point, pdf.PdfPage page) {
+  final box = page.cropBox;
+  final x = point.x.clamp(0.0, 1.0);
+  final y = point.y.clamp(0.0, 1.0);
+  return switch (page.rotation) {
+    90 => (box.left + y * box.width, box.bottom + x * box.height),
+    180 => (box.left + (1 - x) * box.width, box.bottom + y * box.height),
+    270 => (box.left + (1 - y) * box.width, box.bottom + (1 - x) * box.height),
+    _ => (box.left + x * box.width, box.bottom + (1 - y) * box.height),
+  };
 }

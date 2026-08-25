@@ -44,6 +44,21 @@ int previousScoreSpread(int page, {required bool firstPageOnRight}) {
 }
 
 @visibleForTesting
+String scorePageLabel({
+  required int page,
+  required int pageCount,
+  required ScoreLayoutMode layoutMode,
+  required bool firstPageOnRight,
+}) {
+  if (layoutMode != ScoreLayoutMode.twoPage) return '$page/$pageCount';
+  final start = scoreSpreadStart(page, firstPageOnRight: firstPageOnRight);
+  final end = firstPageOnRight && start == 1
+      ? 1
+      : math.min(pageCount, start + 1);
+  return start == end ? '$start/$pageCount' : '$start–$end/$pageCount';
+}
+
+@visibleForTesting
 double scoreAutoScrollRate({
   required AutoScrollPaceMode mode,
   required double visibleHeight,
@@ -105,6 +120,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
 
   int _totalPages = 0;
   int _currentPage = 1;
+  int _annotationPage = 1;
   int _activeNavIndex = 1;
   bool _isReady = false;
   bool _annotationsLoaded = false;
@@ -145,7 +161,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
     _annotationRepository =
         widget.annotationRepository ?? PdfAnnotationService();
     _annotatedPdfExporter =
-        widget.annotatedPdfExporter ?? SyncfusionAnnotatedPdfExporter();
+        widget.annotatedPdfExporter ?? OpenSourceAnnotatedPdfExporter();
     _preferencesRepository =
         widget.preferencesRepository ?? ScoreViewPreferencesService();
     _displayController =
@@ -194,8 +210,22 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
       );
     }
     _stopAutoScroll(updateState: false);
-    unawaited(_screenAwakeCoordinator.setPerformanceEnabled(false));
-    unawaited(_displayController.restore());
+    unawaited(
+      _screenAwakeCoordinator.setPerformanceEnabled(false).catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        debugPrint('Unable to release performance wakelock: $error');
+      }),
+    );
+    unawaited(
+      _displayController.restore().catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        debugPrint('Unable to restore score display: $error');
+      }),
+    );
     super.dispose();
   }
 
@@ -266,7 +296,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
               color: Colors.redAccent,
             ),
             tooltip: context.translate('clear_annotations'),
-            onPressed: (_strokesByPage[_currentPage]?.isNotEmpty ?? false)
+            onPressed: (_strokesByPage[_annotationPage]?.isNotEmpty ?? false)
                 ? _confirmClearCurrentPage
                 : null,
           ),
@@ -335,6 +365,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
           setState(() {
             _totalPages = document.pages.length;
             _currentPage = _preferences.lastPage.clamp(1, _totalPages);
+            _annotationPage = _currentPage;
             _isReady = true;
           });
           controller.requestFocus();
@@ -346,7 +377,10 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
           if (!mounted || pageNumber == null || _showingHalfBoundary) return;
           final bounded = pageNumber.clamp(1, math.max(1, _totalPages)).toInt();
           if (_currentPage != bounded) {
-            setState(() => _currentPage = bounded);
+            setState(() {
+              _currentPage = bounded;
+              _annotationPage = bounded;
+            });
             _schedulePreferenceSave();
           }
         },
@@ -610,7 +644,12 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
         : _pdfController.calcMatrixForFit(pageNumber: bounded);
     if (matrix != null) _pdfController.value = matrix;
     _pdfController.setCurrentPageNumber(bounded);
-    if (mounted) setState(() => _currentPage = bounded);
+    if (mounted) {
+      setState(() {
+        _currentPage = bounded;
+        _annotationPage = bounded;
+      });
+    }
     _schedulePreferenceSave();
   }
 
@@ -630,6 +669,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
     if (mounted) {
       setState(() {
         _currentPage = outgoingPage;
+        _annotationPage = outgoingPage;
         _showingHalfBoundary = true;
       });
     }
@@ -664,7 +704,12 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
       duration: const Duration(milliseconds: 120),
     );
     _pdfController.setCurrentPageNumber(start);
-    if (mounted) setState(() => _currentPage = start);
+    if (mounted) {
+      setState(() {
+        _currentPage = start;
+        _annotationPage = start;
+      });
+    }
     _schedulePreferenceSave();
   }
 
@@ -1209,7 +1254,10 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
                           label: _currentPage.toString(),
                           onChanged: _totalPages > 1
                               ? (value) {
-                                  setState(() => _currentPage = value.round());
+                                  setState(() {
+                                    _currentPage = value.round();
+                                    _annotationPage = _currentPage;
+                                  });
                                   setSheetState(() {});
                                 }
                               : null,
@@ -1284,6 +1332,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
       setState(() {
         _preferences = loaded;
         _currentPage = loaded.lastPage;
+        _annotationPage = loaded.lastPage;
         _preferencesLoaded = true;
       });
       await _applyDisplayState();
@@ -1300,15 +1349,12 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
   }
 
   String _pageLabel() {
-    if (_effectiveLayoutMode == ScoreLayoutMode.twoPage) {
-      final start = scoreSpreadStart(
-        _currentPage,
-        firstPageOnRight: _preferences.firstPageOnRight,
-      );
-      final end = math.min(_totalPages, start + 1);
-      return start == end ? '$start/$_totalPages' : '$start–$end/$_totalPages';
-    }
-    return '$_currentPage/$_totalPages';
+    return scorePageLabel(
+      page: _currentPage,
+      pageCount: _totalPages,
+      layoutMode: _effectiveLayoutMode,
+      firstPageOnRight: _preferences.firstPageOnRight,
+    );
   }
 
   Widget _buildPageIndicator() {
@@ -1453,6 +1499,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
   void _startStroke(int pageNumber, Offset point, Size size, int colorArgb) {
     if (size.isEmpty) return;
     setState(() {
+      _annotationPage = pageNumber;
       _strokesByPage
           .putIfAbsent(pageNumber, () => [])
           .add(
@@ -1529,6 +1576,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
   }
 
   Future<void> _confirmClearCurrentPage() async {
+    final pageNumber = _annotationPage;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1547,7 +1595,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
       ),
     );
     if (confirmed != true || !mounted) return;
-    setState(() => _strokesByPage.remove(_currentPage));
+    setState(() => _strokesByPage.remove(pageNumber));
     _queueAnnotationSave();
   }
 

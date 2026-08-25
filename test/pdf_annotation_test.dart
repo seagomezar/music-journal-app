@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
+import 'package:pdf_document/pdf_document.dart' as pdf;
 
 import 'package:flute/models/pdf_annotation.dart';
 import 'package:flute/models/exercise.dart';
@@ -165,10 +165,7 @@ void main() {
   });
 
   test('export creates a readable PDF with flattened ink', () {
-    final source = sf.PdfDocument();
-    source.pages.add();
-    final sourceBytes = Uint8List.fromList(source.saveSync());
-    source.dispose();
+    final sourceBytes = pdf.PdfBlankDocument.create();
 
     final exportedBytes = buildAnnotatedPdfBytes({
       'sourceBytes': sourceBytes,
@@ -177,8 +174,8 @@ void main() {
 
     expect(exportedBytes, isNot(equals(sourceBytes)));
     expect(String.fromCharCodes(exportedBytes.take(4)), '%PDF');
-    final exported = sf.PdfDocument(inputBytes: exportedBytes);
-    expect(exported.pages.count, 1);
-    exported.dispose();
+    final exported = pdf.PdfDocument.open(exportedBytes);
+    expect(exported.pageCount, 1);
+    expect(exported.page(0).annotations, isEmpty);
   });
 }

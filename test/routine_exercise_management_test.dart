@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flute/models/exercise.dart';
 import 'package:flute/models/piece.dart';
 import 'package:flute/models/routine.dart';
@@ -35,6 +37,27 @@ class _EditableRoutineProvider extends RoutineProvider {
     } else {
       updated[index] = routine;
     }
+    _routines = updated;
+    notifyListeners();
+  }
+}
+
+class _DelayedRoutineProvider extends _EditableRoutineProvider {
+  _DelayedRoutineProvider(super.routines);
+
+  final saveStarted = Completer<void>();
+  final allowSave = Completer<void>();
+
+  @override
+  Future<void> saveRoutine(Routine routine) async {
+    saveCalls += 1;
+    if (!saveStarted.isCompleted) saveStarted.complete();
+    await allowSave.future;
+    final index = _routines.indexWhere(
+      (candidate) => candidate.id == routine.id,
+    );
+    final updated = List<Routine>.from(_routines);
+    updated[index] = routine;
     _routines = updated;
     notifyListeners();
   }
@@ -237,5 +260,29 @@ void main() {
       routineProvider.routines.single.exercises.first.musicSheetPieceId,
       isNull,
     );
+  });
+
+  testWidgets('ignores repeated exercise save taps while saving', (
+    tester,
+  ) async {
+    final provider = _DelayedRoutineProvider([_routineWithExercises()]);
+    addTearDown(provider.dispose);
+    await _pumpRoutineScreen(tester, provider);
+
+    await tester.tap(find.byKey(const ValueKey('edit_exercise_exercise-1')));
+    await tester.pumpAndSettle();
+    final saveButton = find.widgetWithText(ElevatedButton, 'Save');
+
+    await tester.tap(saveButton);
+    await tester.tap(saveButton);
+    await provider.saveStarted.future;
+    await tester.pump();
+
+    expect(provider.saveCalls, 1);
+    expect(tester.widget<ElevatedButton>(saveButton).onPressed, isNull);
+
+    provider.allowSave.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
   });
 }

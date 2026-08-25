@@ -264,6 +264,7 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
     final locProv = Provider.of<LocalizationProvider>(context, listen: false);
     String? selectedPieceId = exercise?.musicSheetPieceId;
     _PendingExercisePdf? pendingPdf;
+    var isSaving = false;
 
     showDialog(
       context: context,
@@ -298,6 +299,7 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                   children: [
                     TextField(
                       controller: _exNameController,
+                      enabled: !isSaving,
                       decoration: InputDecoration(
                         labelText: context.translate('exercise_name_label'),
                         hintText: locProv.isSpanish
@@ -308,6 +310,7 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                     const SizedBox(height: 16),
                     TextField(
                       controller: _exBpmController,
+                      enabled: !isSaving,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: context.translate('target_bpm_tempo'),
@@ -327,13 +330,15 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                           child: Text(art),
                         );
                       }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setDialogState(() {
-                            _exArticulation = val;
-                          });
-                        }
-                      },
+                      onChanged: isSaving
+                          ? null
+                          : (val) {
+                              if (val != null) {
+                                setDialogState(() {
+                                  _exArticulation = val;
+                                });
+                              }
+                            },
                     ),
                     const SizedBox(height: 20),
                     Container(
@@ -380,10 +385,12 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                   tooltip: context.translate(
                                     'remove_music_sheet',
                                   ),
-                                  onPressed: () => setDialogState(() {
-                                    selectedPieceId = null;
-                                    pendingPdf = null;
-                                  }),
+                                  onPressed: isSaving
+                                      ? null
+                                      : () => setDialogState(() {
+                                          selectedPieceId = null;
+                                          pendingPdf = null;
+                                        }),
                                   icon: const Icon(Icons.close_rounded),
                                 ),
                             ],
@@ -394,32 +401,38 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                             runSpacing: 8,
                             children: [
                               OutlinedButton.icon(
-                                onPressed: () async {
-                                  final piece = await _pickRepertoirePdf(
-                                    context,
-                                  );
-                                  if (piece != null && context.mounted) {
-                                    setDialogState(() {
-                                      selectedPieceId = piece.id;
-                                      pendingPdf = null;
-                                    });
-                                  }
-                                },
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        final piece = await _pickRepertoirePdf(
+                                          context,
+                                        );
+                                        if (piece != null && context.mounted) {
+                                          setDialogState(() {
+                                            selectedPieceId = piece.id;
+                                            pendingPdf = null;
+                                          });
+                                        }
+                                      },
                                 icon: const Icon(Icons.library_music_rounded),
                                 label: Text(
                                   context.translate('choose_from_repertoire'),
                                 ),
                               ),
                               OutlinedButton.icon(
-                                onPressed: () async {
-                                  final picked = await _pickDevicePdf(context);
-                                  if (picked != null && context.mounted) {
-                                    setDialogState(() {
-                                      pendingPdf = picked;
-                                      selectedPieceId = null;
-                                    });
-                                  }
-                                },
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        final picked = await _pickDevicePdf(
+                                          context,
+                                        );
+                                        if (picked != null && context.mounted) {
+                                          setDialogState(() {
+                                            pendingPdf = picked;
+                                            selectedPieceId = null;
+                                          });
+                                        }
+                                      },
                                 icon: const Icon(Icons.upload_file_rounded),
                                 label: Text(
                                   context.translate('import_pdf_from_device'),
@@ -435,7 +448,9 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   child: Text(
                     context.translate('cancel'),
                     style: TextStyle(
@@ -448,95 +463,108 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                     backgroundColor: AppTheme.primaryColor(context),
                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
-                  onPressed: () async {
-                    final bpm = int.tryParse(_exBpmController.text);
-                    final name = _exNameController.text.trim();
-                    final repertoireProvider = context
-                        .read<RepertoireProvider>();
-                    final routineProvider = context.read<RoutineProvider>();
-                    if (name.isNotEmpty &&
-                        name.length <= 100 &&
-                        bpm != null &&
-                        bpm >= 40 &&
-                        bpm <= 240) {
-                      String? importedPieceId;
-                      try {
-                        var attachmentId = selectedPieceId;
-                        if (pendingPdf != null) {
-                          final newPiece = Piece(
-                            id: 'piece_${const Uuid().v7()}',
-                            title: _titleFromFileName(pendingPdf!.fileName),
-                            composer: 'Unknown',
-                            pdfPath: pendingPdf!.path,
-                            targetBpm: bpm,
-                          );
-                          await repertoireProvider.savePiece(
-                            newPiece,
-                            pdfOriginalName: pendingPdf!.fileName,
-                          );
-                          importedPieceId = newPiece.id;
-                          attachmentId = newPiece.id;
-                        }
-                        final updatedExercise = exercise != null
-                            ? exercise.copyWith(
-                                name: name,
-                                targetBpm: bpm,
-                                articulation: _exArticulation,
-                                musicSheetPieceId: attachmentId,
-                              )
-                            : Exercise(
-                                id: 'ex_${const Uuid().v7()}',
-                                name: name,
-                                targetBpm: bpm,
-                                articulation: _exArticulation,
-                                musicSheetPieceId: attachmentId,
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          if (isSaving) return;
+                          final bpm = int.tryParse(_exBpmController.text);
+                          final name = _exNameController.text.trim();
+                          final repertoireProvider = context
+                              .read<RepertoireProvider>();
+                          final routineProvider = context
+                              .read<RoutineProvider>();
+                          if (name.isNotEmpty &&
+                              name.length <= 100 &&
+                              bpm != null &&
+                              bpm >= 40 &&
+                              bpm <= 240) {
+                            setDialogState(() => isSaving = true);
+                            String? importedPieceId;
+                            try {
+                              var attachmentId = selectedPieceId;
+                              if (pendingPdf != null) {
+                                final newPiece = Piece(
+                                  id: 'piece_${const Uuid().v7()}',
+                                  title: _titleFromFileName(
+                                    pendingPdf!.fileName,
+                                  ),
+                                  composer: 'Unknown',
+                                  pdfPath: pendingPdf!.path,
+                                  targetBpm: bpm,
+                                );
+                                await repertoireProvider.savePiece(
+                                  newPiece,
+                                  pdfOriginalName: pendingPdf!.fileName,
+                                );
+                                importedPieceId = newPiece.id;
+                                attachmentId = newPiece.id;
+                              }
+                              final updatedExercise = exercise != null
+                                  ? exercise.copyWith(
+                                      name: name,
+                                      targetBpm: bpm,
+                                      articulation: _exArticulation,
+                                      musicSheetPieceId: attachmentId,
+                                    )
+                                  : Exercise(
+                                      id: 'ex_${const Uuid().v7()}',
+                                      name: name,
+                                      targetBpm: bpm,
+                                      articulation: _exArticulation,
+                                      musicSheetPieceId: attachmentId,
+                                    );
+                              final updatedExercises = List<Exercise>.from(
+                                routine.exercises,
                               );
-                        final updatedExercises = List<Exercise>.from(
-                          routine.exercises,
-                        );
-                        if (exercise != null) {
-                          final exerciseIndex = updatedExercises.indexWhere(
-                            (candidate) => candidate.id == exercise.id,
-                          );
-                          if (exerciseIndex == -1) {
-                            throw StateError('Exercise no longer exists.');
-                          }
-                          updatedExercises[exerciseIndex] = updatedExercise;
-                        } else {
-                          updatedExercises.add(updatedExercise);
-                        }
-                        await routineProvider.saveRoutine(
-                          routine.copyWith(exercises: updatedExercises),
-                        );
-                        if (context.mounted) Navigator.of(context).pop();
-                      } catch (error) {
-                        if (importedPieceId != null) {
-                          try {
-                            await repertoireProvider.deletePiece(
-                              importedPieceId,
-                            );
-                          } catch (_) {}
-                        }
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                context.translate('routine_save_error'),
+                              if (exercise != null) {
+                                final exerciseIndex = updatedExercises
+                                    .indexWhere(
+                                      (candidate) =>
+                                          candidate.id == exercise.id,
+                                    );
+                                if (exerciseIndex == -1) {
+                                  throw StateError(
+                                    'Exercise no longer exists.',
+                                  );
+                                }
+                                updatedExercises[exerciseIndex] =
+                                    updatedExercise;
+                              } else {
+                                updatedExercises.add(updatedExercise);
+                              }
+                              await routineProvider.saveRoutine(
+                                routine.copyWith(exercises: updatedExercises),
+                              );
+                              if (context.mounted) Navigator.of(context).pop();
+                            } catch (error) {
+                              if (importedPieceId != null) {
+                                try {
+                                  await repertoireProvider.deletePiece(
+                                    importedPieceId,
+                                  );
+                                } catch (_) {}
+                              }
+                              if (context.mounted) {
+                                setDialogState(() => isSaving = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      context.translate('routine_save_error'),
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  context.translate('invalid_exercise_values'),
+                                ),
                               ),
-                            ),
-                          );
-                        }
-                      }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            context.translate('invalid_exercise_values'),
-                          ),
-                        ),
-                      );
-                    }
-                  },
+                            );
+                          }
+                        },
                   child: Text(
                     context.translate(isEditing ? 'save' : 'add_btn'),
                   ),

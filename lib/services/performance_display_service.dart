@@ -53,8 +53,10 @@ class SystemPerformanceDisplayController
 
   @override
   Future<void> restore() async {
-    await leaveFullscreen();
-    await SystemChrome.setPreferredOrientations(const []);
-    await _brightness.resetApplicationScreenBrightness();
+    await Future.wait([
+      leaveFullscreen(),
+      SystemChrome.setPreferredOrientations(const []),
+      _brightness.resetApplicationScreenBrightness(),
+    ]);
   }
 }
