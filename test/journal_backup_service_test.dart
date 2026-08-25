@@ -16,6 +16,7 @@ void main() {
     name: 'Long tones',
     targetBpm: 60,
     articulation: 'Legato',
+    musicSheetPieceId: 'piece-1',
   );
   final routine = Routine(
     id: 'routine-1',
@@ -68,9 +69,11 @@ void main() {
     expect(source, isNot(contains('audioFilePath')));
     expect(source, isNot(contains('/private/device')));
     expect(source, isNot(contains('pdfPath')));
+    expect(source, isNot(contains('musicSheetPieceId')));
 
     final decoded = service.parseBytes(Uint8List.fromList(utf8.encode(source)));
     expect(decoded.routines.single.title, 'Warmup');
+    expect(decoded.routines.single.exercises.single.musicSheetPieceId, isNull);
     expect(decoded.sessions.single.notes, 'Worked slowly.');
     expect(decoded.sessions.single.audioFilePath, isNull);
     expect(decoded.sessions.single.startUtcOffsetMinutes, -300);

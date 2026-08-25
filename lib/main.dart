@@ -28,6 +28,7 @@ void main() async {
   await dbService.init();
 
   final metronomeAudioService = MetronomeAudioService();
+  final screenAwakeCoordinator = ScreenAwakeCoordinator.instance;
   // Browsers block AudioContext creation until a user gesture. Keep the
   // journal UI bootable and let the first metronome tap initialize audio
   // lazily; native platforms can still warm the engine during startup.
@@ -56,7 +57,7 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => PracticeProvider(
             metronomeAudioController: metronomeAudioService,
-            screenAwakeController: WakelockScreenAwakeController(),
+            screenAwakeController: screenAwakeCoordinator,
             keepScreenAwake: dbService.getKeepScreenAwake(),
             metronomeSoundEnabled: dbService.getMetronomeSoundEnabled(),
             metronomeVolume: dbService.getMetronomeVolume(),

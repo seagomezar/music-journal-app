@@ -273,6 +273,7 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
                           child: Material(
                             type: MaterialType.transparency,
                             child: ExpansionTile(
+                              internalAddSemanticForOnTap: true,
                               title: Text(routine.title),
                               children: routine.exercises.map((exercise) {
                                 final key = _exerciseKey(

@@ -145,9 +145,9 @@ class _RecordingLibraryScreenState extends State<RecordingLibraryScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        context.translate('recording_count_format', [
-                          session.recordings.length.toString(),
-                        ]),
+                        context.translateRecordingCount(
+                          session.recordings.length,
+                        ),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.textSecondaryColor(context),

@@ -3,7 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flute/models/practice_appearance_preferences.dart';
 import 'package:flute/providers/practice_provider.dart';
+import 'package:flute/services/screen_awake_service.dart';
 import 'package:flute/theme/app_theme.dart';
+
+class FakeScreenAwakeController implements ScreenAwakeController {
+  final List<bool> states = [];
+
+  @override
+  Future<void> setEnabled(bool enabled) async {
+    states.add(enabled);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -96,5 +106,51 @@ void main() {
     expect(provider.soundCuesEnabled, isTrue);
     expect(provider.reducedMotion, isFalse);
     expect(provider.showCelebrations, isTrue);
+  });
+
+  test('screen stays awake only while an opted-in timer is running', () async {
+    final screenAwake = FakeScreenAwakeController();
+    bool? savedPreference;
+    final provider = PracticeProvider(
+      screenAwakeController: screenAwake,
+      persistKeepScreenAwake: (enabled) async => savedPreference = enabled,
+    );
+    addTearDown(provider.dispose);
+
+    await provider.setKeepScreenAwake(true);
+    expect(savedPreference, isTrue);
+    expect(screenAwake.states, [false]);
+
+    provider.startSession(null);
+    await Future<void>.delayed(Duration.zero);
+    expect(screenAwake.states.last, isTrue);
+
+    provider.pauseSession();
+    await Future<void>.delayed(Duration.zero);
+    expect(screenAwake.states.last, isFalse);
+
+    await provider.resumeSession();
+    expect(screenAwake.states.last, isTrue);
+
+    provider.completeSession();
+    await Future<void>.delayed(Duration.zero);
+    expect(screenAwake.states.last, isFalse);
+  });
+
+  test('failed screen-awake persistence restores the previous state', () async {
+    final screenAwake = FakeScreenAwakeController();
+    final provider = PracticeProvider(
+      screenAwakeController: screenAwake,
+      persistKeepScreenAwake: (_) async => throw StateError('save failed'),
+    );
+    addTearDown(provider.dispose);
+    provider.startSession(null);
+    await Future<void>.delayed(Duration.zero);
+
+    await expectLater(provider.setKeepScreenAwake(true), throwsStateError);
+
+    expect(provider.keepScreenAwake, isFalse);
+    expect(screenAwake.states, containsAllInOrder([false, true, false]));
+    await provider.cancelSession();
   });
 }

@@ -14,6 +14,7 @@ import '../models/practice_appearance_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/practice_tuner_card.dart';
 import '../widgets/recording_list.dart';
+import 'score_viewer_screen.dart';
 
 class ActivePracticeView extends StatefulWidget {
   const ActivePracticeView({super.key});
@@ -40,6 +41,30 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Piece? _musicSheetFor(Exercise exercise, RepertoireProvider repertoire) {
+    final pieceId = exercise.musicSheetPieceId;
+    if (pieceId == null) return null;
+    for (final piece in repertoire.pieces) {
+      if (piece.id == pieceId && (piece.pdfPath?.isNotEmpty ?? false)) {
+        return piece;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _openMusicSheet(BuildContext context, Piece piece) {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ScoreViewerScreen(
+          pieceId: piece.id,
+          pdfPath: piece.pdfPath!,
+          pieceTitle: piece.title,
+          pieceBpm: piece.targetBpm,
+        ),
+      ),
+    );
   }
 
   String _getLocalizedArticulation(BuildContext context, String articulation) {
@@ -404,9 +429,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                 )
               else if (hasRecording)
                 Text(
-                  context.translate('recording_count_format', [
-                    practiceProv.recordings.length.toString(),
-                  ]),
+                  context.translateRecordingCount(
+                    practiceProv.recordings.length,
+                  ),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -494,6 +519,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
     final isSelectedActive =
         selectedExercise != null &&
         practiceProv.activeExerciseId == selectedExercise.id;
+    final selectedMusicSheet = selectedExercise == null
+        ? null
+        : _musicSheetFor(selectedExercise, repProv);
 
     return ListView(
       key: const ValueKey('focused_practice_mode'),
@@ -668,6 +696,22 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                   },
           ),
         ],
+        if (selectedExercise?.musicSheetPieceId != null) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            key: ValueKey('open_score_${selectedExercise!.id}'),
+            onPressed: selectedMusicSheet == null
+                ? null
+                : () => _openMusicSheet(context, selectedMusicSheet),
+            icon: const Icon(Icons.menu_book_rounded),
+            label: Text(
+              selectedMusicSheet?.title ??
+                  context.translate('score_unavailable'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         AppTheme.glassCard(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -697,6 +741,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
           clipBehavior: Clip.antiAlias,
           child: ExpansionTile(
             key: const ValueKey('focused_tools'),
+            internalAddSemanticForOnTap: true,
             leading: const Icon(Icons.tune_rounded),
             title: Text(context.translate('tuner')),
             subtitle: Text(
@@ -1070,6 +1115,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                       ),
                                       itemBuilder: (context, idx) {
                                         final exercise = routine.exercises[idx];
+                                        final musicSheet = _musicSheetFor(
+                                          exercise,
+                                          repProv,
+                                        );
                                         final isCompleted = practiceProv
                                             .completedExerciseIds
                                             .contains(exercise.id);
@@ -1221,6 +1270,47 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                                   const SizedBox(width: 8),
                                                 ],
                                               ),
+                                              if (exercise.musicSheetPieceId !=
+                                                  null)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.fromLTRB(
+                                                        48,
+                                                        4,
+                                                        12,
+                                                        0,
+                                                      ),
+                                                  child: Align(
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    child: OutlinedButton.icon(
+                                                      key: ValueKey(
+                                                        'open_score_${exercise.id}',
+                                                      ),
+                                                      onPressed:
+                                                          musicSheet == null
+                                                          ? null
+                                                          : () =>
+                                                                _openMusicSheet(
+                                                                  context,
+                                                                  musicSheet,
+                                                                ),
+                                                      icon: const Icon(
+                                                        Icons.menu_book_rounded,
+                                                        size: 17,
+                                                      ),
+                                                      label: Text(
+                                                        musicSheet?.title ??
+                                                            context.translate(
+                                                              'score_unavailable',
+                                                            ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
                                               if (duration > 0 || isActive)
                                                 Padding(
                                                   padding:
@@ -1845,14 +1935,10 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                             const SizedBox(width: 6),
                                             Flexible(
                                               child: Text(
-                                                context.translate(
-                                                  'recording_count_format',
-                                                  [
-                                                    practiceProv
-                                                        .recordings
-                                                        .length
-                                                        .toString(),
-                                                  ],
+                                                context.translateRecordingCount(
+                                                  practiceProv
+                                                      .recordings
+                                                      .length,
                                                 ),
                                                 textAlign: TextAlign.center,
                                                 style: TextStyle(

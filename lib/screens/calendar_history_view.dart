@@ -232,6 +232,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                   lastDay: DateTime.utc(2100, 12, 31),
                   focusedDay: _focusedDay,
                   calendarFormat: _calendarFormat,
+                  rowHeight: MediaQuery.sizeOf(context).height <= 700 ? 28 : 52,
                   selectedDayPredicate: (day) {
                     return isSameDay(_selectedDay, day);
                   },

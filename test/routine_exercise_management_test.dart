@@ -1,6 +1,8 @@
 import 'package:flute/models/exercise.dart';
+import 'package:flute/models/piece.dart';
 import 'package:flute/models/routine.dart';
 import 'package:flute/providers/localization_provider.dart';
+import 'package:flute/providers/repertoire_provider.dart';
 import 'package:flute/providers/routine_provider.dart';
 import 'package:flute/screens/routine_config_view.dart';
 import 'package:flute/theme/app_theme.dart';
@@ -38,6 +40,18 @@ class _EditableRoutineProvider extends RoutineProvider {
   }
 }
 
+class _MemoryRepertoireProvider extends RepertoireProvider {
+  _MemoryRepertoireProvider([this.items = const []]);
+
+  final List<Piece> items;
+
+  @override
+  List<Piece> get pieces => List.unmodifiable(items);
+
+  @override
+  Future<void> loadPieces() async {}
+}
+
 Routine _routineWithExercises() => Routine(
   id: 'routine-1',
   title: 'Technique',
@@ -66,8 +80,9 @@ Routine _routineWithExercises() => Routine(
 
 Future<void> _pumpRoutineScreen(
   WidgetTester tester,
-  _EditableRoutineProvider routineProvider,
-) async {
+  _EditableRoutineProvider routineProvider, {
+  _MemoryRepertoireProvider? repertoireProvider,
+}) async {
   tester.view.physicalSize = const Size(430, 1000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -77,6 +92,9 @@ Future<void> _pumpRoutineScreen(
     MultiProvider(
       providers: [
         ChangeNotifierProvider<RoutineProvider>.value(value: routineProvider),
+        ChangeNotifierProvider<RepertoireProvider>.value(
+          value: repertoireProvider ?? _MemoryRepertoireProvider(),
+        ),
         ChangeNotifierProvider(
           create: (_) => LocalizationProvider(initialLocale: 'en'),
         ),
@@ -158,4 +176,66 @@ void main() {
       ]);
     },
   );
+
+  testWidgets('attaches and removes an existing repertoire PDF', (
+    tester,
+  ) async {
+    final routineProvider = _EditableRoutineProvider([_routineWithExercises()]);
+    final repertoireProvider = _MemoryRepertoireProvider([
+      Piece(
+        id: 'piece-pdf',
+        title: 'Taffanel Study',
+        composer: 'Taffanel',
+        pdfPath: '/managed/taffanel.pdf',
+        targetBpm: 90,
+      ),
+      Piece(
+        id: 'piece-without-pdf',
+        title: 'No score',
+        composer: 'Composer',
+        targetBpm: 80,
+      ),
+    ]);
+    addTearDown(routineProvider.dispose);
+    addTearDown(repertoireProvider.dispose);
+    await _pumpRoutineScreen(
+      tester,
+      routineProvider,
+      repertoireProvider: repertoireProvider,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('edit_exercise_exercise-1')));
+    await tester.pumpAndSettle();
+    final chooseButton = find.widgetWithText(
+      OutlinedButton,
+      'Choose from repertoire',
+    );
+    await tester.ensureVisible(chooseButton);
+    await tester.tap(chooseButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Taffanel Study'), findsOneWidget);
+    expect(find.text('No score'), findsNothing);
+    await tester.tap(find.text('Taffanel Study'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    expect(
+      routineProvider.routines.single.exercises.first.musicSheetPieceId,
+      'piece-pdf',
+    );
+    expect(find.text('Taffanel Study'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('edit_exercise_exercise-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Remove music sheet'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    expect(
+      routineProvider.routines.single.exercises.first.musicSheetPieceId,
+      isNull,
+    );
+  });
 }

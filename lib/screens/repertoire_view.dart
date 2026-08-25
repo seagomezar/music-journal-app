@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../models/piece.dart';
+import '../models/repertoire_folder.dart';
 import '../providers/repertoire_provider.dart';
 import '../providers/localization_provider.dart';
+import '../providers/routine_provider.dart';
 import '../theme/app_theme.dart';
 import 'score_viewer_screen.dart';
 
@@ -24,6 +26,7 @@ class _RepertoireViewState extends State<RepertoireView> {
   final TextEditingController _notesController = TextEditingController();
   String? _selectedPdfPath;
   String? _selectedPdfName;
+  String? _selectedFolderId;
 
   @override
   void initState() {
@@ -259,6 +262,7 @@ class _RepertoireViewState extends State<RepertoireView> {
                             measuresCompleted: 0,
                             pdfPath: _selectedPdfPath,
                             notes: _notesController.text.trim(),
+                            folderId: _selectedFolderId,
                           );
                           try {
                             await Provider.of<RepertoireProvider>(
@@ -390,6 +394,7 @@ class _RepertoireViewState extends State<RepertoireView> {
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => ScoreViewerScreen(
+                                pieceId: piece.id,
                                 pdfPath: piece.pdfPath!,
                                 pieceTitle: piece.title,
                                 pieceBpm: piece.targetBpm,
@@ -494,6 +499,9 @@ class _RepertoireViewState extends State<RepertoireView> {
                     if (confirmed != true) return;
                     try {
                       await provider.deletePiece(piece.id);
+                      if (context.mounted) {
+                        await context.read<RoutineProvider>().loadRoutines();
+                      }
                       if (context.mounted) Navigator.of(context).pop();
                     } catch (error) {
                       if (context.mounted) {
@@ -505,6 +513,20 @@ class _RepertoireViewState extends State<RepertoireView> {
                           ),
                         );
                       }
+                    }
+                  },
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.drive_file_move_outline, size: 18),
+                  label: Text(context.translate('move_piece')),
+                  onPressed: () async {
+                    final moved = await _showMovePieceDialog(
+                      context,
+                      piece,
+                      provider,
+                    );
+                    if (moved && context.mounted) {
+                      Navigator.of(context).pop();
                     }
                   },
                 ),
@@ -551,19 +573,498 @@ class _RepertoireViewState extends State<RepertoireView> {
     );
   }
 
+  Future<void> _showFolderNameDialog(
+    BuildContext context,
+    RepertoireProvider provider, {
+    RepertoireFolder? folder,
+  }) async {
+    var folderName = folder?.name ?? '';
+    String? errorText;
+    var isSaving = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(
+            dialogContext.translate(
+              folder == null ? 'create_folder' : 'rename_folder',
+            ),
+          ),
+          content: TextFormField(
+            initialValue: folderName,
+            autofocus: true,
+            enabled: !isSaving,
+            maxLength: 100,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: dialogContext.translate('folder_name'),
+              errorText: errorText,
+            ),
+            onChanged: (value) => folderName = value,
+            onFieldSubmitted: isSaving
+                ? null
+                : (_) => _saveFolderName(
+                    dialogContext,
+                    provider,
+                    folderName,
+                    folder: folder,
+                    setDialogState: setDialogState,
+                    setSaving: (value) => isSaving = value,
+                    setError: (value) => errorText = value,
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(),
+              child: Text(dialogContext.translate('cancel')),
+            ),
+            FilledButton(
+              onPressed: isSaving
+                  ? null
+                  : () => _saveFolderName(
+                      dialogContext,
+                      provider,
+                      folderName,
+                      folder: folder,
+                      setDialogState: setDialogState,
+                      setSaving: (value) => isSaving = value,
+                      setError: (value) => errorText = value,
+                    ),
+              child: isSaving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      dialogContext.translate(
+                        folder == null ? 'create_btn' : 'rename_btn',
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveFolderName(
+    BuildContext dialogContext,
+    RepertoireProvider provider,
+    String value, {
+    required RepertoireFolder? folder,
+    required StateSetter setDialogState,
+    required ValueChanged<bool> setSaving,
+    required ValueChanged<String?> setError,
+  }) async {
+    final name = value.trim();
+    String? validationError;
+    if (name.isEmpty || name.length > 100) {
+      validationError = dialogContext.translate('invalid_folder_name');
+    } else if (provider.folders.any(
+      (existing) =>
+          existing.id != folder?.id &&
+          existing.name.toLowerCase() == name.toLowerCase(),
+    )) {
+      validationError = dialogContext.translate('duplicate_folder_name');
+    }
+    if (validationError != null) {
+      setDialogState(() => setError(validationError));
+      return;
+    }
+
+    setDialogState(() {
+      setError(null);
+      setSaving(true);
+    });
+    try {
+      if (folder == null) {
+        await provider.createFolder(name);
+      } else {
+        await provider.renameFolder(folder.id, name);
+      }
+      if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+    } catch (_) {
+      if (!dialogContext.mounted) return;
+      setDialogState(() => setSaving(false));
+      ScaffoldMessenger.of(dialogContext).showSnackBar(
+        SnackBar(content: Text(dialogContext.translate('folder_save_error'))),
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteFolder(
+    BuildContext context,
+    RepertoireFolder folder,
+    RepertoireProvider provider,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.translate('delete_folder_title')),
+        content: Text(dialogContext.translate('delete_folder_confirm')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(dialogContext.translate('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(dialogContext.translate('delete_btn')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await provider.deleteFolder(folder.id);
+      if (_selectedFolderId == folder.id && mounted) {
+        setState(() => _selectedFolderId = null);
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.translate('folder_delete_error'))),
+      );
+    }
+  }
+
+  Future<bool> _showMovePieceDialog(
+    BuildContext context,
+    Piece piece,
+    RepertoireProvider provider,
+  ) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) {
+            var isMoving = false;
+            return StatefulBuilder(
+              builder: (dialogContext, setDialogState) {
+                Future<void> move(String? folderId) async {
+                  if (isMoving) return;
+                  if (folderId == piece.folderId) {
+                    Navigator.of(dialogContext).pop(false);
+                    return;
+                  }
+                  setDialogState(() => isMoving = true);
+                  try {
+                    await provider.movePiece(piece.id, folderId);
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop(true);
+                    }
+                  } catch (_) {
+                    if (!dialogContext.mounted) return;
+                    setDialogState(() => isMoving = false);
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          dialogContext.translate('piece_move_error'),
+                        ),
+                      ),
+                    );
+                  }
+                }
+
+                return AlertDialog(
+                  title: Text(dialogContext.translate('move_piece')),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        ListTile(
+                          enabled: !isMoving,
+                          leading: const Icon(Icons.folder_off_outlined),
+                          title: Text(dialogContext.translate('unfiled')),
+                          trailing: piece.folderId == null
+                              ? const Icon(Icons.check_rounded)
+                              : null,
+                          onTap: () => move(null),
+                        ),
+                        ...provider.folders.map(
+                          (folder) => ListTile(
+                            enabled: !isMoving,
+                            leading: const Icon(Icons.folder_outlined),
+                            title: Text(folder.name),
+                            trailing: piece.folderId == folder.id
+                                ? const Icon(Icons.check_rounded)
+                                : null,
+                            onTap: () => move(folder.id),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: isMoving
+                          ? null
+                          : () => Navigator.of(dialogContext).pop(false),
+                      child: Text(dialogContext.translate('cancel')),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ) ??
+        false;
+  }
+
+  Widget _buildFolderCard(
+    BuildContext context,
+    RepertoireFolder folder,
+    RepertoireProvider provider,
+  ) {
+    final count = provider.pieceCountForFolder(folder.id);
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => setState(() => _selectedFolderId = folder.id),
+      child: AppTheme.glassCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(
+              Icons.folder_rounded,
+              size: 42,
+              color: AppTheme.accentColor(context),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    folder.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    context.translate('folder_piece_count', [count.toString()]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondaryColor(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuButton<String>(
+              tooltip: context.translate('folder_actions'),
+              onSelected: (action) {
+                if (action == 'rename') {
+                  _showFolderNameDialog(context, provider, folder: folder);
+                } else if (action == 'delete') {
+                  _confirmDeleteFolder(context, folder, provider);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'rename',
+                  child: Text(context.translate('rename_folder')),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text(context.translate('delete_folder')),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPieceCard(
+    BuildContext context,
+    Piece piece,
+    RepertoireProvider provider,
+  ) {
+    return GestureDetector(
+      onTap: () => _showPieceDetailsDialog(context, piece, provider),
+      child: AppTheme.glassCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 60,
+                height: 60,
+                margin: const EdgeInsets.only(top: 8),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: CircularProgressIndicator(
+                          value: piece.progressPercentage,
+                          strokeWidth: 5,
+                          backgroundColor: AppTheme.borderColor(
+                            context,
+                          ).withValues(alpha: 0.5),
+                          color: AppTheme.secondaryColor(context),
+                        ),
+                      ),
+                    ),
+                    Center(
+                      child: Text(
+                        '${(piece.progressPercentage * 100).toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              piece.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'serif',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: AppTheme.textPrimaryColor(context),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              piece.composer == 'Unknown'
+                  ? context.translate('unknown')
+                  : piece.composer,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: AppTheme.textSecondaryColor(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  context.translate('meas_count_format', [
+                    piece.measuresCompleted.toString(),
+                    piece.measuresTotal.toString(),
+                  ]),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.textSecondaryColor(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceColor(context),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${piece.targetBpm} BPM',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: AppTheme.accentColor(context),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, {required bool folder}) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              folder ? Icons.folder_open_rounded : Icons.library_music_rounded,
+              size: 72,
+              color: AppTheme.borderColor(context).withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              context.translate(
+                folder ? 'folder_empty_title' : 'repertoire_empty_title',
+              ),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.translate(
+                folder ? 'folder_empty_desc' : 'repertoire_empty_desc',
+              ),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textSecondaryColor(context)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final repProv = Provider.of<RepertoireProvider>(context);
+    RepertoireFolder? selectedFolder;
+    for (final folder in repProv.folders) {
+      if (folder.id == _selectedFolderId) {
+        selectedFolder = folder;
+        break;
+      }
+    }
+    final visiblePieces = _selectedFolderId == null
+        ? repProv.piecesInFolder(null)
+        : selectedFolder == null
+        ? const <Piece>[]
+        : repProv.piecesInFolder(selectedFolder.id);
 
     return Scaffold(
       appBar: AppBar(
+        leading: selectedFolder == null
+            ? null
+            : IconButton(
+                tooltip: context.translate('back_to_repertoire'),
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => setState(() => _selectedFolderId = null),
+              ),
         title: Text(
-          context.translate('repertoire_manager_title'),
+          selectedFolder?.name ?? context.translate('repertoire_manager_title'),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          if (selectedFolder == null)
+            IconButton(
+              tooltip: context.translate('create_folder'),
+              icon: Icon(
+                Icons.create_new_folder_outlined,
+                color: AppTheme.accentColor(context),
+              ),
+              onPressed: () => _showFolderNameDialog(context, repProv),
+            ),
           IconButton(
             tooltip: context.translate('add_piece'),
             icon: Icon(
@@ -579,177 +1080,76 @@ class _RepertoireViewState extends State<RepertoireView> {
       body: SafeArea(
         child: repProv.isLoading
             ? const Center(child: CircularProgressIndicator())
-            : repProv.pieces.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.library_music_rounded,
-                        size: 72,
-                        color: AppTheme.borderColor(
-                          context,
-                        ).withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        context.translate('repertoire_empty_title'),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        context.translate('repertoire_empty_desc'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = constraints.maxWidth >= 960
-                      ? 4
-                      : constraints.maxWidth >= 640
-                      ? 3
-                      : 2;
-                  return GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 14,
-                      mainAxisSpacing: 14,
-                      childAspectRatio: columns >= 3 ? 0.9 : 0.78,
-                    ),
-                    itemCount: repProv.pieces.length,
-                    itemBuilder: (context, index) {
-                      final piece = repProv.pieces[index];
-                      return GestureDetector(
-                        onTap: () =>
-                            _showPieceDetailsDialog(context, piece, repProv),
-                        child: AppTheme.glassCard(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Circular Progress Ring Indicator
-                              Center(
-                                child: Container(
-                                  width: 60,
-                                  height: 60,
-                                  margin: const EdgeInsets.only(top: 8),
-                                  child: Stack(
-                                    children: [
-                                      Center(
-                                        child: SizedBox(
-                                          width: 50,
-                                          height: 50,
-                                          child: CircularProgressIndicator(
-                                            value: piece.progressPercentage,
-                                            strokeWidth: 5,
-                                            backgroundColor:
-                                                AppTheme.borderColor(
-                                                  context,
-                                                ).withValues(alpha: 0.5),
-                                            color: AppTheme.secondaryColor(
-                                              context,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Center(
-                                        child: Text(
-                                          '${(piece.progressPercentage * 100).toStringAsFixed(0)}%',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-
-                              // Title & Composer
-                              Text(
-                                piece.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: 'serif',
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: AppTheme.textPrimaryColor(context),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                piece.composer == 'Unknown'
-                                    ? context.translate('unknown')
-                                    : piece.composer,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.textSecondaryColor(context),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Measures bar count
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    context.translate('meas_count_format', [
-                                      piece.measuresCompleted.toString(),
-                                      piece.measuresTotal.toString(),
-                                    ]),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppTheme.textSecondaryColor(
-                                        context,
-                                      ),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.surfaceColor(context),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      '${piece.targetBpm} BPM',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        color: AppTheme.accentColor(context),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+            : selectedFolder != null && visiblePieces.isEmpty
+            ? _buildEmptyState(context, folder: true)
+            : repProv.pieces.isEmpty && repProv.folders.isEmpty
+            ? _buildEmptyState(context, folder: false)
+            : Column(
+                children: [
+                  if (selectedFolder == null && repProv.folders.isNotEmpty)
+                    SizedBox(
+                      height: 124,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: repProv.folders.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) => SizedBox(
+                          width: 290,
+                          child: _buildFolderCard(
+                            context,
+                            repProv.folders[index],
+                            repProv,
                           ),
                         ),
-                      );
-                    },
-                  );
-                },
+                      ),
+                    ),
+                  if (selectedFolder == null && visiblePieces.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        child: Text(
+                          context.translate('unfiled'),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: visiblePieces.isEmpty
+                        ? const SizedBox.shrink()
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final columns = constraints.maxWidth >= 960
+                                  ? 4
+                                  : constraints.maxWidth >= 640
+                                  ? 3
+                                  : 2;
+                              return GridView.builder(
+                                padding: const EdgeInsets.all(16),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: columns,
+                                      crossAxisSpacing: 14,
+                                      mainAxisSpacing: 14,
+                                      childAspectRatio: columns >= 3
+                                          ? 0.9
+                                          : 0.78,
+                                    ),
+                                itemCount: visiblePieces.length,
+                                itemBuilder: (context, index) {
+                                  return _buildPieceCard(
+                                    context,
+                                    visiblePieces[index],
+                                    repProv,
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
       ),
     );

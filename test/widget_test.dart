@@ -216,6 +216,13 @@ class FakeRoutineProvider extends RoutineProvider {
 }
 
 class FakeRepertoireProvider extends RepertoireProvider {
+  FakeRepertoireProvider([this.fakePieces = const []]);
+
+  final List<Piece> fakePieces;
+
+  @override
+  List<Piece> get pieces => List.unmodifiable(fakePieces);
+
   @override
   Future<void> loadPieces() async {}
 }
@@ -227,6 +234,38 @@ void main() {
   });
 
   group('Data Models Tests', () {
+    test('exercise music sheet association is optional and removable', () {
+      final attached = Exercise(
+        id: 'exercise-score',
+        name: 'Etude',
+        targetBpm: 88,
+        articulation: 'Legato',
+        musicSheetPieceId: 'piece-score',
+      );
+
+      expect(
+        Exercise.fromJson(attached.toJson()).musicSheetPieceId,
+        'piece-score',
+      );
+      expect(
+        Exercise.fromJson({
+          'id': 'legacy',
+          'name': 'Legacy exercise',
+          'targetBpm': 80,
+          'articulation': 'Staccato',
+        }).musicSheetPieceId,
+        isNull,
+      );
+      expect(
+        attached.copyWith(musicSheetPieceId: null).musicSheetPieceId,
+        isNull,
+      );
+      expect(
+        attached.copyWith(name: 'Renamed').musicSheetPieceId,
+        'piece-score',
+      );
+    });
+
     test('exercise notes draft labels are localized', () {
       final english = LocalizationProvider(initialLocale: 'en');
       final spanish = LocalizationProvider(initialLocale: 'es');
@@ -664,6 +703,7 @@ void main() {
       name: 'Long tones',
       targetBpm: 72,
       articulation: 'Legato',
+      musicSheetPieceId: 'piece-score',
     );
     practiceProvider.startSession(
       Routine(
@@ -685,7 +725,15 @@ void main() {
             value: practiceProvider,
           ),
           ChangeNotifierProvider<RepertoireProvider>(
-            create: (_) => FakeRepertoireProvider(),
+            create: (_) => FakeRepertoireProvider([
+              Piece(
+                id: 'piece-score',
+                title: 'Long-tone study',
+                composer: 'Composer',
+                pdfPath: '/managed/long-tones.pdf',
+                targetBpm: 72,
+              ),
+            ]),
           ),
           ChangeNotifierProvider<HistoryProvider>(
             create: (_) => FakeHistoryProvider(),
@@ -704,6 +752,8 @@ void main() {
       ),
     );
     await tester.pump();
+
+    expect(find.byKey(const ValueKey('open_score_exercise-1')), findsOneWidget);
 
     final start = find.byKey(const ValueKey('start_exercise_exercise-1'));
     await tester.ensureVisible(start);

@@ -7,6 +7,7 @@ import 'package:flute/models/exercise.dart';
 import 'package:flute/models/piece.dart';
 import 'package:flute/models/practice_appearance_preferences.dart';
 import 'package:flute/models/routine.dart';
+import 'package:flute/screens/settings_screen.dart';
 import 'package:flute/services/database_service.dart';
 import 'package:flute/services/file_storage_service.dart';
 
@@ -71,7 +72,7 @@ void main() {
     expect(find.text('Please enter a valid name'), findsOneWidget);
 
     await tester.enterText(find.byType(TextFormField), 'iOS Smoke Tester');
-    await tester.tap(find.text('Continue'));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle(const Duration(seconds: 3));
     expect(find.text('Welcome back,'), findsOneWidget);
     expect(find.text('iOS Smoke Tester'), findsWidgets);
@@ -79,8 +80,10 @@ void main() {
     await tester.tap(find.byTooltip('Español'));
     await tester.pumpAndSettle();
     expect(find.text('Bienvenido de nuevo,'), findsOneWidget);
+    expect(database.getPreferredLocale(), 'es');
     await tester.tap(find.byTooltip('English'));
     await tester.pumpAndSettle();
+    expect(database.getPreferredLocale(), 'en');
 
     await tester.tap(find.text('Routines'));
     await tester.pumpAndSettle();
@@ -142,7 +145,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('focused_tools')));
     await tester.pumpAndSettle();
     expect(find.text('A4 = 440 Hz'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('increase_tuner_reference')));
+    final increaseTunerReference = find.byKey(
+      const ValueKey('increase_tuner_reference'),
+    );
+    await _scrollIntoView(tester, increaseTunerReference);
+    await tester.tap(increaseTunerReference);
     await tester.pumpAndSettle();
     expect(find.text('A4 = 441 Hz'), findsOneWidget);
     if (!kIsWeb && !skipNativeAudio) {
@@ -200,10 +207,8 @@ void main() {
         await _scrollIntoView(tester, stopRecording);
         await tester.tap(stopRecording);
         await tester.pump(const Duration(seconds: 2));
-        expect(
-          find.text('Practice recording saved on this device'),
-          findsOneWidget,
-        );
+        expect(find.text('1 recording saved in this session'), findsOneWidget);
+        expect(find.text('Recording 1'), findsOneWidget);
 
         final playRecording = find.byTooltip('Play Recording');
         await _scrollIntoView(tester, playRecording);
@@ -243,7 +248,7 @@ void main() {
     }
 
     final finish = find.byKey(const ValueKey('focused_finish'));
-    await tester.ensureVisible(finish);
+    await _scrollIntoView(tester, finish);
     await tester.tap(finish);
     await tester.pump();
     expect(find.text('Finish Practice Session?'), findsOneWidget);
@@ -280,17 +285,50 @@ void main() {
     await tester.tap(settings);
     await tester.pumpAndSettle();
     expect(find.text('Settings'), findsOneWidget);
-    await _scrollIntoView(tester, find.text('Export journal backup'));
+    await _scrollIntoViewWithin(
+      tester,
+      find.text('Export journal backup'),
+      find.byType(SettingsScreen),
+    );
     expect(find.text('Export journal backup'), findsOneWidget);
-    await _scrollIntoView(tester, find.text('Import journal backup'));
+    await _scrollIntoViewWithin(
+      tester,
+      find.text('Import journal backup'),
+      find.byType(SettingsScreen),
+    );
     expect(find.text('Import journal backup'), findsOneWidget);
 
+    await _scrollIntoViewWithin(
+      tester,
+      find.text('Use device setting'),
+      find.byType(SettingsScreen),
+    );
+    await tester.tap(find.text('Use device setting'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dark').last);
+    await tester.pumpAndSettle();
+    expect(database.getThemeMode(), ThemeMode.dark);
+    expect(
+      Theme.of(tester.element(find.text('Settings'))).brightness,
+      Brightness.dark,
+    );
+
+    await _scrollIntoViewWithin(
+      tester,
+      find.text('Privacy Policy'),
+      find.byType(SettingsScreen),
+    );
     await tester.tap(find.text('Privacy Policy'));
     await tester.pumpAndSettle();
     expect(find.text('Data stored on your device'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
+    await _scrollIntoViewWithin(
+      tester,
+      find.text('Terms and Conditions'),
+      find.byType(SettingsScreen),
+    );
     await tester.tap(find.text('Terms and Conditions'));
     await tester.pumpAndSettle();
     expect(find.text('Acceptance'), findsOneWidget);
@@ -298,16 +336,17 @@ void main() {
     await tester.pumpAndSettle();
 
     final eraseAllData = find.text('Erase all data');
-    await tester.scrollUntilVisible(
+    await _scrollIntoViewWithin(
+      tester,
       eraseAllData,
-      200,
-      scrollable: find.byType(Scrollable).last,
+      find.byType(SettingsScreen),
     );
     await tester.tap(eraseAllData);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Erase everything'));
     await tester.pumpAndSettle(const Duration(seconds: 3));
     expect(find.text('Set up your local profile'), findsOneWidget);
+    expect(database.getThemeMode(), ThemeMode.system);
   });
 }
 
@@ -341,10 +380,37 @@ Future<int> _pumpUntilAny(
 }
 
 Future<void> _scrollIntoView(WidgetTester tester, Finder finder) async {
-  await tester.scrollUntilVisible(
-    finder,
-    240,
-    scrollable: find.byType(Scrollable).last,
+  if (finder.evaluate().isNotEmpty) {
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    return;
+  }
+
+  final scrollables = find.byType(Scrollable);
+  expect(
+    scrollables,
+    findsWidgets,
+    reason: 'The target is not built and there is no scrollable to reveal it.',
   );
+  await tester.scrollUntilVisible(finder, 240, scrollable: scrollables.last);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _scrollIntoViewWithin(
+  WidgetTester tester,
+  Finder finder,
+  Finder scope,
+) async {
+  if (finder.evaluate().isNotEmpty) {
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    return;
+  }
+  final scrollables = find.descendant(
+    of: scope,
+    matching: find.byType(Scrollable),
+  );
+  expect(scrollables, findsWidgets);
+  await tester.scrollUntilVisible(finder, 240, scrollable: scrollables.last);
   await tester.pumpAndSettle();
 }

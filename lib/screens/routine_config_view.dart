@@ -1,11 +1,22 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/routine.dart';
 import '../models/exercise.dart';
+import '../models/piece.dart';
 import '../providers/routine_provider.dart';
 import '../providers/localization_provider.dart';
+import '../providers/repertoire_provider.dart';
 import '../theme/app_theme.dart';
+
+class _PendingExercisePdf {
+  const _PendingExercisePdf({required this.path, required this.fileName});
+
+  final String path;
+  final String fileName;
+}
 
 class RoutineConfigView extends StatefulWidget {
   const RoutineConfigView({super.key});
@@ -31,6 +42,108 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
     'Tenuto',
     'Accents',
   ];
+
+  String _titleFromFileName(String fileName) {
+    return fileName.replaceFirst(RegExp(r'\.pdf$', caseSensitive: false), '');
+  }
+
+  Future<_PendingExercisePdf?> _pickDevicePdf(BuildContext context) async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.translate('pdf_web_unavailable'))),
+      );
+      return null;
+    }
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['pdf'],
+        allowMultiple: false,
+      );
+      if (result == null) return null;
+      final selected = result.files.single;
+      final path = selected.path;
+      if (path == null || path.isEmpty) return null;
+      return _PendingExercisePdf(path: path, fileName: selected.name);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.translate('pdf_pick_error'))),
+        );
+      }
+      return null;
+    }
+  }
+
+  Future<Piece?> _pickRepertoirePdf(BuildContext context) async {
+    final repertoire = context.read<RepertoireProvider>();
+    final pieces = repertoire.pieces
+        .where((piece) => piece.pdfPath?.isNotEmpty ?? false)
+        .toList();
+    if (pieces.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.translate('no_repertoire_pdfs_available')),
+        ),
+      );
+      return null;
+    }
+    return showModalBottomSheet<Piece>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.72,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    sheetContext.translate('choose_from_repertoire'),
+                    style: Theme.of(sheetContext).textTheme.titleLarge,
+                  ),
+                ),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: pieces.length,
+                  itemBuilder: (context, index) {
+                    final piece = pieces[index];
+                    final matchingFolders = repertoire.folders.where(
+                      (item) => item.id == piece.folderId,
+                    );
+                    final folder = matchingFolders.isEmpty
+                        ? null
+                        : matchingFolders.first;
+                    return ListTile(
+                      leading: const Icon(Icons.picture_as_pdf_rounded),
+                      title: Text(piece.title),
+                      subtitle: Text(
+                        [
+                          if (folder != null) folder.name,
+                          piece.composer == 'Unknown'
+                              ? sheetContext.translate('unknown')
+                              : piece.composer,
+                        ].join(' • '),
+                      ),
+                      onTap: () => Navigator.of(sheetContext).pop(piece),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -149,12 +262,29 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
       articulationOptions.add(_exArticulation);
     }
     final locProv = Provider.of<LocalizationProvider>(context, listen: false);
+    String? selectedPieceId = exercise?.musicSheetPieceId;
+    _PendingExercisePdf? pendingPdf;
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final repertoire = context.read<RepertoireProvider>();
+            Piece? selectedPiece;
+            for (final piece in repertoire.pieces) {
+              if (piece.id == selectedPieceId) {
+                selectedPiece = piece;
+                break;
+              }
+            }
+            final hasAttachment = pendingPdf != null || selectedPieceId != null;
+            final selectedPieceHasPdf =
+                selectedPiece?.pdfPath?.isNotEmpty ?? false;
+            final attachmentTitle =
+                pendingPdf?.fileName ??
+                (selectedPieceHasPdf ? selectedPiece!.title : null) ??
+                context.translate('score_unavailable');
             return AlertDialog(
               title: Text(
                 context.translate(
@@ -205,6 +335,101 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                         }
                       },
                     ),
+                    const SizedBox(height: 20),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: AppTheme.borderColor(context),
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            context.translate('music_sheet'),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                hasAttachment
+                                    ? Icons.picture_as_pdf_rounded
+                                    : Icons.insert_drive_file_outlined,
+                                color: hasAttachment
+                                    ? Colors.redAccent
+                                    : AppTheme.textSecondaryColor(context),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  hasAttachment
+                                      ? attachmentTitle
+                                      : context.translate(
+                                          'no_music_sheet_attached',
+                                        ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (hasAttachment)
+                                IconButton(
+                                  tooltip: context.translate(
+                                    'remove_music_sheet',
+                                  ),
+                                  onPressed: () => setDialogState(() {
+                                    selectedPieceId = null;
+                                    pendingPdf = null;
+                                  }),
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  final piece = await _pickRepertoirePdf(
+                                    context,
+                                  );
+                                  if (piece != null && context.mounted) {
+                                    setDialogState(() {
+                                      selectedPieceId = piece.id;
+                                      pendingPdf = null;
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.library_music_rounded),
+                                label: Text(
+                                  context.translate('choose_from_repertoire'),
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  final picked = await _pickDevicePdf(context);
+                                  if (picked != null && context.mounted) {
+                                    setDialogState(() {
+                                      pendingPdf = picked;
+                                      selectedPieceId = null;
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.upload_file_rounded),
+                                label: Text(
+                                  context.translate('import_pdf_from_device'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -226,48 +451,72 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                   onPressed: () async {
                     final bpm = int.tryParse(_exBpmController.text);
                     final name = _exNameController.text.trim();
+                    final repertoireProvider = context
+                        .read<RepertoireProvider>();
+                    final routineProvider = context.read<RoutineProvider>();
                     if (name.isNotEmpty &&
                         name.length <= 100 &&
                         bpm != null &&
                         bpm >= 40 &&
                         bpm <= 240) {
-                      final updatedExercise = exercise != null
-                          ? exercise.copyWith(
-                              name: name,
-                              targetBpm: bpm,
-                              articulation: _exArticulation,
-                            )
-                          : Exercise(
-                              id: 'ex_${const Uuid().v7()}',
-                              name: name,
-                              targetBpm: bpm,
-                              articulation: _exArticulation,
-                            );
-                      final updatedExercises = List<Exercise>.from(
-                        routine.exercises,
-                      );
-                      if (exercise != null) {
-                        final exerciseIndex = updatedExercises.indexWhere(
-                          (candidate) => candidate.id == exercise.id,
-                        );
-                        if (exerciseIndex == -1) {
-                          if (context.mounted) Navigator.of(context).pop();
-                          return;
-                        }
-                        updatedExercises[exerciseIndex] = updatedExercise;
-                      } else {
-                        updatedExercises.add(updatedExercise);
-                      }
-                      final updatedRoutine = routine.copyWith(
-                        exercises: updatedExercises,
-                      );
+                      String? importedPieceId;
                       try {
-                        await Provider.of<RoutineProvider>(
-                          context,
-                          listen: false,
-                        ).saveRoutine(updatedRoutine);
+                        var attachmentId = selectedPieceId;
+                        if (pendingPdf != null) {
+                          final newPiece = Piece(
+                            id: 'piece_${const Uuid().v7()}',
+                            title: _titleFromFileName(pendingPdf!.fileName),
+                            composer: 'Unknown',
+                            pdfPath: pendingPdf!.path,
+                            targetBpm: bpm,
+                          );
+                          await repertoireProvider.savePiece(
+                            newPiece,
+                            pdfOriginalName: pendingPdf!.fileName,
+                          );
+                          importedPieceId = newPiece.id;
+                          attachmentId = newPiece.id;
+                        }
+                        final updatedExercise = exercise != null
+                            ? exercise.copyWith(
+                                name: name,
+                                targetBpm: bpm,
+                                articulation: _exArticulation,
+                                musicSheetPieceId: attachmentId,
+                              )
+                            : Exercise(
+                                id: 'ex_${const Uuid().v7()}',
+                                name: name,
+                                targetBpm: bpm,
+                                articulation: _exArticulation,
+                                musicSheetPieceId: attachmentId,
+                              );
+                        final updatedExercises = List<Exercise>.from(
+                          routine.exercises,
+                        );
+                        if (exercise != null) {
+                          final exerciseIndex = updatedExercises.indexWhere(
+                            (candidate) => candidate.id == exercise.id,
+                          );
+                          if (exerciseIndex == -1) {
+                            throw StateError('Exercise no longer exists.');
+                          }
+                          updatedExercises[exerciseIndex] = updatedExercise;
+                        } else {
+                          updatedExercises.add(updatedExercise);
+                        }
+                        await routineProvider.saveRoutine(
+                          routine.copyWith(exercises: updatedExercises),
+                        );
                         if (context.mounted) Navigator.of(context).pop();
                       } catch (error) {
+                        if (importedPieceId != null) {
+                          try {
+                            await repertoireProvider.deletePiece(
+                              importedPieceId,
+                            );
+                          } catch (_) {}
+                        }
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -303,6 +552,7 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
   @override
   Widget build(BuildContext context) {
     final routineProv = Provider.of<RoutineProvider>(context);
+    final repertoireProv = Provider.of<RepertoireProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -377,6 +627,7 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                       child: Material(
                         type: MaterialType.transparency,
                         child: ExpansionTile(
+                          internalAddSemanticForOnTap: true,
                           shape: const RoundedRectangleBorder(
                             side: BorderSide.none,
                           ),
@@ -531,6 +782,17 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                           },
                                       itemBuilder: (context, idx) {
                                         final exercise = routine.exercises[idx];
+                                        final matchingPieces = repertoireProv
+                                            .pieces
+                                            .where(
+                                              (piece) =>
+                                                  piece.id ==
+                                                  exercise.musicSheetPieceId,
+                                            );
+                                        final attachedPiece =
+                                            matchingPieces.isEmpty
+                                            ? null
+                                            : matchingPieces.first;
                                         return Container(
                                           key: ValueKey(
                                             'exercise_${routine.id}_${exercise.id}',
@@ -593,6 +855,43 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                                                             .textSecondary,
                                                       ),
                                                     ),
+                                                    if (exercise
+                                                            .musicSheetPieceId !=
+                                                        null) ...[
+                                                      const SizedBox(height: 3),
+                                                      Row(
+                                                        children: [
+                                                          const Icon(
+                                                            Icons
+                                                                .picture_as_pdf_rounded,
+                                                            size: 13,
+                                                            color: Colors
+                                                                .redAccent,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 4,
+                                                          ),
+                                                          Expanded(
+                                                            child: Text(
+                                                              attachedPiece
+                                                                      ?.title ??
+                                                                  context.translate(
+                                                                    'score_unavailable',
+                                                                  ),
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              style:
+                                                                  const TextStyle(
+                                                                    fontSize:
+                                                                        11,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
                                                   ],
                                                 ),
                                               ),

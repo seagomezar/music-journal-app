@@ -5,8 +5,11 @@ import '../models/user_profile.dart';
 import '../models/routine.dart';
 import '../models/exercise.dart';
 import '../models/piece.dart';
+import '../models/repertoire_folder.dart';
 import '../models/session_record.dart';
 import '../models/practice_appearance_preferences.dart';
+import '../models/pdf_annotation.dart';
+import '../models/score_view_preferences.dart';
 import 'file_storage_service.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 
@@ -24,6 +27,7 @@ class DatabaseService {
   static const String _soundCuesKey = 'practice_sound_cues';
   static const String _reducedMotionKey = 'practice_reduced_motion';
   static const String _showCelebrationsKey = 'practice_show_celebrations';
+  static const String _performanceBrightnessKey = 'performance_brightness';
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
@@ -31,6 +35,9 @@ class DatabaseService {
   late Box _profileBox;
   late Box _routinesBox;
   late Box _repertoireBox;
+  late Box _repertoireFoldersBox;
+  late Box _pdfAnnotationsBox;
+  late Box _scoreViewPreferencesBox;
   late Box _sessionsBox;
 
   bool _isInitialized = false;
@@ -42,6 +49,11 @@ class DatabaseService {
     _profileBox = await Hive.openBox('flute_profile');
     _routinesBox = await Hive.openBox('flute_routines');
     _repertoireBox = await Hive.openBox('flute_repertoire');
+    _repertoireFoldersBox = await Hive.openBox('flute_repertoire_folders');
+    _pdfAnnotationsBox = await Hive.openBox('flute_pdf_annotations');
+    _scoreViewPreferencesBox = await Hive.openBox(
+      'flute_score_view_preferences',
+    );
     _sessionsBox = await Hive.openBox('flute_sessions');
 
     _isInitialized = true;
@@ -185,7 +197,106 @@ class DatabaseService {
   }
 
   Future<void> deletePiece(String id) async {
-    await _repertoireBox.delete(id);
+    final affectedRoutines = getRoutines().where(
+      (routine) =>
+          routine.exercises.any((exercise) => exercise.musicSheetPieceId == id),
+    );
+    for (final routine in affectedRoutines) {
+      await saveRoutine(
+        routine.copyWith(
+          exercises: routine.exercises
+              .map(
+                (exercise) => exercise.musicSheetPieceId == id
+                    ? exercise.copyWith(musicSheetPieceId: null)
+                    : exercise,
+              )
+              .toList(),
+        ),
+      );
+    }
+    await Future.wait([
+      _repertoireBox.delete(id),
+      _pdfAnnotationsBox.delete(id),
+      _scoreViewPreferencesBox.delete(id),
+    ]);
+  }
+
+  // --- PDF ANNOTATIONS ---
+  PdfAnnotationDocument? getPdfAnnotations(String pieceId) {
+    final raw = _pdfAnnotationsBox.get(pieceId);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw as String);
+      return PdfAnnotationDocument.fromJson(
+        Map<String, dynamic>.from(decoded as Map),
+      );
+    } catch (error) {
+      debugPrint('Skipping invalid PDF annotation record: $error');
+      return null;
+    }
+  }
+
+  Future<void> savePdfAnnotations(PdfAnnotationDocument document) async {
+    if (!document.hasAnnotations) {
+      await deletePdfAnnotations(document.pieceId);
+      return;
+    }
+    await _pdfAnnotationsBox.put(
+      document.pieceId,
+      jsonEncode(document.toJson()),
+    );
+  }
+
+  Future<void> deletePdfAnnotations(String pieceId) async {
+    await _pdfAnnotationsBox.delete(pieceId);
+  }
+
+  // --- SCORE VIEW PREFERENCES ---
+  ScoreViewPreferences? getScoreViewPreferences(String pieceId) {
+    final raw = _scoreViewPreferencesBox.get(pieceId);
+    if (raw == null) return null;
+    try {
+      return ScoreViewPreferences.fromJson(
+        Map<String, dynamic>.from(jsonDecode(raw as String) as Map),
+      );
+    } catch (error) {
+      debugPrint('Skipping invalid score view preference record: $error');
+      return null;
+    }
+  }
+
+  Future<void> saveScoreViewPreferences(
+    ScoreViewPreferences preferences,
+  ) async {
+    await _scoreViewPreferencesBox.put(
+      preferences.pieceId,
+      jsonEncode(preferences.toJson()),
+    );
+  }
+
+  Future<void> deleteScoreViewPreferences(String pieceId) async {
+    await _scoreViewPreferencesBox.delete(pieceId);
+  }
+
+  List<RepertoireFolder> getRepertoireFolders() {
+    final folders = <RepertoireFolder>[];
+    for (final raw in _repertoireFoldersBox.values) {
+      try {
+        final decoded = jsonDecode(raw as String);
+        folders.add(RepertoireFolder.fromJson(decoded as Map<String, dynamic>));
+      } catch (error) {
+        debugPrint('Skipping invalid repertoire folder record: $error');
+      }
+    }
+    return folders;
+  }
+
+  Future<void> saveRepertoireFolder(RepertoireFolder folder) async {
+    await _repertoireFoldersBox.put(folder.id, jsonEncode(folder.toJson()));
+  }
+
+  Future<void> deleteRepertoireFolder(String id) async {
+    await _repertoireFoldersBox.delete(id);
   }
 
   // --- SESSIONS ---
@@ -356,12 +467,27 @@ class DatabaseService {
     await _profileBox.put(_showCelebrationsKey, enabled);
   }
 
+  double getPerformanceBrightness() {
+    final value = _profileBox.get(_performanceBrightnessKey, defaultValue: 1.0);
+    return (value as num).toDouble().clamp(0.1, 1.0);
+  }
+
+  Future<void> setPerformanceBrightness(double brightness) async {
+    await _profileBox.put(
+      _performanceBrightnessKey,
+      brightness.clamp(0.1, 1.0),
+    );
+  }
+
   Future<void> clearAllUserData() async {
     final preferredLocale = getPreferredLocale();
     await Future.wait([
       _profileBox.clear(),
       _routinesBox.clear(),
       _repertoireBox.clear(),
+      _repertoireFoldersBox.clear(),
+      _pdfAnnotationsBox.clear(),
+      _scoreViewPreferencesBox.clear(),
       _sessionsBox.clear(),
       FileStorageService().deleteAllManagedFiles(),
     ]);
