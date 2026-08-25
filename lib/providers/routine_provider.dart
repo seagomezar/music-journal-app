@@ -56,4 +56,25 @@ class RoutineProvider with ChangeNotifier {
       rethrow;
     }
   }
+
+  Future<void> detachMusicSheet(String pieceId) async {
+    final affected = _routines.where(
+      (routine) => routine.exercises.any(
+        (exercise) => exercise.musicSheetPieceId == pieceId,
+      ),
+    );
+    for (final routine in affected.toList()) {
+      await saveRoutine(
+        routine.copyWith(
+          exercises: routine.exercises
+              .map(
+                (exercise) => exercise.musicSheetPieceId == pieceId
+                    ? exercise.copyWith(musicSheetPieceId: null)
+                    : exercise,
+              )
+              .toList(),
+        ),
+      );
+    }
+  }
 }

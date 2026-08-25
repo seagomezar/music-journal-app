@@ -1,3 +1,5 @@
+const _folderIdNotProvided = Object();
+
 class Piece {
   final String id;
   final String title;
@@ -7,6 +9,7 @@ class Piece {
   final int measuresTotal;
   final int measuresCompleted;
   final String notes;
+  final String? folderId;
 
   Piece({
     required this.id,
@@ -17,6 +20,7 @@ class Piece {
     this.measuresTotal = 0,
     this.measuresCompleted = 0,
     this.notes = '',
+    this.folderId,
   });
 
   double get progressPercentage {
@@ -33,6 +37,7 @@ class Piece {
     'measuresTotal': measuresTotal,
     'measuresCompleted': measuresCompleted,
     'notes': notes,
+    'folderId': folderId,
   };
 
   factory Piece.fromJson(Map<String, dynamic> json) {
@@ -56,6 +61,7 @@ class Piece {
       measuresTotal: total,
       measuresCompleted: completed,
       notes: json['notes'] as String? ?? '',
+      folderId: json['folderId'] as String?,
     );
   }
 
@@ -67,6 +73,7 @@ class Piece {
     int? measuresTotal,
     int? measuresCompleted,
     String? notes,
+    Object? folderId = _folderIdNotProvided,
   }) {
     return Piece(
       id: id,
@@ -77,6 +84,9 @@ class Piece {
       measuresTotal: measuresTotal ?? this.measuresTotal,
       measuresCompleted: measuresCompleted ?? this.measuresCompleted,
       notes: notes ?? this.notes,
+      folderId: identical(folderId, _folderIdNotProvided)
+          ? this.folderId
+          : folderId as String?,
     );
   }
 }

@@ -371,32 +371,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<ThemeMode>(
-                    initialValue: practiceProvider.themeMode,
-                    decoration: InputDecoration(
-                      labelText: context.translate('theme_mode'),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: ThemeMode.system,
-                        child: Text(context.translate('theme_system')),
-                      ),
-                      DropdownMenuItem(
-                        value: ThemeMode.light,
-                        child: Text(context.translate('theme_light')),
-                      ),
-                      DropdownMenuItem(
-                        value: ThemeMode.dark,
-                        child: Text(context.translate('theme_dark')),
-                      ),
-                    ],
-                    onChanged: (mode) {
-                      if (mode != null) {
-                        _savePracticePreference(
-                          () => practiceProvider.setThemeMode(mode),
-                        );
-                      }
-                    },
+                  Text(
+                    context.translate('theme_mode'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children:
+                        [
+                              (
+                                ThemeMode.system,
+                                Icons.brightness_auto_outlined,
+                                context.translate('theme_system'),
+                              ),
+                              (
+                                ThemeMode.light,
+                                Icons.light_mode_outlined,
+                                context.translate('theme_light'),
+                              ),
+                              (
+                                ThemeMode.dark,
+                                Icons.dark_mode_outlined,
+                                context.translate('theme_dark'),
+                              ),
+                            ]
+                            .map((option) {
+                              final (mode, icon, label) = option;
+                              return ChoiceChip(
+                                key: ValueKey('theme_${mode.name}'),
+                                avatar: Icon(icon, size: 18),
+                                label: Text(label),
+                                selected: practiceProvider.themeMode == mode,
+                                onSelected: (_) => _savePracticePreference(
+                                  () => practiceProvider.setThemeMode(mode),
+                                ),
+                              );
+                            })
+                            .toList(growable: false),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,

@@ -429,7 +429,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
   Future<void> _applyScreenAwakePreference() {
     return _screenAwake.setEnabled(
-      _keepScreenAwake && _isActive && _isInForeground,
+      _keepScreenAwake && _isActive && !_isPaused && _isInForeground,
     );
   }
 

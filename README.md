@@ -8,8 +8,8 @@ Flute Practice Coach is a private, local-only practice journal for flutists. It 
 
 ## Features
 
-- Custom technical routines with validated 40–240 BPM targets
-- Repertoire catalog with app-managed PDF scores on mobile
+- Custom technical routines with exercises you can create, edit, delete, reorder, set to 40–240 BPM, and attach to scores
+- Folder-organized repertoire with app-managed PDF scores on mobile, persistent annotations, annotated export, saved display options, and performance mode
 - Practice timer, visual metronome, notes, calendar, goals, and streaks
 - Manual logging for practice completed on a past date
 - Optional self-evaluation recordings with multiple takes and playback, rename, and delete controls; stored locally on mobile and in browser storage on web
@@ -34,12 +34,20 @@ flutter test
 flutter run
 ```
 
-Run the repeatable iOS simulator journey (onboarding through recording,
-history, legal pages, and local-data erasure) with:
+Run the repeatable core journey (onboarding through recording, history, legal
+pages, and local-data erasure) in Chrome, an Android emulator, or an iOS
+simulator with:
 
 ```bash
 flutter devices
-flutter test integration_test/app_smoke_test.dart -d <ios-simulator-id>
+flutter test integration_test/app_smoke_test.dart -d <device-id>
+```
+
+Run the platform-sensitive routine, repertoire, score, recording, backup, and
+appearance regressions in an iOS runner with:
+
+```bash
+flutter test integration_test/ios_feature_suite_test.dart -d <ios-simulator-id>
 ```
 
 The simulator cannot accept the native iOS microphone permission sheet from
@@ -51,6 +59,12 @@ permission) to exercise native pitch capture and recording:
 flutter test integration_test/app_smoke_test.dart -d <ios-simulator-id> \
   --dart-define=FLUTE_SKIP_NATIVE_AUDIO=true
 ```
+
+The automated journeys do not operate native document-picker or share sheets,
+verify physical-device background audio, or cover iPad layouts; keep those as
+manual platform checks. Flutter web exposes each routine row as one composite
+expansion action, so accessibility checks should target the row rather than
+expecting separate semantics nodes for its children.
 
 Run or build the browser version with:
 

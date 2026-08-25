@@ -191,6 +191,11 @@ class _AuthScreenState extends State<AuthScreen> {
 
                                 TextFormField(
                                   controller: _nameController,
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) =>
+                                      _handleCreateProfile(context),
+                                  onTapOutside: (_) =>
+                                      FocusScope.of(context).unfocus(),
                                   decoration: InputDecoration(
                                     labelText: context.translate('your_name'),
                                     prefixIcon: Icon(

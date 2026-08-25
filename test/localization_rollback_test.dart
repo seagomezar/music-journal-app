@@ -45,4 +45,26 @@ void main() {
     expect(provider.localeCode, 'en');
     debugPrint('rollback + guard behavior verified');
   });
+
+  test('recording counts use singular and plural copy in both languages', () {
+    final english = LocalizationProvider(initialLocale: 'en');
+    expect(
+      english.translate('recording_count_one_format', ['1']),
+      '1 recording saved in this session',
+    );
+    expect(
+      english.translate('recording_count_format', ['2']),
+      '2 recordings saved in this session',
+    );
+
+    final spanish = LocalizationProvider(initialLocale: 'es');
+    expect(
+      spanish.translate('recording_count_one_format', ['1']),
+      '1 grabación guardada en esta sesión',
+    );
+    expect(
+      spanish.translate('recording_count_format', ['2']),
+      '2 grabaciones guardadas en esta sesión',
+    );
+  });
 }

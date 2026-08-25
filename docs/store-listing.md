@@ -33,7 +33,7 @@
 
 Flute Practice Coach gives flutists a calm, private place to structure daily practice.
 
-Create technical routines for long tones, scales, articulation, and other exercises. Organize repertoire, attach PDF scores, set target tempos, and track measure progress. During practice, use the visual metronome, time each piece, make notes, and record a short passage for self-evaluation.
+Create and reorder technical exercises for long tones, scales, articulation, and other work, with an optional repertoire score attached to each exercise. Organize repertoire into folders, attach PDF scores, set target tempos, and track measure progress. During practice, use the visual metronome, time each piece, make notes, and record a short passage for self-evaluation.
 
 Your journal is managed locally by the app and is not uploaded to us. The app has no advertising or online account. The deployed web version may send optional aggregate usage events through Plausible when configured; it never sends journal, profile, audio, or pitch data. Imported scores and recordings are stored in private app storage and can be deleted individually or erased together from Settings. Your operating system may separately include app data in a backup you enable.
 
@@ -41,7 +41,7 @@ Key features:
 
 - Custom technical practice routines
 - Repertoire and measure-progress tracking
-- PDF score viewer with temporary page annotations
+- PDF score viewer with saved display options, performance mode, persistent page annotations, and annotated PDF export
 - Visual metronome from 40 to 240 BPM
 - Exercise-level tempo controls and optional local pitch tracking with A4 reference adjustment
 - Practice timer, notes, statistics, calendar, and streaks
