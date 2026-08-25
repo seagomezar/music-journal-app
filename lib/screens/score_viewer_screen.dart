@@ -838,14 +838,15 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
           Expanded(
             flex: 25,
             child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
+              behavior: HitTestBehavior.opaque,
               onTap: _touchLocked ? null : _navigateBackward,
             ),
           ),
           Expanded(
             flex: 50,
             child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
+              key: const ValueKey('performance_controls_toggle'),
+              behavior: HitTestBehavior.opaque,
               onTap: () => setState(
                 () =>
                     _performanceControlsVisible = !_performanceControlsVisible,
@@ -855,7 +856,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
           Expanded(
             flex: 25,
             child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
+              behavior: HitTestBehavior.opaque,
               onTap: _touchLocked ? null : _navigateForward,
             ),
           ),
@@ -890,6 +891,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
 
   Widget _buildPerformanceControls(PracticeProvider practice) {
     return Positioned(
+      key: const ValueKey('performance_controls'),
       left: 12,
       right: 12,
       top: MediaQuery.paddingOf(context).top + 8,
@@ -903,12 +905,14 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
             child: Row(
               children: [
                 IconButton(
+                  key: const ValueKey('exit_performance_mode'),
                   color: Colors.white,
                   tooltip: context.translate('exit_performance'),
                   onPressed: _leavePerformanceMode,
                   icon: const Icon(Icons.close_fullscreen_rounded),
                 ),
                 IconButton(
+                  key: const ValueKey('toggle_touch_lock'),
                   color: _touchLocked ? Colors.amber : Colors.white,
                   tooltip: context.translate('touch_lock'),
                   onPressed: () => setState(() => _touchLocked = !_touchLocked),
@@ -917,6 +921,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
                   ),
                 ),
                 IconButton(
+                  key: const ValueKey('toggle_auto_scroll'),
                   color: _autoScrollRunning ? Colors.amber : Colors.white,
                   tooltip: context.translate('auto_scroll'),
                   onPressed: _autoScrollRunning
@@ -1000,6 +1005,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
   }
 
   Future<void> _showDisplayOptions() async {
+    final openedFromPerformanceMode = _isPerformanceMode;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1275,7 +1281,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
         },
       ),
     );
-    if (_isPerformanceMode && mounted) {
+    if (openedFromPerformanceMode && _isPerformanceMode && mounted) {
       setState(() => _performanceControlsVisible = false);
     }
   }

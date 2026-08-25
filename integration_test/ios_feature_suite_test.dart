@@ -125,14 +125,19 @@ void main() {
 
       await tester.tap(find.byTooltip('Performance mode'));
       await tester.pumpAndSettle();
-      await tester.tapAt(tester.getCenter(find.byType(Scaffold)));
+      await tester.tap(
+        find.byKey(const ValueKey('performance_controls_toggle')),
+      );
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Exit performance mode'), findsOneWidget);
-      await tester.tap(find.byTooltip('Lock touch page turns'));
-      await tester.tap(find.byTooltip('Automatic scrolling'));
+      expect(
+        find.byKey(const ValueKey('performance_controls')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('toggle_touch_lock')));
+      await tester.tap(find.byKey(const ValueKey('toggle_auto_scroll')));
       await tester.pump(const Duration(milliseconds: 400));
-      await tester.tap(find.byTooltip('Automatic scrolling'));
-      await tester.tap(find.byTooltip('Exit performance mode'));
+      await tester.tap(find.byKey(const ValueKey('toggle_auto_scroll')));
+      await tester.tap(find.byKey(const ValueKey('exit_performance_mode')));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Performance mode'), findsOneWidget);
     },

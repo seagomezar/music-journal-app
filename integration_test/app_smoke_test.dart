@@ -287,6 +287,21 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
     await _scrollIntoViewWithin(
       tester,
+      find.text('Use device setting'),
+      find.byType(SettingsScreen),
+    );
+    await tester.tap(find.text('Use device setting'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('theme_dark')));
+    await tester.pumpAndSettle();
+    expect(database.getThemeMode(), ThemeMode.dark);
+    expect(
+      Theme.of(tester.element(find.text('Settings'))).brightness,
+      Brightness.dark,
+    );
+
+    await _scrollIntoViewWithin(
+      tester,
       find.text('Export journal backup'),
       find.byType(SettingsScreen),
     );
@@ -297,21 +312,6 @@ void main() {
       find.byType(SettingsScreen),
     );
     expect(find.text('Import journal backup'), findsOneWidget);
-
-    await _scrollIntoViewWithin(
-      tester,
-      find.text('Use device setting'),
-      find.byType(SettingsScreen),
-    );
-    await tester.tap(find.text('Use device setting'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Dark').last);
-    await tester.pumpAndSettle();
-    expect(database.getThemeMode(), ThemeMode.dark);
-    expect(
-      Theme.of(tester.element(find.text('Settings'))).brightness,
-      Brightness.dark,
-    );
 
     await _scrollIntoViewWithin(
       tester,

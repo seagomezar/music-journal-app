@@ -8,6 +8,7 @@ import 'package:flute/providers/repertoire_provider.dart';
 import 'package:flute/providers/routine_provider.dart';
 import 'package:flute/screens/routine_config_view.dart';
 import 'package:flute/theme/app_theme.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -105,6 +106,7 @@ Future<void> _pumpRoutineScreen(
   WidgetTester tester,
   _EditableRoutineProvider routineProvider, {
   _MemoryRepertoireProvider? repertoireProvider,
+  bool expandRoutine = true,
 }) async {
   tester.view.physicalSize = const Size(430, 1000);
   tester.view.devicePixelRatio = 1;
@@ -128,11 +130,25 @@ Future<void> _pumpRoutineScreen(
       ),
     ),
   );
-  await tester.tap(find.text('Technique'));
-  await tester.pumpAndSettle();
+  if (expandRoutine) {
+    await tester.tap(find.text('Technique'));
+    await tester.pumpAndSettle();
+  }
 }
 
 void main() {
+  testWidgets('web routine row exposes and performs its expansion action', (
+    tester,
+  ) async {
+    final provider = _EditableRoutineProvider([_routineWithExercises()]);
+    addTearDown(provider.dispose);
+    await _pumpRoutineScreen(tester, provider, expandRoutine: false);
+
+    await tester.tap(find.text('Technique'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add Exercise'), findsOneWidget);
+  }, skip: !kIsWeb);
+
   testWidgets('edits an exercise without changing its identity or position', (
     tester,
   ) async {
