@@ -43,11 +43,12 @@ flutter devices
 flutter test integration_test/app_smoke_test.dart -d <device-id>
 ```
 
-Run the platform-sensitive routine, repertoire, score, recording, backup, and
-appearance regressions in an iOS runner with:
+Run the platform-sensitive routine, repertoire, score, recording, backup,
+appearance, and score-orientation regressions in both native runners with:
 
 ```bash
 flutter test integration_test/ios_feature_suite_test.dart -d <ios-simulator-id>
+flutter test integration_test/ios_feature_suite_test.dart -d <android-emulator-id>
 ```
 
 The simulator cannot accept the native iOS microphone permission sheet from
@@ -61,10 +62,10 @@ flutter test integration_test/app_smoke_test.dart -d <ios-simulator-id> \
 ```
 
 The automated journeys do not operate native document-picker or share sheets,
-verify physical-device background audio, or cover iPad layouts; keep those as
-manual platform checks. Flutter web exposes each routine row as one composite
-expansion action, so accessibility checks should target the row rather than
-expecting separate semantics nodes for its children.
+verify physical-device background audio, or replace final checks on physical
+tablets; keep those as manual platform checks. Flutter web exposes each routine
+row as one composite expansion action, so accessibility checks should target
+the row rather than expecting separate semantics nodes for its children.
 
 Run or build the browser version with:
 

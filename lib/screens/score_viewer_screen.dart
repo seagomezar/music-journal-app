@@ -72,6 +72,31 @@ double scoreAutoScrollRate({
   return math.max(1, (documentHeight - visibleHeight) / durationSeconds);
 }
 
+@visibleForTesting
+ScoreLayoutMode scoreLayoutForViewport(
+  ScoreLayoutMode layoutMode,
+  Size viewportSize,
+) {
+  if (layoutMode == ScoreLayoutMode.twoPage &&
+      viewportSize.width < viewportSize.height) {
+    return ScoreLayoutMode.singlePage;
+  }
+  return layoutMode;
+}
+
+@visibleForTesting
+ScoreFitMode scoreFitForViewport({
+  required ScoreLayoutMode layoutMode,
+  required ScoreFitMode fitMode,
+  required Size viewportSize,
+}) {
+  if (layoutMode == ScoreLayoutMode.twoPage &&
+      viewportSize.width < viewportSize.height) {
+    return ScoreFitMode.fitPage;
+  }
+  return fitMode;
+}
+
 class ScoreViewerScreen extends StatefulWidget {
   final String pieceId;
   final String pdfPath;
@@ -114,6 +139,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
   Future<void> _annotationSaveQueue = Future.value();
   Future<void> _preferenceSaveQueue = Future.value();
   Timer? _preferenceDebounce;
+  Timer? _viewResizeDebounce;
   Timer? _autoScrollTimer;
   DateTime? _lastAutoScrollTick;
   DateTime? _lastPedalCommand;
@@ -140,19 +166,22 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
   bool get _hasPdf =>
       !kIsWeb && widget.pdfPath.isNotEmpty && File(widget.pdfPath).existsSync();
 
-  ScoreLayoutMode get _effectiveLayoutMode {
-    if (_preferences.layoutMode == ScoreLayoutMode.twoPage &&
-        MediaQuery.sizeOf(context).width < MediaQuery.sizeOf(context).height) {
-      return ScoreLayoutMode.singlePage;
-    }
-    return _preferences.layoutMode;
-  }
+  ScoreLayoutMode get _effectiveLayoutMode => scoreLayoutForViewport(
+    _preferences.layoutMode,
+    MediaQuery.sizeOf(context),
+  );
+
+  ScoreFitMode get _effectiveFitMode => scoreFitForViewport(
+    layoutMode: _preferences.layoutMode,
+    fitMode: _preferences.fitMode,
+    viewportSize: MediaQuery.sizeOf(context),
+  );
 
   bool get _viewerCanPan =>
       !_isPerformanceMode &&
       _activeNavIndex == 1 &&
       (_effectiveLayoutMode == ScoreLayoutMode.continuous ||
-          _preferences.fitMode == ScoreFitMode.fitWidth);
+          _effectiveFitMode == ScoreFitMode.fitWidth);
 
   @override
   void initState() {
@@ -199,6 +228,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _preferenceDebounce?.cancel();
+    _viewResizeDebounce?.cancel();
     if (_preferencesLoaded) {
       final finalPreferences = _preferences.copyWith(lastPage: _currentPage);
       unawaited(
@@ -389,7 +419,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
         },
         onViewSizeChanged: (viewSize, oldViewSize, controller) {
           if (oldViewSize == null || viewSize == oldViewSize) return;
-          Future.delayed(const Duration(milliseconds: 120), () {
+          _viewResizeDebounce?.cancel();
+          _viewResizeDebounce = Timer(const Duration(milliseconds: 120), () {
             if (mounted && _isReady) unawaited(_applyCurrentView());
           });
         },
@@ -566,7 +597,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
         );
         if (next != _currentPage) await _showSpread(next);
       case ScoreLayoutMode.singlePage:
-        if (_preferences.fitMode == ScoreFitMode.fitWidth &&
+        if (_effectiveFitMode == ScoreFitMode.fitWidth &&
             _advanceWithinCurrentPage(forward: true)) {
           return;
         }
@@ -593,7 +624,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
         );
         if (previous != _currentPage) await _showSpread(previous);
       case ScoreLayoutMode.singlePage:
-        if (_preferences.fitMode == ScoreFitMode.fitWidth &&
+        if (_effectiveFitMode == ScoreFitMode.fitWidth &&
             _advanceWithinCurrentPage(forward: false)) {
           return;
         }
@@ -638,7 +669,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
       return;
     }
     final matrix =
-        _preferences.fitMode == ScoreFitMode.fitWidth ||
+        _effectiveFitMode == ScoreFitMode.fitWidth ||
             _effectiveLayoutMode == ScoreLayoutMode.continuous
         ? _pdfController.calcMatrixFitWidthForPage(pageNumber: bounded)
         : _pdfController.calcMatrixForFit(pageNumber: bounded);
@@ -1461,6 +1492,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
   ) {
     final strokes = _strokesByPage[page.pageNumber] ?? const <PdfInkStroke>[];
     return Positioned.fill(
+      key: ValueKey('score_page_overlay_${page.pageNumber}'),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, constraints.maxHeight);

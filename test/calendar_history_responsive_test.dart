@@ -39,4 +39,36 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Practice History'), findsOneWidget);
   });
+
+  testWidgets('history exposes calendar and sessions in phone landscape', (
+    tester,
+  ) async {
+    await initializeDateFormatting('en');
+    tester.view.physicalSize = const Size(667, 375);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<HistoryProvider>(
+            create: (_) => _EmptyHistoryProvider(),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => LocalizationProvider(initialLocale: 'en'),
+          ),
+        ],
+        child: const MaterialApp(home: CalendarHistoryView()),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey('landscape_history_split')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Sessions on'), findsOneWidget);
+  });
 }

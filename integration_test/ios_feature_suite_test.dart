@@ -64,6 +64,20 @@ void main() {
       expect(await storage.isManagedPath(importedPath), isTrue);
       expect(await File(importedPath).exists(), isTrue);
 
+      await DatabaseService().saveScoreViewPreferences(
+        ScoreViewPreferences(
+          pieceId: 'ios_imported_score',
+          sourcePath: importedPath,
+          layoutMode: ScoreLayoutMode.twoPage,
+          fitMode: ScoreFitMode.fitWidth,
+        ),
+      );
+
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final practiceProvider = PracticeProvider();
       addTearDown(practiceProvider.dispose);
       await tester.pumpWidget(
@@ -87,6 +101,32 @@ void main() {
 
       await _pumpUntilEnabled(tester, find.byTooltip('Score display options'));
       expect(find.text('Imported iOS Score'), findsOneWidget);
+
+      final portraitPage = find.byKey(const ValueKey('score_page_overlay_1'));
+      await _pumpUntilFound(tester, portraitPage);
+      var pageRect = tester.getRect(portraitPage);
+      var viewerTop = tester.getBottomLeft(find.byType(AppBar)).dy;
+      var viewerBottom = tester.getTopLeft(find.byType(BottomNavigationBar)).dy;
+      expect(pageRect.left, greaterThanOrEqualTo(0));
+      expect(pageRect.right, lessThanOrEqualTo(390));
+      expect(pageRect.top, greaterThanOrEqualTo(viewerTop));
+      expect(pageRect.bottom, lessThanOrEqualTo(viewerBottom));
+
+      tester.view.physicalSize = const Size(844, 390);
+      await tester.pumpAndSettle(const Duration(milliseconds: 500));
+      expect(find.text('1–2/2'), findsWidgets);
+      expect(tester.takeException(), isNull);
+
+      tester.view.physicalSize = const Size(390, 844);
+      await tester.pumpAndSettle(const Duration(milliseconds: 500));
+      await _pumpUntilFound(tester, portraitPage);
+      pageRect = tester.getRect(portraitPage);
+      viewerTop = tester.getBottomLeft(find.byType(AppBar)).dy;
+      viewerBottom = tester.getTopLeft(find.byType(BottomNavigationBar)).dy;
+      expect(pageRect.right, lessThanOrEqualTo(390));
+      expect(pageRect.top, greaterThanOrEqualTo(viewerTop));
+      expect(pageRect.bottom, lessThanOrEqualTo(viewerBottom));
+      expect(tester.takeException(), isNull);
 
       await tester.tap(find.byTooltip('Score display options'));
       await tester.pumpAndSettle();
@@ -162,6 +202,19 @@ Future<void> _pumpUntilEnabled(
     if (button.onPressed != null) return;
   }
   fail('Timed out waiting for the score-view action to become enabled.');
+}
+
+Future<void> _pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 20),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    await tester.pump(const Duration(milliseconds: 200));
+    if (finder.evaluate().isNotEmpty) return;
+  }
+  fail('Timed out waiting for the expected widget.');
 }
 
 Future<void> _scrollIntoView(WidgetTester tester, Finder finder) async {

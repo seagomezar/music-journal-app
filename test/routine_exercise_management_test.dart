@@ -107,8 +107,9 @@ Future<void> _pumpRoutineScreen(
   _EditableRoutineProvider routineProvider, {
   _MemoryRepertoireProvider? repertoireProvider,
   bool expandRoutine = true,
+  Size viewportSize = const Size(430, 1000),
 }) async {
-  tester.view.physicalSize = const Size(430, 1000);
+  tester.view.physicalSize = viewportSize;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -137,6 +138,29 @@ Future<void> _pumpRoutineScreen(
 }
 
 void main() {
+  testWidgets('new routine dialog remains scrollable in phone landscape', (
+    tester,
+  ) async {
+    final provider = _EditableRoutineProvider(const []);
+    addTearDown(provider.dispose);
+    await _pumpRoutineScreen(
+      tester,
+      provider,
+      expandRoutine: false,
+      viewportSize: const Size(667, 375),
+    );
+
+    await tester.tap(find.byTooltip('Create Custom Routine'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.widget<AlertDialog>(find.byType(AlertDialog)).scrollable,
+      isTrue,
+    );
+    expect(find.text('New Study Routine'), findsOneWidget);
+  });
+
   testWidgets('web routine row exposes and performs its expansion action', (
     tester,
   ) async {

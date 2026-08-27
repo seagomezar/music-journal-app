@@ -40,6 +40,7 @@ class _DashboardViewState extends State<DashboardView> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          scrollable: true,
           title: Text(context.translate('update_goal_title')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
