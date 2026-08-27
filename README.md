@@ -43,8 +43,9 @@ flutter devices
 flutter test integration_test/app_smoke_test.dart -d <device-id>
 ```
 
-Run the platform-sensitive routine, repertoire, score, recording, backup,
-appearance, and score-orientation regressions in both native runners with:
+Run the platform-sensitive routine, repertoire, score, recording, backup, and
+appearance regressions, including the real-PDF score rotation regression, in
+both native runners with:
 
 ```bash
 flutter test integration_test/ios_feature_suite_test.dart -d <ios-simulator-id>
