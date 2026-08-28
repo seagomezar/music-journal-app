@@ -163,6 +163,7 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          scrollable: true,
           title: Text(context.translate('new_routine_title')),
           content: Column(
             mainAxisSize: MainAxisSize.min,

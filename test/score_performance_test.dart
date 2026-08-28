@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flute/models/score_view_preferences.dart';
@@ -26,6 +27,47 @@ class _FailingScreenAwakeController implements ScreenAwakeController {
 }
 
 void main() {
+  test('two-page scores fall back to a whole page in portrait', () {
+    const portrait = Size(390, 844);
+    const landscape = Size(844, 390);
+
+    expect(
+      scoreLayoutForViewport(ScoreLayoutMode.twoPage, portrait),
+      ScoreLayoutMode.singlePage,
+    );
+    expect(
+      scoreFitForViewport(
+        layoutMode: ScoreLayoutMode.twoPage,
+        fitMode: ScoreFitMode.fitWidth,
+        viewportSize: portrait,
+      ),
+      ScoreFitMode.fitPage,
+    );
+    expect(
+      scoreLayoutForViewport(ScoreLayoutMode.twoPage, landscape),
+      ScoreLayoutMode.twoPage,
+    );
+    expect(
+      scoreFitForViewport(
+        layoutMode: ScoreLayoutMode.twoPage,
+        fitMode: ScoreFitMode.fitWidth,
+        viewportSize: landscape,
+      ),
+      ScoreFitMode.fitWidth,
+    );
+  });
+
+  test('explicit single-page fit-width remains available in portrait', () {
+    expect(
+      scoreFitForViewport(
+        layoutMode: ScoreLayoutMode.singlePage,
+        fitMode: ScoreFitMode.fitWidth,
+        viewportSize: const Size(390, 844),
+      ),
+      ScoreFitMode.fitWidth,
+    );
+  });
+
   test('score preferences serialize performance display controls', () {
     final preferences = ScoreViewPreferences(
       pieceId: 'piece_1',

@@ -9,6 +9,10 @@ import 'calendar_history_view.dart';
 import 'active_practice_view.dart';
 import '../theme/app_theme.dart';
 
+@visibleForTesting
+bool useExpandedAppNavigation(Size viewportSize) =>
+    viewportSize.shortestSide >= 600 && viewportSize.width >= 900;
+
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -30,8 +34,9 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final practiceProv = Provider.of<PracticeProvider>(context);
     final localizationProv = context.watch<LocalizationProvider>();
-    final width = MediaQuery.sizeOf(context).width;
-    final useDesktopNavigation = width >= 900;
+    final viewportSize = MediaQuery.sizeOf(context);
+    final width = viewportSize.width;
+    final useDesktopNavigation = useExpandedAppNavigation(viewportSize);
     final extendDesktopNavigation = width >= 1180;
     final content = _buildContent(
       context,

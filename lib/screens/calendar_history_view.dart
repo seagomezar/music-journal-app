@@ -194,6 +194,105 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
     );
   }
 
+  Widget _buildCalendarPanel(
+    BuildContext context,
+    HistoryProvider historyProvider,
+    String localeCode,
+  ) {
+    final viewportSize = MediaQuery.sizeOf(context);
+    final compactLandscape =
+        viewportSize.width > viewportSize.height && viewportSize.height < 600;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: AppTheme.glassCard(
+        padding: const EdgeInsets.all(8),
+        child: TableCalendar(
+          locale: localeCode,
+          firstDay: DateTime.utc(2000, 1, 1),
+          lastDay: DateTime.utc(2100, 12, 31),
+          focusedDay: _focusedDay,
+          calendarFormat: _calendarFormat,
+          rowHeight: compactLandscape
+              ? 24
+              : viewportSize.height <= 700
+              ? 28
+              : 52,
+          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+          onDaySelected: (selectedDay, focusedDay) {
+            setState(() {
+              _selectedDay = selectedDay;
+              _focusedDay = focusedDay;
+            });
+          },
+          onFormatChanged: (format) => setState(() => _calendarFormat = format),
+          onPageChanged: (focusedDay) => _focusedDay = focusedDay,
+          eventLoader: historyProvider.getSessionsForDay,
+          calendarBuilders: CalendarBuilders(
+            markerBuilder: (context, date, events) {
+              if (events.isEmpty) return null;
+              return Positioned(
+                bottom: 4,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: events
+                      .map(
+                        (_) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.accentColor(context),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              );
+            },
+          ),
+          headerStyle: HeaderStyle(
+            formatButtonVisible: true,
+            formatButtonDecoration: BoxDecoration(
+              color: AppTheme.primaryColor(context).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppTheme.primaryColor(context),
+                width: 0.5,
+              ),
+            ),
+            formatButtonTextStyle: TextStyle(
+              color: AppTheme.accentColor(context),
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+            titleCentered: true,
+            titleTextStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          calendarStyle: CalendarStyle(
+            todayDecoration: BoxDecoration(
+              color: AppTheme.primaryColor(context).withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppTheme.primaryColor(context),
+                width: 1,
+              ),
+            ),
+            selectedDecoration: BoxDecoration(
+              color: AppTheme.secondaryColor(context),
+              shape: BoxShape.circle,
+            ),
+            weekendTextStyle: const TextStyle(color: Colors.redAccent),
+            outsideDaysVisible: false,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final historyProv = Provider.of<HistoryProvider>(context);
@@ -219,360 +318,180 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
         label: Text(context.translate('log_past_session')),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Calendar Card
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: AppTheme.glassCard(
-                padding: const EdgeInsets.all(8.0),
-                child: TableCalendar(
-                  locale: localeCode,
-                  firstDay: DateTime.utc(2000, 1, 1),
-                  lastDay: DateTime.utc(2100, 12, 31),
-                  focusedDay: _focusedDay,
-                  calendarFormat: _calendarFormat,
-                  rowHeight: MediaQuery.sizeOf(context).height <= 700 ? 28 : 52,
-                  selectedDayPredicate: (day) {
-                    return isSameDay(_selectedDay, day);
-                  },
-                  onDaySelected: (selectedDay, focusedDay) {
-                    setState(() {
-                      _selectedDay = selectedDay;
-                      _focusedDay = focusedDay;
-                    });
-                  },
-                  onFormatChanged: (format) {
-                    setState(() {
-                      _calendarFormat = format;
-                    });
-                  },
-                  onPageChanged: (focusedDay) {
-                    _focusedDay = focusedDay;
-                  },
-
-                  // Dot Marker builders
-                  eventLoader: (day) {
-                    return historyProv.getSessionsForDay(day);
-                  },
-                  calendarBuilders: CalendarBuilders(
-                    markerBuilder: (context, date, events) {
-                      if (events.isNotEmpty) {
-                        return Positioned(
-                          bottom: 4,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: events.map((event) {
-                              return Container(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 1.5,
-                                ),
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppTheme.accentColor(context),
-                                ),
-                              );
-                            }).toList(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compactLandscape =
+                constraints.maxWidth > constraints.maxHeight &&
+                constraints.maxHeight < 600;
+            final calendar = _buildCalendarPanel(
+              context,
+              historyProv,
+              localeCode,
+            );
+            final sessions = Column(
+              children: [
+                // Sessions Section Title
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.history_edu_rounded,
+                        color: AppTheme.accentColor(context),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          context.translate('sessions_on_date', [
+                            DateFormat(
+                              'MMMM d, yyyy',
+                              localeCode,
+                            ).format(_selectedDay ?? _focusedDay),
+                          ]),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
                           ),
-                        );
-                      }
-                      return null;
-                    },
-                  ),
-
-                  // Calendar Styling
-                  headerStyle: HeaderStyle(
-                    formatButtonVisible: true,
-                    formatButtonDecoration: BoxDecoration(
-                      color: AppTheme.primaryColor(
-                        context,
-                      ).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppTheme.primaryColor(context),
-                        width: 0.5,
-                      ),
-                    ),
-                    formatButtonTextStyle: TextStyle(
-                      color: AppTheme.accentColor(context),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                    titleCentered: true,
-                    titleTextStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  calendarStyle: CalendarStyle(
-                    todayDecoration: BoxDecoration(
-                      color: AppTheme.primaryColor(
-                        context,
-                      ).withValues(alpha: 0.3),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppTheme.primaryColor(context),
-                        width: 1,
-                      ),
-                    ),
-                    selectedDecoration: BoxDecoration(
-                      color: AppTheme.secondaryColor(context),
-                      shape: BoxShape.circle,
-                    ),
-                    weekendTextStyle: const TextStyle(color: Colors.redAccent),
-                    outsideDaysVisible: false,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Sessions Section Title
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.history_edu_rounded,
-                    color: AppTheme.accentColor(context),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      context.translate('sessions_on_date', [
-                        DateFormat(
-                          'MMMM d, yyyy',
-                          localeCode,
-                        ).format(_selectedDay ?? _focusedDay),
-                      ]),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    context.translate('recorded_count_format', [
-                      selectedDaySessions.length.toString(),
-                    ]),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondaryColor(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Intraday Multi-Session List
-            Expanded(
-              child: selectedDaySessions.isEmpty
-                  ? Center(
-                      child: Text(
-                        context.translate('no_sessions_on_day'),
-                        style: TextStyle(
-                          color: AppTheme.textSecondaryColor(
-                            context,
-                          ).withValues(alpha: 0.7),
-                          fontSize: 13,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                      const SizedBox(width: 8),
+                      Text(
+                        context.translate('recorded_count_format', [
+                          selectedDaySessions.length.toString(),
+                        ]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondaryColor(context),
+                        ),
                       ),
-                      itemCount: selectedDaySessions.length,
-                      itemBuilder: (context, index) {
-                        final session = selectedDaySessions[index];
+                    ],
+                  ),
+                ),
 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          color: AppTheme.surfaceColor(context),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Time & Duration Header
-                                Row(
+                const SizedBox(height: 8),
+
+                // Intraday Multi-Session List
+                Expanded(
+                  child: selectedDaySessions.isEmpty
+                      ? Center(
+                          child: Text(
+                            context.translate('no_sessions_on_day'),
+                            style: TextStyle(
+                              color: AppTheme.textSecondaryColor(
+                                context,
+                              ).withValues(alpha: 0.7),
+                              fontSize: 13,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          itemCount: selectedDaySessions.length,
+                          itemBuilder: (context, index) {
+                            final session = selectedDaySessions[index];
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 14),
+                              color: AppTheme.surfaceColor(context),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      Icons.watch_later_outlined,
-                                      size: 16,
-                                      color: AppTheme.textSecondaryColor(
-                                        context,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        '${_formatTimeOfDay(session.localStartTime)} - ${_formatTimeOfDay(session.localEndTime)}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
+                                    // Time & Duration Header
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.watch_later_outlined,
+                                          size: 16,
+                                          color: AppTheme.textSecondaryColor(
+                                            context,
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryColor(
-                                          context,
-                                        ).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        _formatDuration(
-                                          context,
-                                          session.totalDurationInSeconds,
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            '${_formatTimeOfDay(session.localStartTime)} - ${_formatTimeOfDay(session.localEndTime)}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          ),
                                         ),
-                                        style: TextStyle(
-                                          color: AppTheme.accentColor(context),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      tooltip: context.translate(
-                                        'delete_session_title',
-                                      ),
-                                      icon: const Icon(
-                                        Icons.delete_outline_rounded,
-                                      ),
-                                      onPressed: () => _deleteSession(
-                                        context,
-                                        historyProv,
-                                        session,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-
-                                Divider(
-                                  height: 20,
-                                  color: AppTheme.borderColor(context),
-                                ),
-
-                                // Exercises Done
-                                if (session.completedExercises.isNotEmpty ||
-                                    session.exerciseResults.isNotEmpty) ...[
-                                  Text(
-                                    context.translate(
-                                      'technical_exercises_completed_title',
-                                    ),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                      color: AppTheme.accentColor(context),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 6,
-                                    children: [
-                                      ...session.exerciseResults.map((result) {
-                                        return Container(
+                                        Container(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 8,
                                             vertical: 4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.accentColor(
+                                            color: AppTheme.primaryColor(
                                               context,
-                                            ).withValues(alpha: 0.08),
+                                            ).withValues(alpha: 0.15),
                                             borderRadius: BorderRadius.circular(
                                               6,
                                             ),
-                                            border: Border.all(
-                                              color: AppTheme.accentColor(
-                                                context,
-                                              ).withValues(alpha: 0.25),
-                                            ),
                                           ),
                                           child: Text(
-                                            context.translate(
-                                              result.pitchSummary != null &&
-                                                      result
-                                                          .pitchSummary!
-                                                          .hasEnoughData
-                                                  ? 'exercise_result_with_pitch_format'
-                                                  : 'exercise_result_format',
-                                              result.pitchSummary != null &&
-                                                      result
-                                                          .pitchSummary!
-                                                          .hasEnoughData
-                                                  ? [
-                                                      result.exercise.name,
-                                                      _formatDuration(
-                                                        context,
-                                                        result
-                                                            .durationInSeconds,
-                                                      ),
-                                                      result.practicedBpm
-                                                          .toString(),
-                                                      result
-                                                          .pitchSummary!
-                                                          .onPitchPercentage
-                                                          .round()
-                                                          .toString(),
-                                                      _formatDuration(
-                                                        context,
-                                                        result
-                                                                .pitchSummary!
-                                                                .analyzedMilliseconds ~/
-                                                            1000,
-                                                      ),
-                                                      result
-                                                          .pitchSummary!
-                                                          .referenceHz
-                                                          .toString(),
-                                                      result
-                                                          .pitchSummary!
-                                                          .toleranceCents
-                                                          .toString(),
-                                                    ]
-                                                  : [
-                                                      result.exercise.name,
-                                                      _formatDuration(
-                                                        context,
-                                                        result
-                                                            .durationInSeconds,
-                                                      ),
-                                                      result.practicedBpm
-                                                          .toString(),
-                                                    ],
+                                            _formatDuration(
+                                              context,
+                                              session.totalDurationInSeconds,
                                             ),
-                                            style: const TextStyle(
+                                            style: TextStyle(
+                                              color: AppTheme.accentColor(
+                                                context,
+                                              ),
+                                              fontWeight: FontWeight.bold,
                                               fontSize: 11,
                                             ),
                                           ),
-                                        );
-                                      }),
-                                      ...session.completedExercises
-                                          .where(
-                                            (exercise) =>
-                                                !session.exerciseResults.any(
-                                                  (result) =>
-                                                      result.exercise.id ==
-                                                      exercise.id,
-                                                ),
-                                          )
-                                          .map((ex) {
+                                        ),
+                                        IconButton(
+                                          tooltip: context.translate(
+                                            'delete_session_title',
+                                          ),
+                                          icon: const Icon(
+                                            Icons.delete_outline_rounded,
+                                          ),
+                                          onPressed: () => _deleteSession(
+                                            context,
+                                            historyProv,
+                                            session,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    Divider(
+                                      height: 20,
+                                      color: AppTheme.borderColor(context),
+                                    ),
+
+                                    // Exercises Done
+                                    if (session.completedExercises.isNotEmpty ||
+                                        session.exerciseResults.isNotEmpty) ...[
+                                      Text(
+                                        context.translate(
+                                          'technical_exercises_completed_title',
+                                        ),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: AppTheme.accentColor(context),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 6,
+                                        children: [
+                                          ...session.exerciseResults.map((
+                                            result,
+                                          ) {
                                             return Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -580,163 +499,287 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                                     vertical: 4,
                                                   ),
                                               decoration: BoxDecoration(
-                                                color: AppTheme.borderColor(
+                                                color: AppTheme.accentColor(
                                                   context,
-                                                ).withValues(alpha: 0.4),
+                                                ).withValues(alpha: 0.08),
                                                 borderRadius:
                                                     BorderRadius.circular(6),
                                                 border: Border.all(
-                                                  color: AppTheme.borderColor(
+                                                  color: AppTheme.accentColor(
                                                     context,
-                                                  ).withValues(alpha: 0.5),
+                                                  ).withValues(alpha: 0.25),
                                                 ),
                                               ),
                                               child: Text(
-                                                '${ex.name} (${ex.targetBpm} BPM ${ex.articulation})',
-                                                style: TextStyle(fontSize: 11),
+                                                context.translate(
+                                                  result.pitchSummary != null &&
+                                                          result
+                                                              .pitchSummary!
+                                                              .hasEnoughData
+                                                      ? 'exercise_result_with_pitch_format'
+                                                      : 'exercise_result_format',
+                                                  result.pitchSummary != null &&
+                                                          result
+                                                              .pitchSummary!
+                                                              .hasEnoughData
+                                                      ? [
+                                                          result.exercise.name,
+                                                          _formatDuration(
+                                                            context,
+                                                            result
+                                                                .durationInSeconds,
+                                                          ),
+                                                          result.practicedBpm
+                                                              .toString(),
+                                                          result
+                                                              .pitchSummary!
+                                                              .onPitchPercentage
+                                                              .round()
+                                                              .toString(),
+                                                          _formatDuration(
+                                                            context,
+                                                            result
+                                                                    .pitchSummary!
+                                                                    .analyzedMilliseconds ~/
+                                                                1000,
+                                                          ),
+                                                          result
+                                                              .pitchSummary!
+                                                              .referenceHz
+                                                              .toString(),
+                                                          result
+                                                              .pitchSummary!
+                                                              .toleranceCents
+                                                              .toString(),
+                                                        ]
+                                                      : [
+                                                          result.exercise.name,
+                                                          _formatDuration(
+                                                            context,
+                                                            result
+                                                                .durationInSeconds,
+                                                          ),
+                                                          result.practicedBpm
+                                                              .toString(),
+                                                        ],
+                                                ),
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                ),
                                               ),
                                             );
                                           }),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                ],
-
-                                // Pieces Rehearsed
-                                if (session.rehearsedPieces.isNotEmpty) ...[
-                                  Text(
-                                    context.translate(
-                                      'repertoire_rehearsed_title',
-                                    ),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                      color: AppTheme.secondaryColor(context),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Column(
-                                    children: session.rehearsedPieces.map((
-                                      piece,
-                                    ) {
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 2.0,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.music_note_rounded,
-                                              size: 14,
-                                              color:
-                                                  AppTheme.textSecondaryColor(
-                                                    context,
+                                          ...session.completedExercises
+                                              .where(
+                                                (exercise) => !session
+                                                    .exerciseResults
+                                                    .any(
+                                                      (result) =>
+                                                          result.exercise.id ==
+                                                          exercise.id,
+                                                    ),
+                                              )
+                                              .map((ex) {
+                                                return Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppTheme.borderColor(
+                                                      context,
+                                                    ).withValues(alpha: 0.4),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                    border: Border.all(
+                                                      color:
+                                                          AppTheme.borderColor(
+                                                            context,
+                                                          ).withValues(
+                                                            alpha: 0.5,
+                                                          ),
+                                                    ),
                                                   ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                piece.pieceTitle,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                            Text(
-                                              context
-                                                  .translate('spent_duration', [
-                                                    _formatDuration(
-                                                      context,
-                                                      piece.durationInSeconds,
+                                                  child: Text(
+                                                    '${ex.name} (${ex.targetBpm} BPM ${ex.articulation})',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
                                                     ),
-                                                  ]),
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color:
-                                                    AppTheme.textSecondaryColor(
-                                                      context,
-                                                    ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                  const SizedBox(height: 12),
-                                ],
-
-                                // Session Notes
-                                if (session.notes.isNotEmpty) ...[
-                                  Text(
-                                    context.translate(
-                                      'practice_session_notes_title',
-                                    ),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                      color: AppTheme.textPrimaryColor(context),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    session.notes,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.textSecondaryColor(
-                                        context,
+                                                  ),
+                                                );
+                                              }),
+                                        ],
                                       ),
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                ],
+                                      const SizedBox(height: 12),
+                                    ],
 
-                                // Audio Playback
-                                if (session.recordings.isNotEmpty) ...[
-                                  Text(
-                                    context.translate(
-                                      'recorded_self_evaluation_title',
-                                    ),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.accentColor(context),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  RecordingList(
-                                    recordings: session.recordings,
-                                    playingPath: _currentlyPlayingPath,
-                                    isPlaying: _isPlaying,
-                                    compact: true,
-                                    onPlay: (recording) => _handleAudioPlayback(
-                                      recording.storagePath,
-                                    ),
-                                    onRename: (recording) => _renameRecording(
-                                      context,
-                                      historyProv,
-                                      session.id,
-                                      recording,
-                                    ),
-                                    onDelete: (recording) => _deleteRecording(
-                                      context,
-                                      historyProv,
-                                      session.id,
-                                      recording,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-            const SizedBox(height: 72),
-          ],
+                                    // Pieces Rehearsed
+                                    if (session.rehearsedPieces.isNotEmpty) ...[
+                                      Text(
+                                        context.translate(
+                                          'repertoire_rehearsed_title',
+                                        ),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: AppTheme.secondaryColor(
+                                            context,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Column(
+                                        children: session.rehearsedPieces.map((
+                                          piece,
+                                        ) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 2.0,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.music_note_rounded,
+                                                  size: 14,
+                                                  color:
+                                                      AppTheme.textSecondaryColor(
+                                                        context,
+                                                      ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Text(
+                                                    piece.pieceTitle,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  context.translate(
+                                                    'spent_duration',
+                                                    [
+                                                      _formatDuration(
+                                                        context,
+                                                        piece.durationInSeconds,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color:
+                                                        AppTheme.textSecondaryColor(
+                                                          context,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+
+                                    // Session Notes
+                                    if (session.notes.isNotEmpty) ...[
+                                      Text(
+                                        context.translate(
+                                          'practice_session_notes_title',
+                                        ),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: AppTheme.textPrimaryColor(
+                                            context,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        session.notes,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.textSecondaryColor(
+                                            context,
+                                          ),
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+
+                                    // Audio Playback
+                                    if (session.recordings.isNotEmpty) ...[
+                                      Text(
+                                        context.translate(
+                                          'recorded_self_evaluation_title',
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.accentColor(context),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      RecordingList(
+                                        recordings: session.recordings,
+                                        playingPath: _currentlyPlayingPath,
+                                        isPlaying: _isPlaying,
+                                        compact: true,
+                                        onPlay: (recording) =>
+                                            _handleAudioPlayback(
+                                              recording.storagePath,
+                                            ),
+                                        onRename: (recording) =>
+                                            _renameRecording(
+                                              context,
+                                              historyProv,
+                                              session.id,
+                                              recording,
+                                            ),
+                                        onDelete: (recording) =>
+                                            _deleteRecording(
+                                              context,
+                                              historyProv,
+                                              session.id,
+                                              recording,
+                                            ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 72),
+              ],
+            );
+            if (compactLandscape) {
+              return Row(
+                key: const ValueKey('landscape_history_split'),
+                children: [
+                  Expanded(child: calendar),
+                  VerticalDivider(color: AppTheme.borderColor(context)),
+                  Expanded(child: sessions),
+                ],
+              );
+            }
+            return Column(
+              children: [
+                calendar,
+                const SizedBox(height: 16),
+                Expanded(child: sessions),
+              ],
+            );
+          },
         ),
       ),
     );

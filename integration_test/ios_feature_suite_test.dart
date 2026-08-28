@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flute/models/score_view_preferences.dart';
 import 'package:flute/providers/localization_provider.dart';
@@ -8,9 +9,11 @@ import 'package:flute/services/annotated_pdf_export_service.dart';
 import 'package:flute/services/database_service.dart';
 import 'package:flute/services/file_storage_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:pdf_document/pdf_document.dart' as pdf;
+import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 
 import '../test/journal_backup_service_test.dart' as backup_tests;
@@ -21,12 +24,14 @@ import '../test/routine_exercise_management_test.dart' as routine_tests;
 import '../test/score_performance_test.dart' as score_tests;
 import '../test/session_recording_test.dart' as recording_tests;
 
-/// Runs the platform-sensitive feature regressions inside a real iOS runner.
+const _evidenceSurfaceKey = ValueKey('native_score_evidence_surface');
+
+/// Runs the platform-sensitive feature regressions in native mobile runners.
 ///
 /// These tests intentionally reuse the focused widget and service journeys so
 /// taps, typing, drags, persistence, PDF processing, and recording state are
-/// exercised with iOS framework/plugin initialization instead of only the host
-/// test VM.
+/// exercised with iOS or Android framework/plugin initialization instead of
+/// only the host test VM.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -64,22 +69,45 @@ void main() {
       expect(await storage.isManagedPath(importedPath), isTrue);
       expect(await File(importedPath).exists(), isTrue);
 
+      await DatabaseService().saveScoreViewPreferences(
+        ScoreViewPreferences(
+          pieceId: 'ios_imported_score',
+          sourcePath: importedPath,
+          layoutMode: ScoreLayoutMode.twoPage,
+          fitMode: ScoreFitMode.fitWidth,
+        ),
+      );
+
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = FakeViewPadding.zero;
+      tester.view.viewPadding = FakeViewPadding.zero;
+      tester.view.viewInsets = FakeViewPadding.zero;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewPadding);
+      addTearDown(tester.view.resetViewInsets);
+
       final practiceProvider = PracticeProvider();
       addTearDown(practiceProvider.dispose);
       await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider.value(value: practiceProvider),
-            ChangeNotifierProvider(
-              create: (_) => LocalizationProvider(initialLocale: 'en'),
-            ),
-          ],
-          child: MaterialApp(
-            home: ScoreViewerScreen(
-              pieceId: 'ios_imported_score',
-              pdfPath: importedPath,
-              pieceTitle: 'Imported iOS Score',
-              pieceBpm: 84,
+        RepaintBoundary(
+          key: _evidenceSurfaceKey,
+          child: MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: practiceProvider),
+              ChangeNotifierProvider(
+                create: (_) => LocalizationProvider(initialLocale: 'en'),
+              ),
+            ],
+            child: MaterialApp(
+              home: ScoreViewerScreen(
+                pieceId: 'ios_imported_score',
+                pdfPath: importedPath,
+                pieceTitle: 'Imported iOS Score',
+                pieceBpm: 84,
+              ),
             ),
           ),
         ),
@@ -87,6 +115,63 @@ void main() {
 
       await _pumpUntilEnabled(tester, find.byTooltip('Score display options'));
       expect(find.text('Imported iOS Score'), findsOneWidget);
+
+      final portraitPage = find.byKey(const ValueKey('score_page_overlay_1'));
+      await _pumpUntilFound(tester, portraitPage);
+      var pageRect = tester.getRect(portraitPage);
+      var viewerTop = tester.getBottomLeft(find.byType(AppBar)).dy;
+      var viewerBottom = tester.getTopLeft(find.byType(BottomNavigationBar)).dy;
+      expect(pageRect.left, greaterThanOrEqualTo(0));
+      expect(pageRect.right, lessThanOrEqualTo(390));
+      expect(pageRect.top, greaterThanOrEqualTo(viewerTop));
+      expect(pageRect.bottom, lessThanOrEqualTo(viewerBottom));
+      await _writeEvidenceScreenshot(tester, 'ios-score-portrait');
+
+      tester.view.physicalSize = const Size(844, 390);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+      expect(find.text('1–2/2'), findsWidgets);
+      final landscapeFirstPage = find.byKey(
+        const ValueKey('score_page_overlay_1'),
+      );
+      final landscapeSecondPage = find.byKey(
+        const ValueKey('score_page_overlay_2'),
+      );
+      await _pumpUntilFound(tester, landscapeFirstPage);
+      await _pumpUntilFound(tester, landscapeSecondPage);
+      final firstPageRect = tester.getRect(landscapeFirstPage);
+      final secondPageRect = tester.getRect(landscapeSecondPage);
+      final viewerSize = tester.getSize(find.byType(PdfViewer));
+      viewerTop = tester.getBottomLeft(find.byType(AppBar)).dy;
+      viewerBottom = tester.getTopLeft(find.byType(BottomNavigationBar)).dy;
+      expect(firstPageRect.left, greaterThanOrEqualTo(0));
+      expect(secondPageRect.right, lessThanOrEqualTo(844));
+      expect(
+        secondPageRect.left,
+        greaterThan(firstPageRect.left),
+        reason:
+            'Expected a facing spread in $viewerSize, got $firstPageRect and '
+            '$secondPageRect',
+      );
+      expect(firstPageRect.top, greaterThanOrEqualTo(viewerTop));
+      expect(firstPageRect.bottom, lessThanOrEqualTo(viewerBottom));
+      expect(secondPageRect.bottom, lessThanOrEqualTo(viewerBottom));
+      expect(tester.takeException(), isNull);
+      await _writeEvidenceScreenshot(tester, 'ios-score-landscape');
+
+      tester.view.physicalSize = const Size(390, 844);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+      await _pumpUntilFound(tester, portraitPage);
+      pageRect = tester.getRect(portraitPage);
+      viewerTop = tester.getBottomLeft(find.byType(AppBar)).dy;
+      viewerBottom = tester.getTopLeft(find.byType(BottomNavigationBar)).dy;
+      expect(pageRect.right, lessThanOrEqualTo(390));
+      expect(pageRect.top, greaterThanOrEqualTo(viewerTop));
+      expect(pageRect.bottom, lessThanOrEqualTo(viewerBottom));
+      expect(tester.takeException(), isNull);
 
       await tester.tap(find.byTooltip('Score display options'));
       await tester.pumpAndSettle();
@@ -144,6 +229,19 @@ void main() {
   );
 }
 
+Future<void> _writeEvidenceScreenshot(WidgetTester tester, String name) async {
+  const evidenceDirectory = String.fromEnvironment('FLUTE_EVIDENCE_DIR');
+  if (evidenceDirectory.isEmpty) return;
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byKey(_evidenceSurfaceKey),
+  );
+  final image = await boundary.toImage(pixelRatio: 2);
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  await File(
+    '$evidenceDirectory/$name.png',
+  ).writeAsBytes(bytes!.buffer.asUint8List(), flush: true);
+}
+
 Future<void> _pumpUntilEnabled(
   WidgetTester tester,
   Finder finder, {
@@ -162,6 +260,19 @@ Future<void> _pumpUntilEnabled(
     if (button.onPressed != null) return;
   }
   fail('Timed out waiting for the score-view action to become enabled.');
+}
+
+Future<void> _pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 20),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    await tester.pump(const Duration(milliseconds: 200));
+    if (finder.evaluate().isNotEmpty) return;
+  }
+  fail('Timed out waiting for the expected widget.');
 }
 
 Future<void> _scrollIntoView(WidgetTester tester, Finder finder) async {

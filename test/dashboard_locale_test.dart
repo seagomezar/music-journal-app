@@ -150,6 +150,74 @@ void main() {
     await DatabaseService().setPreferredLocale('en');
   });
 
+  test('expanded navigation requires a tablet-sized shortest side', () {
+    expect(useExpandedAppNavigation(const Size(932, 430)), isFalse);
+    expect(useExpandedAppNavigation(const Size(1024, 768)), isTrue);
+    expect(useExpandedAppNavigation(const Size(768, 1024)), isFalse);
+  });
+
+  testWidgets(
+    'phone landscape keeps compact navigation and scrollable dialog',
+    (tester) async {
+      tester.view.physicalSize = const Size(844, 390);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final loc = LocalizationProvider(initialLocale: 'en');
+      await tester.pumpWidget(_wrapShell(loc));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BottomNavigationBar), findsOneWidget);
+      expect(find.byType(NavigationRail), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      final editGoal = find.byTooltip('Update Weekly Practice Goal');
+      await tester.ensureVisible(editGoal);
+      await tester.tap(editGoal);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<AlertDialog>(find.byType(AlertDialog)).scrollable,
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      for (final destination in ['Routines', 'Repertoire', 'History']) {
+        await tester.tap(find.text(destination).last);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: destination);
+      }
+      expect(
+        find.byKey(const ValueKey('landscape_history_split')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('tablet landscape uses expanded navigation', (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final loc = LocalizationProvider(initialLocale: 'en');
+    await tester.pumpWidget(_wrapShell(loc));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(BottomNavigationBar), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    for (final destination in ['Routines', 'Repertoire', 'History']) {
+      await tester.tap(find.text(destination).last);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: destination);
+    }
+  });
+
   testWidgets(
     'switching language rebuilds bottom nav and dashboard instantly and persists',
     (tester) async {
