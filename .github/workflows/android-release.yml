@@ -68,7 +68,7 @@ jobs:
   ios-preview:
     name: iOS no-codesign archive check
     needs: quality
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
