@@ -77,13 +77,18 @@ jobs:
           cache: true
       - run: flutter pub get --enforce-lockfile
       - name: Resolve iOS packages without the shared repository cache
-        run: >-
-          xcodebuild -resolvePackageDependencies
-          -workspace ios/Runner.xcworkspace
-          -scheme Runner
-          -clonedSourcePackagesDirPath "$PWD/build/ios/SourcePackages"
-          -disablePackageRepositoryCache
-      - run: flutter build ios --release --no-codesign
+        run: |
+          export PATH="/usr/bin:$PATH"
+          xcodebuild -resolvePackageDependencies \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -clonedSourcePackagesDirPath "$PWD/build/ios/SourcePackages" \
+            -disablePackageRepositoryCache \
+            -scmProvider system
+      - name: Build no-codesign iOS archive
+        run: |
+          export PATH="/usr/bin:$PATH"
+          flutter build ios --release --no-codesign
 
   web-preview:
     name: WASM web build
