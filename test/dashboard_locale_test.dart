@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'package:flute/models/repertoire_folder.dart';
 import 'package:flute/models/user_profile.dart';
 import 'package:flute/models/exercise.dart';
 import 'package:flute/models/routine.dart';
@@ -104,10 +105,27 @@ class FakeRoutineProvider extends RoutineProvider {
   ];
 }
 
+class FakeRepertoireProvider extends RepertoireProvider {
+  static const resizeFolder = RepertoireFolder(
+    id: 'resize-folder',
+    name: 'Resize State Folder',
+  );
+
+  @override
+  List<RepertoireFolder> get folders => const [resizeFolder];
+
+  @override
+  bool get isLoading => false;
+
+  @override
+  Future<void> loadPieces() async {}
+}
+
 Widget _wrapShell(
   LocalizationProvider loc, {
   ThemeData? theme,
   TextScaler? textScaler,
+  RepertoireProvider? repertoireProvider,
 }) {
   return MultiProvider(
     providers: [
@@ -119,7 +137,7 @@ Widget _wrapShell(
         create: (_) => FakeRoutineProvider(),
       ),
       ChangeNotifierProvider<RepertoireProvider>(
-        create: (_) => RepertoireProvider(),
+        create: (_) => repertoireProvider ?? RepertoireProvider(),
       ),
       ChangeNotifierProvider<PracticeProvider>(
         create: (_) => PracticeProvider(),
@@ -283,32 +301,38 @@ void main() {
     }
   });
 
-  testWidgets(
-    'iPad portrait uses a rail and preserves selection while resizing',
-    (tester) async {
-      tester.view.physicalSize = const Size(744, 1133);
-      tester.view.devicePixelRatio = 1;
-      tester.view.display.size = const Size(744, 1133);
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(tester.view.display.resetSize);
+  testWidgets('iPad preserves nested repertoire state while resizing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(744, 1133);
+    tester.view.devicePixelRatio = 1;
+    tester.view.display.size = const Size(744, 1133);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.display.resetSize);
 
-      final loc = LocalizationProvider(initialLocale: 'en');
-      await tester.pumpWidget(_wrapShell(loc));
-      await tester.pumpAndSettle();
+    final loc = LocalizationProvider(initialLocale: 'en');
+    await tester.pumpWidget(
+      _wrapShell(loc, repertoireProvider: FakeRepertoireProvider()),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.byType(NavigationRail), findsOneWidget);
-      await tester.tap(find.text('Repertoire').last);
-      await tester.pumpAndSettle();
-      expect(find.text('Repertoire Manager'), findsOneWidget);
+    expect(find.byType(NavigationRail), findsOneWidget);
+    await tester.tap(find.text('Repertoire').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Repertoire Manager'), findsOneWidget);
 
-      tester.view.physicalSize = const Size(390, 1024);
-      await tester.pumpAndSettle();
-      expect(find.byType(BottomNavigationBar), findsOneWidget);
-      expect(find.text('Repertoire Manager'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    await tester.tap(find.text('Resize State Folder'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Back to repertoire'), findsOneWidget);
+
+    tester.view.physicalSize = const Size(390, 1024);
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomNavigationBar), findsOneWidget);
+    expect(find.text('Resize State Folder'), findsOneWidget);
+    expect(find.byTooltip('Back to repertoire'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('iPad portrait remains usable with 200 percent text', (
     tester,

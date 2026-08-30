@@ -54,10 +54,10 @@ class _MainShellState extends State<MainShell> {
           : kBottomNavigationBarHeight + 20,
     );
 
-    if (useTabletNavigation) {
-      return Scaffold(
-        body: Row(
-          children: [
+    return Scaffold(
+      body: Row(
+        children: [
+          if (useTabletNavigation) ...[
             NavigationRail(
               extended: extendTabletNavigation,
               minExtendedWidth: 220,
@@ -102,62 +102,64 @@ class _MainShellState extends State<MainShell> {
               ],
             ),
             VerticalDivider(width: 1, color: AppTheme.borderColor(context)),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final contentWidth = constraints.maxWidth > 1120
-                      ? 1120.0
-                      : constraints.maxWidth;
-                  return Center(
-                    child: SizedBox(
-                      width: contentWidth,
-                      height: constraints.maxHeight,
-                      child: content,
-                    ),
-                  );
-                },
+          ],
+          Expanded(
+            key: const ValueKey('main_shell_content'),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final contentWidth = constraints.maxWidth > 1120
+                    ? 1120.0
+                    : constraints.maxWidth;
+                return Center(
+                  child: SizedBox(
+                    width: contentWidth,
+                    height: constraints.maxHeight,
+                    child: content,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: useTabletNavigation
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: AppTheme.borderColor(context),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: _selectDestination,
+                items: [
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.dashboard_outlined),
+                    activeIcon: const Icon(Icons.dashboard_rounded),
+                    label: localizationProv.translate('dashboard_nav'),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.playlist_add_check_circle_outlined),
+                    activeIcon: const Icon(Icons.playlist_add_check_circle),
+                    label: localizationProv.translate('routines'),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.library_music_outlined),
+                    activeIcon: const Icon(Icons.library_music),
+                    label: localizationProv.translate('repertoire'),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    activeIcon: const Icon(Icons.calendar_month),
+                    label: localizationProv.translate('history'),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      );
-    }
-
-    return Scaffold(
-      body: content,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: AppTheme.borderColor(context), width: 1),
-          ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _selectDestination,
-          items: [
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.dashboard_outlined),
-              activeIcon: const Icon(Icons.dashboard_rounded),
-              label: localizationProv.translate('dashboard_nav'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.playlist_add_check_circle_outlined),
-              activeIcon: const Icon(Icons.playlist_add_check_circle),
-              label: localizationProv.translate('routines'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.library_music_outlined),
-              activeIcon: const Icon(Icons.library_music),
-              label: localizationProv.translate('repertoire'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.calendar_month_outlined),
-              activeIcon: const Icon(Icons.calendar_month),
-              label: localizationProv.translate('history'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
