@@ -11,8 +11,12 @@ import '../theme/app_theme.dart';
 import '../widgets/adaptive_layout.dart';
 
 @visibleForTesting
-AppWindowSizeClass appNavigationSizeClass(Size viewportSize) =>
-    windowSizeClassForWidth(viewportSize.width);
+AppWindowSizeClass appNavigationSizeClass(
+  Size viewportSize, {
+  required bool tabletDisplay,
+}) => tabletDisplay
+    ? windowSizeClassForWidth(viewportSize.width)
+    : AppWindowSizeClass.compact;
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -36,7 +40,10 @@ class _MainShellState extends State<MainShell> {
     final practiceProv = Provider.of<PracticeProvider>(context);
     final localizationProv = context.watch<LocalizationProvider>();
     final viewportSize = MediaQuery.sizeOf(context);
-    final sizeClass = appNavigationSizeClass(viewportSize);
+    final sizeClass = appNavigationSizeClass(
+      viewportSize,
+      tabletDisplay: isTabletDisplay(context),
+    );
     final useTabletNavigation = sizeClass.usesNavigationRail;
     final extendTabletNavigation = sizeClass.usesExtendedNavigationRail;
     final content = _buildContent(

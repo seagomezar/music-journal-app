@@ -161,39 +161,48 @@ void main() {
     await DatabaseService().setPreferredLocale('en');
   });
 
-  test('navigation follows available window width classes', () {
-    expect(
-      appNavigationSizeClass(const Size(599, 1024)),
-      AppWindowSizeClass.compact,
-    );
-    expect(
-      appNavigationSizeClass(const Size(600, 1024)),
-      AppWindowSizeClass.medium,
-    );
-    expect(
-      appNavigationSizeClass(const Size(840, 1024)),
-      AppWindowSizeClass.expanded,
-    );
-    expect(
-      appNavigationSizeClass(const Size(1180, 820)),
-      AppWindowSizeClass.extended,
-    );
-  });
+  test(
+    'navigation follows tablet window width and stays compact on phones',
+    () {
+      expect(
+        appNavigationSizeClass(const Size(844, 390), tabletDisplay: false),
+        AppWindowSizeClass.compact,
+      );
+      expect(
+        appNavigationSizeClass(const Size(599, 1024), tabletDisplay: true),
+        AppWindowSizeClass.compact,
+      );
+      expect(
+        appNavigationSizeClass(const Size(600, 1024), tabletDisplay: true),
+        AppWindowSizeClass.medium,
+      );
+      expect(
+        appNavigationSizeClass(const Size(840, 1024), tabletDisplay: true),
+        AppWindowSizeClass.expanded,
+      );
+      expect(
+        appNavigationSizeClass(const Size(1180, 820), tabletDisplay: true),
+        AppWindowSizeClass.extended,
+      );
+    },
+  );
 
   testWidgets(
-    'wide landscape uses adaptive navigation and a scrollable dialog',
+    'iPhone landscape keeps bottom navigation and a scrollable dialog',
     (tester) async {
       tester.view.physicalSize = const Size(844, 390);
       tester.view.devicePixelRatio = 1;
+      tester.view.display.size = const Size(844, 390);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.display.resetSize);
 
       final loc = LocalizationProvider(initialLocale: 'en');
       await tester.pumpWidget(_wrapShell(loc));
       await tester.pumpAndSettle();
 
-      expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.byType(BottomNavigationBar), findsNothing);
+      expect(find.byType(NavigationRail), findsNothing);
+      expect(find.byType(BottomNavigationBar), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       final editGoal = find.byTooltip('Update Weekly Practice Goal');
@@ -224,8 +233,10 @@ void main() {
   testWidgets('tablet landscape uses expanded navigation', (tester) async {
     tester.view.physicalSize = const Size(1024, 768);
     tester.view.devicePixelRatio = 1;
+    tester.view.display.size = const Size(1024, 768);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.display.resetSize);
 
     final loc = LocalizationProvider(initialLocale: 'en');
     await tester.pumpWidget(_wrapShell(loc));
@@ -248,6 +259,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.display.resetSize);
 
     const viewports = <Size>[
       Size(744, 1133),
@@ -260,6 +272,7 @@ void main() {
 
     for (final viewport in viewports) {
       tester.view.physicalSize = viewport;
+      tester.view.display.size = viewport;
       await tester.pumpWidget(
         _wrapShell(LocalizationProvider(initialLocale: 'en')),
       );
@@ -275,8 +288,10 @@ void main() {
     (tester) async {
       tester.view.physicalSize = const Size(744, 1133);
       tester.view.devicePixelRatio = 1;
+      tester.view.display.size = const Size(744, 1133);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.display.resetSize);
 
       final loc = LocalizationProvider(initialLocale: 'en');
       await tester.pumpWidget(_wrapShell(loc));
@@ -300,8 +315,10 @@ void main() {
   ) async {
     tester.view.physicalSize = const Size(820, 1180);
     tester.view.devicePixelRatio = 1;
+    tester.view.display.size = const Size(820, 1180);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.display.resetSize);
 
     await tester.pumpWidget(
       _wrapShell(
@@ -321,8 +338,10 @@ void main() {
     (tester) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3.0;
+      tester.view.display.size = const Size(1170, 2532);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.display.resetSize);
 
       final loc = LocalizationProvider(initialLocale: 'en');
       await tester.pumpWidget(_wrapShell(loc));
