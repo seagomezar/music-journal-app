@@ -76,6 +76,13 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get --enforce-lockfile
+      - name: Resolve iOS packages without the shared repository cache
+        run: >-
+          xcodebuild -resolvePackageDependencies
+          -workspace ios/Runner.xcworkspace
+          -scheme Runner
+          -clonedSourcePackagesDirPath "$PWD/build/ios/SourcePackages"
+          -disablePackageRepositoryCache
       - run: flutter build ios --release --no-codesign
 
   web-preview:
