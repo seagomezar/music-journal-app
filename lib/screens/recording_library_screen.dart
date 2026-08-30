@@ -11,6 +11,7 @@ import '../services/audio_service.dart';
 import '../services/local_file_availability.dart';
 import '../theme/app_theme.dart';
 import '../widgets/recording_list.dart';
+import '../widgets/adaptive_layout.dart';
 
 class RecordingLibraryScreen extends StatefulWidget {
   const RecordingLibraryScreen({super.key});
@@ -115,61 +116,66 @@ class _RecordingLibraryScreenState extends State<RecordingLibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(context.translate('recording_library'))),
-      body: provider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : sessions.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  context.translate('recording_library_empty'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppTheme.textSecondaryColor(context)),
-                ),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-              itemCount: sessions.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 14),
-              itemBuilder: (context, index) {
-                final session = sessions[index];
-                return AppTheme.glassCard(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        _sessionTitle(context, session),
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        context.translateRecordingCount(
-                          session.recordings.length,
-                        ),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      RecordingList(
-                        recordings: session.recordings,
-                        playingPath: _playingPath,
-                        isPlaying: _isPlaying,
-                        compact: true,
-                        onPlay: _play,
-                        onRename: (recording) =>
-                            _rename(provider, session, recording),
-                        onDelete: (recording) =>
-                            _delete(provider, session, recording),
-                      ),
-                    ],
+      body: AdaptiveContent(
+        maxWidth: 900,
+        child: provider.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : sessions.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Text(
+                    context.translate('recording_library_empty'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppTheme.textSecondaryColor(context),
+                    ),
                   ),
-                );
-              },
-            ),
+                ),
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                itemCount: sessions.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 14),
+                itemBuilder: (context, index) {
+                  final session = sessions[index];
+                  return AppTheme.glassCard(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          _sessionTitle(context, session),
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          context.translateRecordingCount(
+                            session.recordings.length,
+                          ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondaryColor(context),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        RecordingList(
+                          recordings: session.recordings,
+                          playingPath: _playingPath,
+                          isPlaying: _isPlaying,
+                          compact: true,
+                          onPlay: _play,
+                          onRename: (recording) =>
+                              _rename(provider, session, recording),
+                          onDelete: (recording) =>
+                              _delete(provider, session, recording),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+      ),
     );
   }
 

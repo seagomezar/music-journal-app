@@ -9,6 +9,7 @@ import '../providers/history_provider.dart';
 import '../providers/localization_provider.dart';
 import '../providers/routine_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/adaptive_layout.dart';
 
 class ManualSessionScreen extends StatefulWidget {
   const ManualSessionScreen({super.key, required this.initialDate});
@@ -160,151 +161,166 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
       appBar: AppBar(title: Text(context.translate('log_past_session'))),
       bottomNavigationBar: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-          child: FilledButton.icon(
-            onPressed: _isSaving ? null : _save,
-            icon: _isSaving
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save_rounded),
-            label: Text(context.translate('save_manual_session')),
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: FilledButton.icon(
+                onPressed: _isSaving ? null : _save,
+                icon: _isSaving
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_rounded),
+                label: Text(context.translate('save_manual_session')),
+              ),
+            ),
           ),
         ),
       ),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Text(
-                context.translate('manual_session_description'),
-                style: TextStyle(color: AppTheme.textSecondaryColor(context)),
-              ),
-              const SizedBox(height: 20),
-              AppTheme.glassCard(
-                child: Column(
-                  children: [
-                    Material(
-                      type: MaterialType.transparency,
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.calendar_month_rounded),
-                        title: Text(context.translate('session_date')),
-                        subtitle: Text(
-                          DateFormat.yMMMMd(localeCode).format(_selectedDate),
+        child: AdaptiveContent(
+          maxWidth: 760,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Text(
+                  context.translate('manual_session_description'),
+                  style: TextStyle(color: AppTheme.textSecondaryColor(context)),
+                ),
+                const SizedBox(height: 20),
+                AppTheme.glassCard(
+                  child: Column(
+                    children: [
+                      Material(
+                        type: MaterialType.transparency,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.calendar_month_rounded),
+                          title: Text(context.translate('session_date')),
+                          subtitle: Text(
+                            DateFormat.yMMMMd(localeCode).format(_selectedDate),
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: _isSaving ? null : _selectDate,
                         ),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: _isSaving ? null : _selectDate,
                       ),
-                    ),
-                    Divider(color: AppTheme.borderColor(context)),
-                    Material(
-                      type: MaterialType.transparency,
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.schedule_rounded),
-                        title: Text(context.translate('session_start_time')),
-                        subtitle: Text(_startTime.format(context)),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: _isSaving ? null : _selectTime,
+                      Divider(color: AppTheme.borderColor(context)),
+                      Material(
+                        type: MaterialType.transparency,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.schedule_rounded),
+                          title: Text(context.translate('session_start_time')),
+                          subtitle: Text(_startTime.format(context)),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: _isSaving ? null : _selectTime,
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+                if (_timeError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _timeError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
                     ),
-                  ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _durationController,
+                  enabled: !_isSaving,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: context.translate('duration_minutes'),
+                    prefixIcon: const Icon(Icons.timer_outlined),
+                    suffixText: context.translate('minutes_short'),
+                  ),
+                  validator: (value) {
+                    final duration = int.tryParse(value?.trim() ?? '');
+                    if (duration == null || duration < 1 || duration > 1440) {
+                      return context.translate('invalid_manual_duration');
+                    }
+                    return null;
+                  },
+                  onChanged: (_) {
+                    if (_timeError != null) setState(() => _timeError = null);
+                  },
                 ),
-              ),
-              if (_timeError != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _timeError!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _notesController,
+                  enabled: !_isSaving,
+                  maxLines: 4,
+                  maxLength: 5000,
+                  decoration: InputDecoration(
+                    labelText: context.translate('practice_notes'),
+                    alignLabelWithHint: true,
+                    prefixIcon: const Icon(Icons.notes_rounded),
+                  ),
                 ),
-              ],
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _durationController,
-                enabled: !_isSaving,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: context.translate('duration_minutes'),
-                  prefixIcon: const Icon(Icons.timer_outlined),
-                  suffixText: context.translate('minutes_short'),
-                ),
-                validator: (value) {
-                  final duration = int.tryParse(value?.trim() ?? '');
-                  if (duration == null || duration < 1 || duration > 1440) {
-                    return context.translate('invalid_manual_duration');
-                  }
-                  return null;
-                },
-                onChanged: (_) {
-                  if (_timeError != null) setState(() => _timeError = null);
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _notesController,
-                enabled: !_isSaving,
-                maxLines: 4,
-                maxLength: 5000,
-                decoration: InputDecoration(
-                  labelText: context.translate('practice_notes'),
-                  alignLabelWithHint: true,
-                  prefixIcon: const Icon(Icons.notes_rounded),
-                ),
-              ),
-              if (routines.any((routine) => routine.exercises.isNotEmpty)) ...[
-                const SizedBox(height: 8),
-                Text(
-                  context.translate('completed_exercises_optional'),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                ...routines
-                    .where((routine) => routine.exercises.isNotEmpty)
-                    .map(
-                      (routine) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: AppTheme.glassCard(
-                          padding: EdgeInsets.zero,
-                          child: Material(
-                            type: MaterialType.transparency,
-                            child: ExpansionTile(
-                              internalAddSemanticForOnTap: true,
-                              title: Text(routine.title),
-                              children: routine.exercises.map((exercise) {
-                                final key = _exerciseKey(
-                                  routine.id,
-                                  exercise.id,
-                                );
-                                return CheckboxListTile(
-                                  value: _selectedExerciseKeys.contains(key),
-                                  title: Text(exercise.name),
-                                  subtitle: Text('${exercise.targetBpm} BPM'),
-                                  onChanged: _isSaving
-                                      ? null
-                                      : (selected) {
-                                          setState(() {
-                                            if (selected == true) {
-                                              _selectedExerciseKeys.add(key);
-                                            } else {
-                                              _selectedExerciseKeys.remove(key);
-                                            }
-                                          });
-                                        },
-                                );
-                              }).toList(),
+                if (routines.any(
+                  (routine) => routine.exercises.isNotEmpty,
+                )) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    context.translate('completed_exercises_optional'),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  ...routines
+                      .where((routine) => routine.exercises.isNotEmpty)
+                      .map(
+                        (routine) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: AppTheme.glassCard(
+                            padding: EdgeInsets.zero,
+                            child: Material(
+                              type: MaterialType.transparency,
+                              child: ExpansionTile(
+                                internalAddSemanticForOnTap: true,
+                                title: Text(routine.title),
+                                children: routine.exercises.map((exercise) {
+                                  final key = _exerciseKey(
+                                    routine.id,
+                                    exercise.id,
+                                  );
+                                  return CheckboxListTile(
+                                    value: _selectedExerciseKeys.contains(key),
+                                    title: Text(exercise.name),
+                                    subtitle: Text('${exercise.targetBpm} BPM'),
+                                    onChanged: _isSaving
+                                        ? null
+                                        : (selected) {
+                                            setState(() {
+                                              if (selected == true) {
+                                                _selectedExerciseKeys.add(key);
+                                              } else {
+                                                _selectedExerciseKeys.remove(
+                                                  key,
+                                                );
+                                              }
+                                            });
+                                          },
+                                  );
+                                }).toList(),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
+                ],
+                const SizedBox(height: 12),
               ],
-              const SizedBox(height: 12),
-            ],
+            ),
           ),
         ),
       ),

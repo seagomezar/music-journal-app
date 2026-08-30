@@ -13,6 +13,7 @@ import '../services/local_file_availability.dart';
 import '../theme/app_theme.dart';
 import 'manual_session_screen.dart';
 import '../widgets/recording_list.dart';
+import '../widgets/adaptive_layout.dart';
 
 class CalendarHistoryView extends StatefulWidget {
   const CalendarHistoryView({super.key});
@@ -323,6 +324,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
             final compactLandscape =
                 constraints.maxWidth > constraints.maxHeight &&
                 constraints.maxHeight < 600;
+            final sizeClass = windowSizeClassForWidth(constraints.maxWidth);
             final calendar = _buildCalendarPanel(
               context,
               historyProv,
@@ -762,7 +764,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                 const SizedBox(height: 72),
               ],
             );
-            if (compactLandscape) {
+            if (compactLandscape || sizeClass.supportsTwoPaneContent) {
               return Row(
                 key: const ValueKey('landscape_history_split'),
                 children: [

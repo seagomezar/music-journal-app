@@ -8,10 +8,11 @@ import 'repertoire_view.dart';
 import 'calendar_history_view.dart';
 import 'active_practice_view.dart';
 import '../theme/app_theme.dart';
+import '../widgets/adaptive_layout.dart';
 
 @visibleForTesting
-bool useExpandedAppNavigation(Size viewportSize) =>
-    viewportSize.shortestSide >= 600 && viewportSize.width >= 900;
+AppWindowSizeClass appNavigationSizeClass(Size viewportSize) =>
+    windowSizeClassForWidth(viewportSize.width);
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -35,27 +36,27 @@ class _MainShellState extends State<MainShell> {
     final practiceProv = Provider.of<PracticeProvider>(context);
     final localizationProv = context.watch<LocalizationProvider>();
     final viewportSize = MediaQuery.sizeOf(context);
-    final width = viewportSize.width;
-    final useDesktopNavigation = useExpandedAppNavigation(viewportSize);
-    final extendDesktopNavigation = width >= 1180;
+    final sizeClass = appNavigationSizeClass(viewportSize);
+    final useTabletNavigation = sizeClass.usesNavigationRail;
+    final extendTabletNavigation = sizeClass.usesExtendedNavigationRail;
     final content = _buildContent(
       context,
       practiceProv,
-      activeSessionBottom: useDesktopNavigation
+      activeSessionBottom: useTabletNavigation
           ? 20
           : kBottomNavigationBarHeight + 20,
     );
 
-    if (useDesktopNavigation) {
+    if (useTabletNavigation) {
       return Scaffold(
         body: Row(
           children: [
             NavigationRail(
-              extended: extendDesktopNavigation,
+              extended: extendTabletNavigation,
               minExtendedWidth: 220,
               backgroundColor: AppTheme.surfaceColor(context),
               selectedIndex: _currentIndex,
-              labelType: extendDesktopNavigation
+              labelType: extendTabletNavigation
                   ? NavigationRailLabelType.none
                   : NavigationRailLabelType.all,
               leading: Padding(
@@ -97,8 +98,8 @@ class _MainShellState extends State<MainShell> {
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final contentWidth = constraints.maxWidth > 1100
-                      ? 1100.0
+                  final contentWidth = constraints.maxWidth > 1120
+                      ? 1120.0
                       : constraints.maxWidth;
                   return Center(
                     child: SizedBox(
