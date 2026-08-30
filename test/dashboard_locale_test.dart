@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'package:flute/models/repertoire_folder.dart';
 import 'package:flute/models/user_profile.dart';
 import 'package:flute/models/exercise.dart';
 import 'package:flute/models/routine.dart';
@@ -19,6 +20,7 @@ import 'package:flute/providers/routine_provider.dart';
 import 'package:flute/screens/main_shell.dart';
 import 'package:flute/services/database_service.dart';
 import 'package:flute/theme/app_theme.dart';
+import 'package:flute/widgets/adaptive_layout.dart';
 
 /// Loads the real Roboto + Material Icons fonts (bundled with the Flutter SDK)
 /// so the widget lays out with production text metrics instead of the wide
@@ -103,7 +105,28 @@ class FakeRoutineProvider extends RoutineProvider {
   ];
 }
 
-Widget _wrapShell(LocalizationProvider loc, {ThemeData? theme}) {
+class FakeRepertoireProvider extends RepertoireProvider {
+  static const resizeFolder = RepertoireFolder(
+    id: 'resize-folder',
+    name: 'Resize State Folder',
+  );
+
+  @override
+  List<RepertoireFolder> get folders => const [resizeFolder];
+
+  @override
+  bool get isLoading => false;
+
+  @override
+  Future<void> loadPieces() async {}
+}
+
+Widget _wrapShell(
+  LocalizationProvider loc, {
+  ThemeData? theme,
+  TextScaler? textScaler,
+  RepertoireProvider? repertoireProvider,
+}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<AuthProvider>(create: (_) => FakeAuthProvider()),
@@ -114,7 +137,7 @@ Widget _wrapShell(LocalizationProvider loc, {ThemeData? theme}) {
         create: (_) => FakeRoutineProvider(),
       ),
       ChangeNotifierProvider<RepertoireProvider>(
-        create: (_) => RepertoireProvider(),
+        create: (_) => repertoireProvider ?? RepertoireProvider(),
       ),
       ChangeNotifierProvider<PracticeProvider>(
         create: (_) => PracticeProvider(),
@@ -123,6 +146,12 @@ Widget _wrapShell(LocalizationProvider loc, {ThemeData? theme}) {
     ],
     child: MaterialApp(
       theme: theme ?? ThemeData.light(),
+      builder: textScaler == null
+          ? null
+          : (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+              child: child!,
+            ),
       home: const MainShell(),
     ),
   );
@@ -150,26 +179,48 @@ void main() {
     await DatabaseService().setPreferredLocale('en');
   });
 
-  test('expanded navigation requires a tablet-sized shortest side', () {
-    expect(useExpandedAppNavigation(const Size(932, 430)), isFalse);
-    expect(useExpandedAppNavigation(const Size(1024, 768)), isTrue);
-    expect(useExpandedAppNavigation(const Size(768, 1024)), isFalse);
-  });
+  test(
+    'navigation follows tablet window width and stays compact on phones',
+    () {
+      expect(
+        appNavigationSizeClass(const Size(844, 390), tabletDisplay: false),
+        AppWindowSizeClass.compact,
+      );
+      expect(
+        appNavigationSizeClass(const Size(599, 1024), tabletDisplay: true),
+        AppWindowSizeClass.compact,
+      );
+      expect(
+        appNavigationSizeClass(const Size(600, 1024), tabletDisplay: true),
+        AppWindowSizeClass.medium,
+      );
+      expect(
+        appNavigationSizeClass(const Size(840, 1024), tabletDisplay: true),
+        AppWindowSizeClass.expanded,
+      );
+      expect(
+        appNavigationSizeClass(const Size(1180, 820), tabletDisplay: true),
+        AppWindowSizeClass.extended,
+      );
+    },
+  );
 
   testWidgets(
-    'phone landscape keeps compact navigation and scrollable dialog',
+    'iPhone landscape keeps bottom navigation and a scrollable dialog',
     (tester) async {
       tester.view.physicalSize = const Size(844, 390);
       tester.view.devicePixelRatio = 1;
+      tester.view.display.size = const Size(844, 390);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.display.resetSize);
 
       final loc = LocalizationProvider(initialLocale: 'en');
       await tester.pumpWidget(_wrapShell(loc));
       await tester.pumpAndSettle();
 
-      expect(find.byType(BottomNavigationBar), findsOneWidget);
       expect(find.byType(NavigationRail), findsNothing);
+      expect(find.byType(BottomNavigationBar), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       final editGoal = find.byTooltip('Update Weekly Practice Goal');
@@ -200,8 +251,10 @@ void main() {
   testWidgets('tablet landscape uses expanded navigation', (tester) async {
     tester.view.physicalSize = const Size(1024, 768);
     tester.view.devicePixelRatio = 1;
+    tester.view.display.size = const Size(1024, 768);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.display.resetSize);
 
     final loc = LocalizationProvider(initialLocale: 'en');
     await tester.pumpWidget(_wrapShell(loc));
@@ -218,13 +271,101 @@ void main() {
     }
   });
 
+  testWidgets('recent iPad screen families render in both orientations', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.display.resetSize);
+
+    const viewports = <Size>[
+      Size(744, 1133),
+      Size(1133, 744),
+      Size(820, 1180),
+      Size(1180, 820),
+      Size(1032, 1376),
+      Size(1376, 1032),
+    ];
+
+    for (final viewport in viewports) {
+      tester.view.physicalSize = viewport;
+      tester.view.display.size = viewport;
+      await tester.pumpWidget(
+        _wrapShell(LocalizationProvider(initialLocale: 'en')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NavigationRail), findsOneWidget, reason: '$viewport');
+      expect(tester.takeException(), isNull, reason: '$viewport');
+    }
+  });
+
+  testWidgets('iPad preserves nested repertoire state while resizing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(744, 1133);
+    tester.view.devicePixelRatio = 1;
+    tester.view.display.size = const Size(744, 1133);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.display.resetSize);
+
+    final loc = LocalizationProvider(initialLocale: 'en');
+    await tester.pumpWidget(
+      _wrapShell(loc, repertoireProvider: FakeRepertoireProvider()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    await tester.tap(find.text('Repertoire').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Repertoire Manager'), findsOneWidget);
+
+    await tester.tap(find.text('Resize State Folder'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Back to repertoire'), findsOneWidget);
+
+    tester.view.physicalSize = const Size(390, 1024);
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomNavigationBar), findsOneWidget);
+    expect(find.text('Resize State Folder'), findsOneWidget);
+    expect(find.byTooltip('Back to repertoire'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('iPad portrait remains usable with 200 percent text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(820, 1180);
+    tester.view.devicePixelRatio = 1;
+    tester.view.display.size = const Size(820, 1180);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.display.resetSize);
+
+    await tester.pumpWidget(
+      _wrapShell(
+        LocalizationProvider(initialLocale: 'en'),
+        textScaler: const TextScaler.linear(2),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.text('Welcome back,'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'switching language rebuilds bottom nav and dashboard instantly and persists',
     (tester) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3.0;
+      tester.view.display.size = const Size(1170, 2532);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.display.resetSize);
 
       final loc = LocalizationProvider(initialLocale: 'en');
       await tester.pumpWidget(_wrapShell(loc));

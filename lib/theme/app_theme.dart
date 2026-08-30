@@ -187,6 +187,10 @@ class AppTheme {
         selectedLabelStyle: TextStyle(fontWeight: FontWeight.bold),
         type: BottomNavigationBarType.fixed,
       ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        showDragHandle: true,
+        constraints: BoxConstraints(maxWidth: 640),
+      ),
     );
   }
 

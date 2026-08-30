@@ -27,6 +27,23 @@ class _FailingScreenAwakeController implements ScreenAwakeController {
 }
 
 void main() {
+  test('iPad multitasking keeps score orientation automatic', () {
+    expect(
+      supportsScoreOrientationPreference(
+        platform: TargetPlatform.iOS,
+        isTablet: true,
+      ),
+      isFalse,
+    );
+    expect(
+      supportsScoreOrientationPreference(
+        platform: TargetPlatform.iOS,
+        isTablet: false,
+      ),
+      isTrue,
+    );
+  });
+
   test('two-page scores fall back to a whole page in portrait', () {
     const portrait = Size(390, 844);
     const landscape = Size(844, 390);

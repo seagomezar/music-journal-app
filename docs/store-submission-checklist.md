@@ -8,14 +8,14 @@
 - [x] Android API 36 unsigned release AAB and APK build successfully
 - [ ] Android release app bundle succeeds with permanent upload-key signing
 - [ ] iOS release archive succeeds with the distribution team and a matching installed iOS/Xcode platform
-- [ ] Test the exact signed builds on physical Android and iPhone devices
+- [ ] Test the exact signed builds on physical Android, iPhone, and iPad devices
 - [x] Inspect the unsigned Android merged manifest (optional microphone permission plus wake-lock and foreground-service/media-playback permissions for the background metronome)
 - [ ] Inspect the signed iOS archive privacy report
 
 ## Product checks
 
 - [x] Recording and tuner capture remain active through supported screen-lock/background states and stop after close, finish, discard, or erase (automated lifecycle tests)
-- [ ] Verify screen-lock/background capture on physical Android and iPhone builds, plus hidden-tab suspension behavior in a browser
+- [ ] Verify screen-lock/background capture on physical Android, iPhone, and iPad builds, plus hidden-tab suspension behavior in a browser
 - [ ] Verify recording cleanup after forced process termination on physical devices
 - [x] Permission denial is recoverable and microphone-independent features remain usable
 - [x] Session-save failures do not exit or discard the active session
@@ -23,7 +23,8 @@
 - [x] Deleting a session removes its managed recordings (automated test and Android smoke test)
 - [ ] Deleting a repertoire piece removes its managed PDF on a physical device
 - [x] Erase all data removes the profile, database content, and app-managed files (Android smoke test)
-- [ ] English and Spanish, large text, VoiceOver/TalkBack, and small-screen layouts pass
+- [ ] English and Spanish, 200% text, VoiceOver/TalkBack, compact iPad windows, and iPad mini, 11-inch, and 13-inch full-screen portrait/landscape layouts pass
+- [ ] Verify iPad rotation, Split View, Stage Manager resizing, pointer input, software keyboard, and automatic score orientation in performance mode
 
 ## External setup
 
@@ -44,6 +45,7 @@
 - [x] Google Play 1024 x 500 feature graphic created
 - [x] Capture at least four current 1080 x 1920 Android screenshots from the final build
 - [ ] Capture 6.9-inch iPhone screenshots from the final iOS build at an accepted size (1260 x 2736, 1290 x 2796, or 1320 x 2868 portrait)
+- [ ] Capture localized 13-inch iPad screenshots from the final iOS build at 2064 x 2752 portrait or 2752 x 2064 landscape
 - [ ] Localize promotional text embedded in any screenshots
 - [ ] Add screenshot alt text in Play Console
 

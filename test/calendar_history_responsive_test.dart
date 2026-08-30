@@ -71,4 +71,35 @@ void main() {
     );
     expect(find.textContaining('Sessions on'), findsOneWidget);
   });
+
+  testWidgets('history uses two panes in an expanded iPad window', (
+    tester,
+  ) async {
+    await initializeDateFormatting('en');
+    tester.view.physicalSize = const Size(840, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<HistoryProvider>(
+            create: (_) => _EmptyHistoryProvider(),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => LocalizationProvider(initialLocale: 'en'),
+          ),
+        ],
+        child: const MaterialApp(home: CalendarHistoryView()),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('landscape_history_split')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

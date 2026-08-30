@@ -68,7 +68,7 @@ jobs:
   ios-preview:
     name: iOS no-codesign archive check
     needs: quality
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -76,7 +76,19 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - run: flutter build ios --release --no-codesign
+      - name: Resolve iOS packages without the shared repository cache
+        run: |
+          export PATH="/usr/bin:$PATH"
+          xcodebuild -resolvePackageDependencies \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -clonedSourcePackagesDirPath "$PWD/build/ios/SourcePackages" \
+            -disablePackageRepositoryCache \
+            -scmProvider system
+      - name: Build no-codesign iOS archive
+        run: |
+          export PATH="/usr/bin:$PATH"
+          flutter build ios --release --no-codesign
 
   web-preview:
     name: WASM web build

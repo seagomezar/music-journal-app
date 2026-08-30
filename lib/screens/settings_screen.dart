@@ -15,6 +15,7 @@ import '../models/practice_appearance_preferences.dart';
 import '../services/database_service.dart';
 import '../services/journal_backup_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/adaptive_layout.dart';
 import 'recording_library_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -264,284 +265,297 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.translate('settings'))),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            AppTheme.glassCard(
-              child: Material(
-                type: MaterialType.transparency,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: AppTheme.primaryColor(context),
-                    child: Icon(
-                      Icons.person_rounded,
-                      color: Theme.of(context).colorScheme.onPrimary,
+        child: AdaptiveContent(
+          maxWidth: 760,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              AppTheme.glassCard(
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primaryColor(context),
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
                     ),
+                    title: Text(
+                      user?.name ?? context.translate('local_profile'),
+                    ),
+                    subtitle: Text(context.translate('local_only_data')),
                   ),
-                  title: Text(user?.name ?? context.translate('local_profile')),
-                  subtitle: Text(context.translate('local_only_data')),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.library_music_outlined),
-              title: Text(context.translate('recording_library')),
-              subtitle: Text(context.translate('recording_library_subtitle')),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const RecordingLibraryScreen(),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.library_music_outlined),
+                title: Text(context.translate('recording_library')),
+                subtitle: Text(context.translate('recording_library_subtitle')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const RecordingLibraryScreen(),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text(
-                context.translate('practice_preferences'),
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppTheme.accentColor(context),
-                  fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                child: Text(
+                  context.translate('practice_preferences'),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppTheme.accentColor(context),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            SwitchListTile(
-              secondary: const Icon(Icons.light_mode_outlined),
-              title: Text(context.translate('keep_screen_awake')),
-              subtitle: Text(context.translate('keep_screen_awake_subtitle')),
-              value: practiceProvider.keepScreenAwake,
-              onChanged: (enabled) async {
-                try {
-                  await practiceProvider.setKeepScreenAwake(enabled);
-                } catch (error) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.translate('preference_save_error'),
+              SwitchListTile(
+                secondary: const Icon(Icons.light_mode_outlined),
+                title: Text(context.translate('keep_screen_awake')),
+                subtitle: Text(context.translate('keep_screen_awake_subtitle')),
+                value: practiceProvider.keepScreenAwake,
+                onChanged: (enabled) async {
+                  try {
+                    await practiceProvider.setKeepScreenAwake(enabled);
+                  } catch (error) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            context.translate('preference_save_error'),
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              AppTheme.glassCard(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.translate('appearance_feedback'),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      context.translate('appearance_feedback_subtitle'),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<PracticeVisualMode>(
+                      initialValue: practiceProvider.visualMode,
+                      decoration: InputDecoration(
+                        labelText: context.translate('practice_visual_mode'),
+                        helperText: context.translate(
+                          'practice_visual_mode_subtitle',
                         ),
                       ),
-                    );
-                  }
-                }
-              },
-            ),
-            const SizedBox(height: 8),
-            AppTheme.glassCard(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.translate('appearance_feedback'),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    context.translate('appearance_feedback_subtitle'),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<PracticeVisualMode>(
-                    initialValue: practiceProvider.visualMode,
-                    decoration: InputDecoration(
-                      labelText: context.translate('practice_visual_mode'),
-                      helperText: context.translate(
-                        'practice_visual_mode_subtitle',
-                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: PracticeVisualMode.focused,
+                          child: Text(context.translate('focused_mode')),
+                        ),
+                        DropdownMenuItem(
+                          value: PracticeVisualMode.full,
+                          child: Text(context.translate('full_mode')),
+                        ),
+                      ],
+                      onChanged: (mode) {
+                        if (mode != null) {
+                          _savePracticePreference(
+                            () => practiceProvider.setVisualMode(mode),
+                          );
+                        }
+                      },
                     ),
-                    items: [
-                      DropdownMenuItem(
-                        value: PracticeVisualMode.focused,
-                        child: Text(context.translate('focused_mode')),
-                      ),
-                      DropdownMenuItem(
-                        value: PracticeVisualMode.full,
-                        child: Text(context.translate('full_mode')),
-                      ),
-                    ],
-                    onChanged: (mode) {
-                      if (mode != null) {
-                        _savePracticePreference(
-                          () => practiceProvider.setVisualMode(mode),
-                        );
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    context.translate('theme_mode'),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children:
-                        [
-                              (
-                                ThemeMode.system,
-                                Icons.brightness_auto_outlined,
-                                context.translate('theme_system'),
-                              ),
-                              (
-                                ThemeMode.light,
-                                Icons.light_mode_outlined,
-                                context.translate('theme_light'),
-                              ),
-                              (
-                                ThemeMode.dark,
-                                Icons.dark_mode_outlined,
-                                context.translate('theme_dark'),
-                              ),
-                            ]
-                            .map((option) {
-                              final (mode, icon, label) = option;
-                              return ChoiceChip(
-                                key: ValueKey('theme_${mode.name}'),
-                                avatar: Icon(icon, size: 18),
-                                label: Text(label),
-                                selected: practiceProvider.themeMode == mode,
-                                onSelected: (_) => _savePracticePreference(
-                                  () => practiceProvider.setThemeMode(mode),
+                    const SizedBox(height: 10),
+                    Text(
+                      context.translate('theme_mode'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children:
+                          [
+                                (
+                                  ThemeMode.system,
+                                  Icons.brightness_auto_outlined,
+                                  context.translate('theme_system'),
                                 ),
-                              );
-                            })
-                            .toList(growable: false),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: const Icon(Icons.vibration_outlined),
-                    title: Text(context.translate('haptics')),
-                    subtitle: Text(context.translate('haptics_subtitle')),
-                    value: practiceProvider.hapticsEnabled,
-                    onChanged: (value) => _savePracticePreference(
-                      () => practiceProvider.setHapticsEnabled(value),
+                                (
+                                  ThemeMode.light,
+                                  Icons.light_mode_outlined,
+                                  context.translate('theme_light'),
+                                ),
+                                (
+                                  ThemeMode.dark,
+                                  Icons.dark_mode_outlined,
+                                  context.translate('theme_dark'),
+                                ),
+                              ]
+                              .map((option) {
+                                final (mode, icon, label) = option;
+                                return ChoiceChip(
+                                  key: ValueKey('theme_${mode.name}'),
+                                  avatar: Icon(icon, size: 18),
+                                  label: Text(label),
+                                  selected: practiceProvider.themeMode == mode,
+                                  onSelected: (_) => _savePracticePreference(
+                                    () => practiceProvider.setThemeMode(mode),
+                                  ),
+                                );
+                              })
+                              .toList(growable: false),
                     ),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: const Icon(Icons.notifications_none_rounded),
-                    title: Text(context.translate('sound_cues')),
-                    subtitle: Text(context.translate('sound_cues_subtitle')),
-                    value: practiceProvider.soundCuesEnabled,
-                    onChanged: (value) => _savePracticePreference(
-                      () => practiceProvider.setSoundCuesEnabled(value),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.vibration_outlined),
+                      title: Text(context.translate('haptics')),
+                      subtitle: Text(context.translate('haptics_subtitle')),
+                      value: practiceProvider.hapticsEnabled,
+                      onChanged: (value) => _savePracticePreference(
+                        () => practiceProvider.setHapticsEnabled(value),
+                      ),
                     ),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: const Icon(Icons.motion_photos_off_outlined),
-                    title: Text(context.translate('reduced_motion')),
-                    subtitle: Text(
-                      context.translate('reduced_motion_subtitle'),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.notifications_none_rounded),
+                      title: Text(context.translate('sound_cues')),
+                      subtitle: Text(context.translate('sound_cues_subtitle')),
+                      value: practiceProvider.soundCuesEnabled,
+                      onChanged: (value) => _savePracticePreference(
+                        () => practiceProvider.setSoundCuesEnabled(value),
+                      ),
                     ),
-                    value: practiceProvider.reducedMotion,
-                    onChanged: (value) => _savePracticePreference(
-                      () => practiceProvider.setReducedMotion(value),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.motion_photos_off_outlined),
+                      title: Text(context.translate('reduced_motion')),
+                      subtitle: Text(
+                        context.translate('reduced_motion_subtitle'),
+                      ),
+                      value: practiceProvider.reducedMotion,
+                      onChanged: (value) => _savePracticePreference(
+                        () => practiceProvider.setReducedMotion(value),
+                      ),
                     ),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: const Icon(Icons.celebration_outlined),
-                    title: Text(context.translate('show_celebrations')),
-                    subtitle: Text(
-                      context.translate('show_celebrations_subtitle'),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.celebration_outlined),
+                      title: Text(context.translate('show_celebrations')),
+                      subtitle: Text(
+                        context.translate('show_celebrations_subtitle'),
+                      ),
+                      value: practiceProvider.showCelebrations,
+                      onChanged: (value) => _savePracticePreference(
+                        () => practiceProvider.setShowCelebrations(value),
+                      ),
                     ),
-                    value: practiceProvider.showCelebrations,
-                    onChanged: (value) => _savePracticePreference(
-                      () => practiceProvider.setShowCelebrations(value),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 32),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text(
-                context.translate('data_portability'),
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppTheme.accentColor(context),
-                  fontWeight: FontWeight.bold,
+                  ],
                 ),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.download_rounded),
-              title: Text(context.translate('export_journal')),
-              subtitle: Text(context.translate('export_journal_subtitle')),
-              trailing: _isTransferring
-                  ? const SizedBox.square(
-                      dimension: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.chevron_right_rounded),
-              onTap: _isTransferring ? null : _exportJournal,
-            ),
-            ListTile(
-              leading: const Icon(Icons.upload_file_rounded),
-              title: Text(context.translate('import_journal')),
-              subtitle: Text(context.translate('import_journal_subtitle')),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: _isTransferring ? null : _importJournal,
-            ),
-            const Divider(height: 32),
-            ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: Text(context.translate('privacy_policy')),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.gavel_outlined),
-              title: Text(context.translate('terms_and_conditions')),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const TermsAndConditionsScreen(),
+              const Divider(height: 32),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                child: Text(
+                  context.translate('data_portability'),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppTheme.accentColor(context),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.support_agent_rounded),
-              title: Text(context.translate('support')),
-              subtitle: const Text(
-                'github.com/seagomezar/music-journal-app/issues',
+              ListTile(
+                leading: const Icon(Icons.download_rounded),
+                title: Text(context.translate('export_journal')),
+                subtitle: Text(context.translate('export_journal_subtitle')),
+                trailing: _isTransferring
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.chevron_right_rounded),
+                onTap: _isTransferring ? null : _exportJournal,
               ),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SupportScreen())),
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline_rounded),
-              title: Text(context.translate('about')),
-              subtitle: const Text('Flute Practice Coach 1.0.0'),
-              onTap: () => showLicensePage(
-                context: context,
-                applicationName: 'Flute Practice Coach',
-                applicationVersion: '1.0.0',
+              ListTile(
+                leading: const Icon(Icons.upload_file_rounded),
+                title: Text(context.translate('import_journal')),
+                subtitle: Text(context.translate('import_journal_subtitle')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: _isTransferring ? null : _importJournal,
               ),
-            ),
-            const Divider(height: 32),
-            ListTile(
-              leading: Icon(
-                Icons.delete_forever_rounded,
-                color: Theme.of(context).colorScheme.error,
+              const Divider(height: 32),
+              ListTile(
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: Text(context.translate('privacy_policy')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PrivacyPolicyScreen(),
+                  ),
+                ),
               ),
-              title: Text(
-                context.translate('erase_all_data'),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ListTile(
+                leading: const Icon(Icons.gavel_outlined),
+                title: Text(context.translate('terms_and_conditions')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const TermsAndConditionsScreen(),
+                  ),
+                ),
               ),
-              subtitle: Text(context.translate('erase_all_data_subtitle')),
-              onTap: () => _eraseAllData(context),
-            ),
-          ],
+              ListTile(
+                leading: const Icon(Icons.support_agent_rounded),
+                title: Text(context.translate('support')),
+                subtitle: const Text(
+                  'github.com/seagomezar/music-journal-app/issues',
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SupportScreen()),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.info_outline_rounded),
+                title: Text(context.translate('about')),
+                subtitle: const Text('Flute Practice Coach 1.0.0'),
+                onTap: () => showLicensePage(
+                  context: context,
+                  applicationName: 'Flute Practice Coach',
+                  applicationVersion: '1.0.0',
+                ),
+              ),
+              const Divider(height: 32),
+              ListTile(
+                leading: Icon(
+                  Icons.delete_forever_rounded,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  context.translate('erase_all_data'),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                subtitle: Text(context.translate('erase_all_data_subtitle')),
+                onTap: () => _eraseAllData(context),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -599,24 +613,27 @@ class _DocumentScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: SafeArea(
-        child: ListView.separated(
-          padding: const EdgeInsets.all(20),
-          itemCount: sections.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 20),
-          itemBuilder: (context, index) {
-            final section = sections[index];
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  section.$1,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 6),
-                SelectableText(section.$2),
-              ],
-            );
-          },
+        child: AdaptiveContent(
+          maxWidth: 760,
+          child: ListView.separated(
+            padding: const EdgeInsets.all(20),
+            itemCount: sections.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 20),
+            itemBuilder: (context, index) {
+              final section = sections[index];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    section.$1,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(section.$2),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

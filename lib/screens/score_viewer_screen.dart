@@ -21,6 +21,7 @@ import '../services/performance_display_service.dart';
 import '../services/score_view_preferences_service.dart';
 import '../services/screen_awake_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/adaptive_layout.dart';
 
 @visibleForTesting
 int scoreSpreadStart(int page, {required bool firstPageOnRight}) {
@@ -28,6 +29,12 @@ int scoreSpreadStart(int page, {required bool firstPageOnRight}) {
   if (firstPageOnRight) return page.isEven ? page : page - 1;
   return page.isOdd ? page : page - 1;
 }
+
+@visibleForTesting
+bool supportsScoreOrientationPreference({
+  required TargetPlatform platform,
+  required bool isTablet,
+}) => platform != TargetPlatform.iOS || !isTablet;
 
 @visibleForTesting
 int nextScoreSpread(int page, int pageCount, {required bool firstPageOnRight}) {
@@ -182,6 +189,16 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
       _activeNavIndex == 1 &&
       (_effectiveLayoutMode == ScoreLayoutMode.continuous ||
           _effectiveFitMode == ScoreFitMode.fitWidth);
+
+  bool get _supportsOrientationPreference => supportsScoreOrientationPreference(
+    platform: Theme.of(context).platform,
+    isTablet: isTabletDisplay(context),
+  );
+
+  ScoreOrientationMode get _effectiveOrientationMode =>
+      _supportsOrientationPreference
+      ? _preferences.orientationMode
+      : ScoreOrientationMode.auto;
 
   @override
   void initState() {
@@ -851,7 +868,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
   Future<void> _applyDisplayState() async {
     try {
       await Future.wait([
-        _displayController.applyOrientation(_preferences.orientationMode),
+        _displayController.applyOrientation(_effectiveOrientationMode),
         _displayController.applyBrightness(_brightness),
         if (_isPerformanceMode) _displayController.enterFullscreen(),
         if (_isPerformanceMode)
@@ -1120,36 +1137,38 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
                       ),
                     ),
                   const SizedBox(height: 14),
-                  Text(sheetContext.translate('orientation')),
-                  SegmentedButton<ScoreOrientationMode>(
-                    segments: [
-                      ButtonSegment(
-                        value: ScoreOrientationMode.auto,
-                        label: Text(sheetContext.translate('automatic')),
-                      ),
-                      ButtonSegment(
-                        value: ScoreOrientationMode.portrait,
-                        label: Text(sheetContext.translate('portrait')),
-                      ),
-                      ButtonSegment(
-                        value: ScoreOrientationMode.landscape,
-                        label: Text(sheetContext.translate('landscape')),
-                      ),
-                    ],
-                    selected: {_preferences.orientationMode},
-                    onSelectionChanged: (selection) {
-                      update(
-                        _preferences.copyWith(
-                          orientationMode: selection.single,
+                  if (_supportsOrientationPreference) ...[
+                    Text(sheetContext.translate('orientation')),
+                    SegmentedButton<ScoreOrientationMode>(
+                      segments: [
+                        ButtonSegment(
+                          value: ScoreOrientationMode.auto,
+                          label: Text(sheetContext.translate('automatic')),
                         ),
-                        reapplyView: false,
-                      );
-                      unawaited(
-                        _displayController.applyOrientation(selection.single),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 14),
+                        ButtonSegment(
+                          value: ScoreOrientationMode.portrait,
+                          label: Text(sheetContext.translate('portrait')),
+                        ),
+                        ButtonSegment(
+                          value: ScoreOrientationMode.landscape,
+                          label: Text(sheetContext.translate('landscape')),
+                        ),
+                      ],
+                      selected: {_preferences.orientationMode},
+                      onSelectionChanged: (selection) {
+                        update(
+                          _preferences.copyWith(
+                            orientationMode: selection.single,
+                          ),
+                          reapplyView: false,
+                        );
+                        unawaited(
+                          _displayController.applyOrientation(selection.single),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                   Text(sheetContext.translate('score_colors')),
                   SegmentedButton<ScoreColorMode>(
                     segments: [
