@@ -18,7 +18,7 @@
 - Privacy Policy URL after GitHub Pages deployment: `https://seagomezar.github.io/music-journal-app/privacy-policy.html`
 - Support URL after GitHub Pages deployment: `https://seagomezar.github.io/music-journal-app/support.html`
 - Terms URL: `https://seagomezar.github.io/music-journal-app/terms-and-conditions.html`
-- Compatibility: iPhone and iPad running iOS 13.0 or later
+- Compatibility: iPhone and iPad running iOS 15.0 or later
 
 ## Google Play
 

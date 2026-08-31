@@ -28,6 +28,10 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Use the tuner, measure exercise intonation, and record short practice excerpts for self-review.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select sheet music PDF files and practice attachments from your photo library.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Scan sheet music scores or capture practice notes using the camera.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIApplicationSceneManifest</key>
