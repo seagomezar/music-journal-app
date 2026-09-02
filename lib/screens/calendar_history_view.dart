@@ -253,6 +253,9 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
             },
           ),
           headerStyle: HeaderStyle(
+            headerPadding: compactLandscape
+                ? const EdgeInsets.symmetric(vertical: 4.0)
+                : const EdgeInsets.symmetric(vertical: 16.0),
             formatButtonVisible: true,
             formatButtonDecoration: BoxDecoration(
               color: AppTheme.primaryColor(context).withValues(alpha: 0.15),
@@ -761,14 +764,14 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                           },
                         ),
                 ),
-                const SizedBox(height: 72),
+                SizedBox(height: compactLandscape ? 16 : 72),
               ],
             );
             if (compactLandscape || sizeClass.supportsTwoPaneContent) {
               return Row(
                 key: const ValueKey('landscape_history_split'),
                 children: [
-                  Expanded(child: calendar),
+                  Expanded(child: SingleChildScrollView(child: calendar)),
                   VerticalDivider(color: AppTheme.borderColor(context)),
                   Expanded(child: sessions),
                 ],

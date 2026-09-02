@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: "17"
@@ -79,12 +79,25 @@ jobs:
       - name: Resolve iOS packages without the shared repository cache
         run: |
           export PATH="/usr/bin:$PATH"
-          xcodebuild -resolvePackageDependencies \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -clonedSourcePackagesDirPath "$PWD/build/ios/SourcePackages" \
-            -disablePackageRepositoryCache \
-            -scmProvider system
+          for i in 1 2 3; do
+            echo "Resolving iOS package dependencies (attempt $i)..."
+            if xcodebuild -resolvePackageDependencies \
+              -workspace ios/Runner.xcworkspace \
+              -scheme Runner \
+              -clonedSourcePackagesDirPath "$PWD/build/ios/SourcePackages" \
+              -disablePackageRepositoryCache \
+              -scmProvider system; then
+              break
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "Attempt $i failed, cleaning and retrying in 5 seconds..."
+              rm -rf "$PWD/build/ios/SourcePackages"
+              sleep 5
+            else
+              echo "Failed to resolve iOS packages after 3 attempts."
+              exit 1
+            fi
+          done
       - name: Build no-codesign iOS archive
         run: |
           export PATH="/usr/bin:$PATH"
@@ -110,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: "17"
