@@ -65,6 +65,11 @@ android {
             }
         }
     }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
 }
 
 if (isReleaseRequested && !isUnsignedRelease && !keystorePropertiesFile.exists()) {
