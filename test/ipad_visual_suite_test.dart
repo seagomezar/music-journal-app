@@ -46,8 +46,11 @@ Future<void> _capture(WidgetTester tester, String filename) async {
     );
     final image = await boundary.toImage(pixelRatio: 1.5);
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    final file = File('$_outputDir/$filename.png');
-    await file.writeAsBytes(bytes!.buffer.asUint8List(), flush: true);
+    if (bytes == null) return;
+    final dir = Directory(_outputDir);
+    final targetDir = dir.existsSync() ? dir : Directory.systemTemp;
+    final file = File('${targetDir.path}/$filename.png');
+    await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
   });
 }
 
