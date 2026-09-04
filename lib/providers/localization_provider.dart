@@ -129,6 +129,21 @@ class LocalizationProvider with ChangeNotifier {
         'The microphone is unavailable. Stop the recorder and check microphone permission.',
     'tuner_headphones_hint':
         'Headphones improve accuracy while the metronome is sounding.',
+    'dynamic_meter': 'Dynamic & Volume Meter',
+    'dynamic_meter_subtitle':
+        'Real-time sound pressure and estimated flute dynamics.',
+    'decibels': 'dB SPL',
+    'dynamic_ambient': 'Ambient / Rest',
+    'dynamic_ppp': 'Pianississimo (ppp)',
+    'dynamic_pp': 'Pianissimo (pp)',
+    'dynamic_p': 'Piano (p)',
+    'dynamic_mp': 'Mezzo-piano (mp)',
+    'dynamic_mf': 'Mezzo-forte (mf)',
+    'dynamic_f': 'Forte (f)',
+    'dynamic_ff': 'Fortissimo (ff)',
+    'dynamic_fff': 'Fortississimo (fff)',
+    'dynamic_calibration': 'Sensitivity offset',
+    'dynamic_peak': 'Peak',
     'self_recorder': 'Self-Evaluation Recorder',
     'self_recorder_subtitle':
         'Record a passage, play it back, and listen to your tone and articulation.',
@@ -564,6 +579,21 @@ class LocalizationProvider with ChangeNotifier {
         'El micrófono no está disponible. Detén la grabadora y revisa el permiso del micrófono.',
     'tuner_headphones_hint':
         'Los audífonos mejoran la precisión mientras suena el metrónomo.',
+    'dynamic_meter': 'Medidor de Dinámica y Volumen',
+    'dynamic_meter_subtitle':
+        'Nivel de decibeles y dinámica musical estimada para flauta.',
+    'decibels': 'dB SPL',
+    'dynamic_ambient': 'Ambiente / Pausa',
+    'dynamic_ppp': 'Pianississimo (ppp)',
+    'dynamic_pp': 'Pianissimo (pp)',
+    'dynamic_p': 'Piano (p)',
+    'dynamic_mp': 'Mezzo-piano (mp)',
+    'dynamic_mf': 'Mezzo-forte (mf)',
+    'dynamic_f': 'Forte (f)',
+    'dynamic_ff': 'Fortissimo (ff)',
+    'dynamic_fff': 'Fortississimo (fff)',
+    'dynamic_calibration': 'Ajuste de sensibilidad',
+    'dynamic_peak': 'Pico',
     'self_recorder': 'Grabadora de Autoevaluación',
     'self_recorder_subtitle':
         'Graba un fragmento, ejecútalo y escucha tu tono y articulación.',

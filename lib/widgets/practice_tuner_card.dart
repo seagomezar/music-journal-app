@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/flute_dynamic.dart';
 import '../providers/localization_provider.dart';
 import '../providers/practice_provider.dart';
 import '../theme/app_theme.dart';
@@ -32,6 +33,7 @@ class PracticeTunerCard extends StatelessWidget {
     }
 
     final reading = practiceProvider.pitchReading;
+    final dynamicReading = practiceProvider.dynamicReading;
     final summary = practiceProvider.livePitchSummary;
     final hasExercise = practiceProvider.activeExerciseId != null;
     final isListening = practiceProvider.isPitchListening;
@@ -182,6 +184,16 @@ class PracticeTunerCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 _PitchMeter(cents: cents, color: indicatorColor),
+                const SizedBox(height: 16),
+                Divider(
+                  height: 1,
+                  color: AppTheme.borderColor(context).withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 12),
+                _DynamicMeter(
+                  dynamicReading: dynamicReading,
+                  isListening: isListening,
+                ),
               ],
             ),
           ),
@@ -301,6 +313,221 @@ class _PitchMeter extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _DynamicMeter extends StatelessWidget {
+  const _DynamicMeter({
+    required this.dynamicReading,
+    required this.isListening,
+  });
+
+  final FluteDynamicReading? dynamicReading;
+  final bool isListening;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeDynamic = isListening && dynamicReading != null
+        ? dynamicReading!.dynamic
+        : FluteDynamic.ambient;
+    final decibels = isListening && dynamicReading != null
+        ? dynamicReading!.smoothedDecibels
+        : 0.0;
+    final peakDecibels = isListening && dynamicReading != null
+        ? dynamicReading!.peakDecibels
+        : 0.0;
+    final normalized = dynamicReading?.normalizedLevel ?? 0.0;
+    final normalizedPeak = dynamicReading?.normalizedPeak ?? 0.0;
+
+    final dynamicText = activeDynamic == FluteDynamic.ambient
+        ? (isListening
+            ? context.translate('dynamic_ambient')
+            : context.translate('dynamic_meter'))
+        : context.translate(activeDynamic.localizationKey);
+
+    return Semantics(
+      liveRegion: true,
+      label: isListening && dynamicReading != null && dynamicReading!.isAudible
+          ? '${activeDynamic.symbol}, ${decibels.toStringAsFixed(1)} dB'
+          : context.translate('dynamic_meter'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: activeDynamic.color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: activeDynamic.color.withValues(alpha: 0.4),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  activeDynamic.symbol,
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                    color: activeDynamic.color,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  dynamicText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: activeDynamic == FluteDynamic.ambient
+                        ? AppTheme.textSecondaryColor(context)
+                        : activeDynamic.color,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    isListening && dynamicReading != null
+                        ? '${decibels.toStringAsFixed(1)} dB SPL'
+                        : '— dB SPL',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isListening &&
+                              dynamicReading != null &&
+                              dynamicReading!.isAudible
+                          ? activeDynamic.color
+                          : AppTheme.textSecondaryColor(context),
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  if (isListening &&
+                      dynamicReading != null &&
+                      dynamicReading!.isAudible)
+                    Text(
+                      '${context.translate('dynamic_peak')}: ${peakDecibels.toStringAsFixed(1)} dB',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: AppTheme.textSecondaryColor(context),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // VU Meter Bar
+          SizedBox(
+            height: 12,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final barWidth = constraints.maxWidth;
+                final fillWidth = (barWidth * normalized).clamp(0.0, barWidth);
+                final peakX = (barWidth * normalizedPeak).clamp(0.0, barWidth);
+
+                return Stack(
+                  children: [
+                    // Background track
+                    Container(
+                      width: barWidth,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: AppTheme.borderColor(context)
+                            .withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    // Active gradient fill
+                    if (fillWidth > 0)
+                      Container(
+                        width: fillWidth,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF5C9DED), // ppp
+                              Color(0xFF2BB0D7), // pp
+                              Color(0xFF2EB7A3), // p
+                              Color(0xFF67B576), // mp
+                              Color(0xFFE2B734), // mf
+                              Color(0xFFE88A2E), // f
+                              Color(0xFFE5583B), // ff
+                              Color(0xFFC72C5B), // fff
+                            ],
+                          ),
+                        ),
+                      ),
+                    // Peak indicator tick
+                    if (isListening && peakX > 2)
+                      Positioned(
+                        left: peakX - 1.5,
+                        top: 0,
+                        child: Container(
+                          width: 3,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Dynamic symbols row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (final dyn in const [
+                FluteDynamic.ppp,
+                FluteDynamic.pp,
+                FluteDynamic.p,
+                FluteDynamic.mp,
+                FluteDynamic.mf,
+                FluteDynamic.f,
+                FluteDynamic.ff,
+                FluteDynamic.fff,
+              ])
+                Text(
+                  dyn.symbol,
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontStyle: FontStyle.italic,
+                    fontSize: 10,
+                    fontWeight: activeDynamic == dyn
+                        ? FontWeight.w900
+                        : FontWeight.w500,
+                    color: activeDynamic == dyn
+                        ? dyn.color
+                        : AppTheme.textSecondaryColor(context)
+                            .withValues(alpha: 0.6),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../models/piece.dart';
 import '../models/session_record.dart';
 import '../models/session_recording.dart';
 import '../services/analytics_service.dart';
+import '../models/flute_dynamic.dart';
 import '../models/pitch_tracking.dart';
 import '../models/practice_appearance_preferences.dart';
 import '../services/audio_service.dart';
@@ -104,6 +105,11 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       _pitchReading = reading;
       notifyListeners();
     };
+    _pitchTracking.onDynamicReading = (reading) {
+      if (_isDisposed) return;
+      _dynamicReading = reading;
+      notifyListeners();
+    };
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -175,6 +181,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   int _tunerReferenceHz;
   int _tunerToleranceCents;
   PitchReading? _pitchReading;
+  FluteDynamicReading? _dynamicReading;
   final Map<String, ExercisePitchSummary> _exercisePitchSummaries = {};
   Future<void>? _pendingPitchStop;
 
@@ -217,6 +224,12 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   int get tunerReferenceHz => _tunerReferenceHz;
   int get tunerToleranceCents => _tunerToleranceCents;
   PitchReading? get pitchReading => _pitchReading;
+  FluteDynamicReading? get dynamicReading => _dynamicReading;
+  double get currentDecibels => _dynamicReading?.smoothedDecibels ?? 0.0;
+  FluteDynamic get currentDynamic =>
+      _dynamicReading?.dynamic ?? FluteDynamic.ambient;
+  int get dynamicCalibrationOffsetDb =>
+      _pitchTracking.dynamicCalibrationOffsetDb;
   bool get isPitchListening => _pitchTracking.isListening;
   bool get isTrackingPitch =>
       _pitchTracking.isListening &&
@@ -665,7 +678,13 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       _exercisePitchSummaries[trackedId] = summary;
     }
     _pitchReading = null;
+    _dynamicReading = null;
     if (!_isDisposed) notifyListeners();
+  }
+
+  void setDynamicCalibrationOffsetDb(int offset) {
+    _pitchTracking.dynamicCalibrationOffsetDb = offset;
+    notifyListeners();
   }
 
   Future<void> stopRecording() async {
@@ -1146,6 +1165,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _activeStopwatch.stop();
     _metronomeAudio.onExternalPlayingChanged = null;
     _pitchTracking.onReading = null;
+    _pitchTracking.onDynamicReading = null;
     unawaited(_stopMetronomeAudioSafely());
     unawaited(_disableScreenAwakeSafely());
     unawaited(_pitchTracking.dispose());

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'flute_dynamic.dart';
+
 @immutable
 class PitchReading {
   const PitchReading({
@@ -10,6 +12,8 @@ class PitchReading {
     required this.clarity,
     required this.isStable,
     required this.isOnPitch,
+    this.decibels,
+    this.dynamic,
   });
 
   final double frequencyHz;
@@ -19,6 +23,8 @@ class PitchReading {
   final double clarity;
   final bool isStable;
   final bool isOnPitch;
+  final double? decibels;
+  final FluteDynamic? dynamic;
 
   String get displayNote => '$noteName$octave';
 }

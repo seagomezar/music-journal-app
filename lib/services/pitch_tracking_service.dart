@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 
+import '../models/flute_dynamic.dart';
 import '../models/pitch_tracking.dart';
 import 'capture_lifecycle_service.dart';
 
@@ -85,6 +86,17 @@ class PitchTrackingService {
   Future<void> _analysisQueue = Future.value();
   Future<void> _captureOperationQueue = Future<void>.value();
   ValueChanged<PitchReading?>? onReading;
+  ValueChanged<FluteDynamicReading?>? onDynamicReading;
+
+  int _dynamicCalibrationOffsetDb = 0;
+  double _smoothedDecibels = 0.0;
+  double _peakDecibels = 0.0;
+  DateTime _lastPeakTime = DateTime.now();
+
+  int get dynamicCalibrationOffsetDb => _dynamicCalibrationOffsetDb;
+  set dynamicCalibrationOffsetDb(int value) {
+    _dynamicCalibrationOffsetDb = value.clamp(-20, 20);
+  }
 
   PitchCaptureMode? _mode;
   int _referenceHz = 440;
@@ -176,14 +188,58 @@ class PitchTrackingService {
       }
       _pendingSamples.removeRange(0, frameSize);
       final excluded = excludeFrame?.call() ?? false;
+
+      final dynamicReading = _processDynamicFrame(frame);
+      if (_isListening) {
+        onDynamicReading?.call(dynamicReading);
+      }
+
       _analysisQueue = _analysisQueue.then(
-        (_) => _analyzeFrame(frame, excluded: excluded),
+        (_) => _analyzeFrame(
+          frame,
+          dynamicReading: dynamicReading,
+          excluded: excluded,
+        ),
       );
     }
   }
 
+  FluteDynamicReading _processDynamicFrame(Float64List frame) {
+    var energy = 0.0;
+    for (var i = 0; i < frame.length; i++) {
+      energy += frame[i] * frame[i];
+    }
+    final rms = math.sqrt(energy / frame.length);
+    final rawDb = rms <= 0.00001
+        ? 0.0
+        : (20.0 * (math.log(rms) / math.ln10) + 100.0 + _dynamicCalibrationOffsetDb)
+            .clamp(0.0, 120.0);
+
+    final alpha = rawDb > _smoothedDecibels ? 0.35 : 0.12;
+    _smoothedDecibels = (_smoothedDecibels == 0.0)
+        ? rawDb
+        : (alpha * rawDb + (1.0 - alpha) * _smoothedDecibels);
+
+    final now = DateTime.now();
+    if (rawDb >= _peakDecibels) {
+      _peakDecibels = rawDb;
+      _lastPeakTime = now;
+    } else if (now.difference(_lastPeakTime).inMilliseconds > 1500) {
+      _peakDecibels = math.max(rawDb, _peakDecibels - 1.2);
+    }
+
+    final fluteDynamic = FluteDynamic.fromDecibels(_smoothedDecibels);
+    return FluteDynamicReading(
+      decibels: rawDb,
+      smoothedDecibels: _smoothedDecibels,
+      peakDecibels: _peakDecibels,
+      dynamic: fluteDynamic,
+    );
+  }
+
   Future<void> _analyzeFrame(
     Float64List frame, {
+    required FluteDynamicReading dynamicReading,
     required bool excluded,
   }) async {
     if (!_isListening) return;
@@ -224,6 +280,8 @@ class PitchTrackingService {
         clarity: result.clarity,
         isStable: stable,
         isOnPitch: stable && onPitch,
+        decibels: dynamicReading.smoothedDecibels,
+        dynamic: dynamicReading.dynamic,
       ),
     );
   }
@@ -271,7 +329,10 @@ class PitchTrackingService {
     _pendingSamples.clear();
     _pendingByte = null;
     _recentMidiNotes.clear();
+    _smoothedDecibels = 0.0;
+    _peakDecibels = 0.0;
     onReading?.call(null);
+    onDynamicReading?.call(null);
     return summary;
   }
 
