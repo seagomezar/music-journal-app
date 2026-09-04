@@ -31,7 +31,7 @@ class SessionExerciseRecord {
             .toInt(),
         practicedBpm: (json['practicedBpm'] as num? ?? 120)
             .toInt()
-            .clamp(40, 240)
+            .clamp(30, 252)
             .toInt(),
         pitchSummary: json['pitchSummary'] is Map
             ? ExercisePitchSummary.fromJson(

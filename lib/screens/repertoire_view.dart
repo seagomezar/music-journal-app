@@ -232,8 +232,8 @@ class _RepertoireViewState extends State<RepertoireView> {
                               title.isNotEmpty &&
                               title.length <= 100 &&
                               targetBpm != null &&
-                              targetBpm >= 40 &&
-                              targetBpm <= 240 &&
+                              targetBpm >= 30 &&
+                              targetBpm <= 252 &&
                               totalMeasures != null &&
                               totalMeasures >= 0 &&
                               totalMeasures <= 10000 &&

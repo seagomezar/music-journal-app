@@ -129,6 +129,12 @@ class LocalizationProvider with ChangeNotifier {
         'The microphone is unavailable. Stop the recorder and check microphone permission.',
     'tuner_headphones_hint':
         'Headphones improve accuracy while the metronome is sounding.',
+    'sound_out': 'Reference Tone',
+    'stop_sound_out': 'Stop Tone',
+    'focus_mode': 'Focus (±25¢)',
+    'normal_scale': 'Wide (±50¢)',
+    'pure_major_third': 'Pure M3 (-13.7¢)',
+    'pure_minor_third': 'Pure m3 (+15.6¢)',
     'dynamic_meter': 'Dynamic & Volume Meter',
     'dynamic_meter_subtitle':
         'Real-time sound pressure and estimated flute dynamics.',
@@ -343,7 +349,7 @@ class LocalizationProvider with ChangeNotifier {
     'recording_web_session_only':
         'Browser recordings are saved in this browser and remain available in your history.',
     'invalid_piece_values':
-        'Enter a title, a BPM from 40 to 240, and measures from 0 to 10,000.',
+        'Enter a title, a BPM from 30 to 252, and measures from 0 to 10,000.',
     'piece_save_error': 'The repertoire piece could not be saved.',
     'piece_delete_error': 'The repertoire piece could not be deleted.',
     'piece_move_error': 'The repertoire piece could not be moved.',
@@ -454,7 +460,7 @@ class LocalizationProvider with ChangeNotifier {
     'toggle_metronome': 'Toggle metronome',
     'invalid_routine_values': 'Enter a title of 100 characters or fewer.',
     'invalid_exercise_values':
-        'Enter an exercise name and a BPM from 40 to 240.',
+        'Enter an exercise name and a BPM from 30 to 252.',
     'routine_save_error': 'The routine could not be saved.',
     'routine_delete_error': 'The routine could not be deleted.',
     'practice_preferences': 'Practice Preferences',
@@ -579,6 +585,12 @@ class LocalizationProvider with ChangeNotifier {
         'El micrófono no está disponible. Detén la grabadora y revisa el permiso del micrófono.',
     'tuner_headphones_hint':
         'Los audífonos mejoran la precisión mientras suena el metrónomo.',
+    'sound_out': 'Tono de referencia',
+    'stop_sound_out': 'Detener tono',
+    'focus_mode': 'Enfoque (±25¢)',
+    'normal_scale': 'Amplio (±50¢)',
+    'pure_major_third': '3ª Mayor Pura (-13.7¢)',
+    'pure_minor_third': '3ª Menor Pura (+15.6¢)',
     'dynamic_meter': 'Medidor de Dinámica y Volumen',
     'dynamic_meter_subtitle':
         'Nivel de decibeles y dinámica musical estimada para flauta.',
@@ -792,7 +804,7 @@ class LocalizationProvider with ChangeNotifier {
     'recording_web_session_only':
         'Las grabaciones del navegador se guardan en este navegador y siguen disponibles en tu historial.',
     'invalid_piece_values':
-        'Ingresa un título, un BPM entre 40 y 240 y compases entre 0 y 10.000.',
+        'Ingresa un título, un BPM entre 30 y 252 y compases entre 0 y 10.000.',
     'piece_save_error': 'No se pudo guardar la pieza del repertorio.',
     'piece_delete_error': 'No se pudo eliminar la pieza del repertorio.',
     'piece_move_error': 'No se pudo mover la pieza del repertorio.',
@@ -904,7 +916,7 @@ class LocalizationProvider with ChangeNotifier {
     'tempo_label': 'TEMPO',
     'toggle_metronome': 'Activar o desactivar metrónomo',
     'invalid_routine_values': 'Ingresa un título de máximo 100 caracteres.',
-    'invalid_exercise_values': 'Ingresa un nombre y un BPM entre 40 y 240.',
+    'invalid_exercise_values': 'Ingresa un nombre y un BPM entre 30 y 252.',
     'routine_save_error': 'No se pudo guardar la rutina.',
     'routine_delete_error': 'No se pudo eliminar la rutina.',
     'practice_preferences': 'Preferencias de Práctica',

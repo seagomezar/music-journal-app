@@ -142,6 +142,15 @@ class FakeMetronomeAudioController implements MetronomeAudioController {
   Future<void> stop() async {
     stopCalls++;
   }
+
+  @override
+  Future<void> playReferenceTone(int hz) async {}
+
+  @override
+  Future<void> stopReferenceTone() async {}
+
+  @override
+  bool get isReferenceTonePlaying => false;
 }
 
 class FakeScreenAwakeController implements ScreenAwakeController {
@@ -353,7 +362,7 @@ void main() {
         'measuresCompleted': 40,
       });
 
-      expect(parsed.targetBpm, 240);
+      expect(parsed.targetBpm, 252);
       expect(parsed.measuresTotal, 0);
       expect(parsed.measuresCompleted, 0);
     });
@@ -589,9 +598,9 @@ void main() {
     test('Metronome BPM is clamped to the supported range', () {
       final provider = PracticeProvider(audioService: FakeAudioService());
       provider.setMetronomeBpm(-10);
-      expect(provider.metronomeBpm, 40);
+      expect(provider.metronomeBpm, 30);
       provider.setMetronomeBpm(1000);
-      expect(provider.metronomeBpm, 240);
+      expect(provider.metronomeBpm, 252);
       provider.dispose();
     });
 

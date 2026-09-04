@@ -475,8 +475,8 @@ class _RoutineConfigViewState extends State<RoutineConfigView> {
                           if (name.isNotEmpty &&
                               name.length <= 100 &&
                               bpm != null &&
-                              bpm >= 40 &&
-                              bpm <= 240) {
+                              bpm >= 30 &&
+                              bpm <= 252) {
                             setDialogState(() => isSaving = true);
                             String? importedPieceId;
                             try {

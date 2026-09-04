@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -35,6 +34,10 @@ abstract interface class MetronomeAudioController {
   Future<void> setTempo(int bpm);
   Future<void> setVolume(double volume);
   Future<void> stop();
+
+  Future<void> playReferenceTone(int hz);
+  Future<void> stopReferenceTone();
+  bool get isReferenceTonePlaying;
 }
 
 class NoopMetronomeAudioController implements MetronomeAudioController {
@@ -55,6 +58,15 @@ class NoopMetronomeAudioController implements MetronomeAudioController {
 
   @override
   Future<void> stop() async {}
+
+  @override
+  Future<void> playReferenceTone(int hz) async {}
+
+  @override
+  Future<void> stopReferenceTone() async {}
+
+  @override
+  bool get isReferenceTonePlaying => false;
 }
 
 class MetronomeAudioService implements MetronomeAudioController {
@@ -68,6 +80,9 @@ class MetronomeAudioService implements MetronomeAudioController {
 
   @override
   MetronomeClockSnapshot? get clockSnapshot => _handler?.clockSnapshot;
+
+  @override
+  bool get isReferenceTonePlaying => _handler?.isReferenceTonePlaying ?? false;
 
   Future<void> initialize() async {
     if (_handler != null) return;
@@ -154,6 +169,22 @@ class MetronomeAudioService implements MetronomeAudioController {
     });
   }
 
+  @override
+  Future<void> playReferenceTone(int hz) async {
+    await _enqueueOperation((generation) async {
+      await initialize();
+      if (generation != _operationGeneration) return;
+      await _handler?.playReferenceTone(hz);
+    });
+  }
+
+  @override
+  Future<void> stopReferenceTone() async {
+    await _enqueueOperation((_) async {
+      await _handler?.stopReferenceTone();
+    });
+  }
+
   Future<void> _enqueueOperation(
     Future<void> Function(int generation) operation,
   ) {
@@ -174,33 +205,63 @@ class _MetronomeAudioHandler extends background_audio.BaseAudioHandler {
     mediaItem.add(_mediaItemFor(_bpm));
   }
 
-  static const _scheduleLead = Duration(milliseconds: 80);
-  static const _retirementGrace = Duration(milliseconds: 100);
-  static const _maxCachedSources = 8;
-
   final SoLoud _engine;
   final Bus _bus;
   final ValueChanged<bool> onExternalPlayingChanged;
-  final LinkedHashMap<String, AudioSource> _sourceCache = LinkedHashMap();
-  final Map<String, Future<AudioSource>> _loadingSources = {};
-  final List<_RetiredSource> _retiredSources = [];
+
+  AudioSource? _clickSource;
+  Future<AudioSource>? _loadingClick;
+
+  AudioSource? _referenceToneSource;
+  SoundHandle? _referenceToneHandle;
+  int? _referenceToneHz;
 
   int _bpm = 80;
   double _volume = 0.7;
   int _generation = 0;
   bool _playing = false;
-  SoundHandle? _activeHandle;
-  AudioSource? _activeSource;
-  _ClockSegment? _activeSegment;
-  SoundHandle? _pendingHandle;
-  AudioSource? _pendingSource;
-  _ClockSegment? _pendingSegment;
+
+  Timer? _tickerTimer;
+  Duration _nextBeatTime = Duration.zero;
+  Duration _lastBeatTime = Duration.zero;
+  int _beatIndex = 0;
+  Duration _interval = const Duration(milliseconds: 750);
+
+  bool get isReferenceTonePlaying => _referenceToneHandle != null;
 
   MetronomeClockSnapshot? get clockSnapshot {
     if (!_playing || !_engine.isInitialized) return null;
     final now = _engine.getEngineTime();
-    _promotePendingIfDue(now);
-    return _activeSegment?.snapshot(now, _generation);
+    final phase = now >= _lastBeatTime ? now - _lastBeatTime : Duration.zero;
+    return MetronomeClockSnapshot(
+      generation: _generation,
+      bpm: _bpm,
+      engineTime: now,
+      beatIndex: _beatIndex,
+      barPosition: 0,
+      phase: phase,
+    );
+  }
+
+  Future<AudioSource> _ensureClickSource() async {
+    if (_clickSource != null) return _clickSource!;
+    final pending = _loadingClick;
+    if (pending != null) return pending;
+
+    final future = () async {
+      final bytes = MetronomeWave.createClick();
+      return await _engine.loadMem('metronome-single-click.wav', bytes);
+    }();
+    _loadingClick = future;
+    try {
+      final source = await future;
+      _clickSource = source;
+      return source;
+    } finally {
+      if (identical(_loadingClick, future)) {
+        _loadingClick = null;
+      }
+    }
   }
 
   Future<void> startMetronome({
@@ -208,77 +269,68 @@ class _MetronomeAudioHandler extends background_audio.BaseAudioHandler {
     required double volume,
   }) async {
     final generation = ++_generation;
-    _bpm = bpm.clamp(40, 240).toInt();
+    await _ensureClickSource();
+    if (generation != _generation) return;
+
+    _bpm = bpm.clamp(MetronomeWave.minBpm, MetronomeWave.maxBpm).toInt();
     _volume = volume.clamp(0.0, 1.0);
-    _playing = true;
+    _interval = Duration(microseconds: (60000000 / _bpm).round());
     _setBusVolume(_volume);
+    _playing = true;
 
-    final source = await _sourceFor(_bpm, 0);
-    if (generation != _generation || !_playing) return;
-    await _stopHandles();
-    if (generation != _generation || !_playing) return;
+    final now = _engine.getEngineTime();
+    _nextBeatTime = now + const Duration(milliseconds: 60);
+    _lastBeatTime = _nextBeatTime;
+    _beatIndex = 0;
 
-    final startAt = _engine.getEngineTime() + _scheduleLead;
-    final segment = _ClockSegment(
-      bpm: _bpm,
-      startAt: startAt,
-      startBeatIndex: 0,
+    _scheduleAhead();
+    _tickerTimer?.cancel();
+    _tickerTimer = Timer.periodic(
+      const Duration(milliseconds: 35),
+      (_) => _scheduleAhead(),
     );
-    final handle = _scheduleLoop(source, segment);
-    _activeSource = source;
-    _activeHandle = handle;
-    _activeSegment = segment;
+
     _broadcast(playing: true);
-    _cleanupSources();
   }
 
   Future<void> setTempo(int bpm) async {
-    final nextBpm = bpm.clamp(40, 240).toInt();
+    final nextBpm = bpm
+        .clamp(MetronomeWave.minBpm, MetronomeWave.maxBpm)
+        .toInt();
     _bpm = nextBpm;
+    _interval = Duration(microseconds: (60000000 / _bpm).round());
     mediaItem.add(_mediaItemFor(_bpm));
     if (!_playing) return;
 
-    final generation = ++_generation;
-    final nowBeforeLoad = _engine.getEngineTime();
-    _promotePendingIfDue(nowBeforeLoad);
-    final boundary = _transitionBoundary(nowBeforeLoad);
-    final phase = boundary.beatIndex % MetronomeWave.beatCount;
-    final source = await _sourceFor(nextBpm, phase);
-    if (generation != _generation || !_playing) return;
-
     final now = _engine.getEngineTime();
-    _promotePendingIfDue(now);
-    final effectiveBoundary = boundary.atTime - now >= _scheduleLead
-        ? boundary
-        : _transitionBoundary(now);
-    final effectivePhase =
-        effectiveBoundary.beatIndex % MetronomeWave.beatCount;
-    final effectiveSource = effectivePhase == phase
-        ? source
-        : await _sourceFor(nextBpm, effectivePhase);
-    if (generation != _generation || !_playing) return;
-
-    _cancelPendingLoop();
-    final segment = _ClockSegment(
-      bpm: nextBpm,
-      startAt: effectiveBoundary.atTime,
-      startBeatIndex: effectiveBoundary.beatIndex,
-    );
-    final handle = _scheduleLoop(effectiveSource, segment);
-    final activeHandle = _activeHandle;
-    if (activeHandle != null) {
-      _engine.stopScheduled(activeHandle, effectiveBoundary.atTime);
+    // Re-anchor the next beat smoothly if scheduled beyond the new tempo horizon
+    if (_nextBeatTime > now + const Duration(milliseconds: 40)) {
+      final candidate = _lastBeatTime + _interval;
+      _nextBeatTime = candidate > now + const Duration(milliseconds: 20)
+          ? candidate
+          : now + const Duration(milliseconds: 20);
     }
-    _pendingHandle = handle;
-    _pendingSource = effectiveSource;
-    _pendingSegment = segment;
-    _broadcast(playing: true);
-    _cleanupSources();
+    _scheduleAhead();
   }
 
   Future<void> setVolume(double volume) async {
     _volume = volume.clamp(0.0, 1.0);
     _setBusVolume(_volume);
+  }
+
+  void _scheduleAhead() {
+    if (!_playing || !_engine.isInitialized) return;
+    final source = _clickSource;
+    if (source == null) return;
+
+    final now = _engine.getEngineTime();
+    final horizon = now + const Duration(milliseconds: 140);
+    while (_nextBeatTime <= horizon) {
+      _bus.playScheduled(source, _nextBeatTime);
+      _lastBeatTime = _nextBeatTime;
+      _beatIndex++;
+      _nextBeatTime += _interval;
+    }
   }
 
   @override
@@ -308,9 +360,8 @@ class _MetronomeAudioHandler extends background_audio.BaseAudioHandler {
   }) async {
     _playing = false;
     _generation++;
-    await _stopHandles();
-    _activeSegment = null;
-    _pendingSegment = null;
+    _tickerTimer?.cancel();
+    _tickerTimer = null;
     playbackState.add(
       playbackState.value.copyWith(
         controls: const [],
@@ -320,146 +371,47 @@ class _MetronomeAudioHandler extends background_audio.BaseAudioHandler {
     );
     if (notifyExternal) onExternalPlayingChanged(false);
     if (callSuperStop) await super.stop();
-    _cleanupSources();
   }
 
-  Future<AudioSource> _sourceFor(int bpm, int startingBeat) async {
-    final phase = startingBeat % MetronomeWave.beatCount;
-    final key = '$bpm:$phase';
-    final cached = _sourceCache.remove(key);
-    if (cached != null) {
-      _sourceCache[key] = cached;
-      return cached;
-    }
-    final loading = _loadingSources[key];
-    if (loading != null) return loading;
-    final future = _loadSource(key, bpm, phase);
-    _loadingSources[key] = future;
-    try {
-      return await future;
-    } finally {
-      if (identical(_loadingSources[key], future)) {
-        _loadingSources.remove(key);
+  Future<void> playReferenceTone(int hz) async {
+    final safeHz = hz.clamp(410, 480);
+    if (_referenceToneHandle != null && _referenceToneHz == safeHz) return;
+    await stopReferenceTone();
+
+    final bytes = MetronomeWave.createTone(safeHz);
+    final source = await _engine.loadMem('ref-tone-$safeHz.wav', bytes);
+    final handle = _bus.play(source, volume: 0.6, looping: true);
+    _referenceToneSource = source;
+    _referenceToneHandle = handle;
+    _referenceToneHz = safeHz;
+  }
+
+  Future<void> stopReferenceTone() async {
+    final handle = _referenceToneHandle;
+    final source = _referenceToneSource;
+    _referenceToneHandle = null;
+    _referenceToneSource = null;
+    _referenceToneHz = null;
+
+    if (handle != null) {
+      try {
+        await _engine.stop(handle);
+      } catch (error) {
+        debugPrint('Unable to stop reference tone: $error');
       }
     }
-  }
-
-  Future<AudioSource> _loadSource(String key, int bpm, int phase) async {
-    final bytes = MetronomeWave.create(bpm, startingBeat: phase);
-    final source = await _engine.loadMem('metronome-$key.wav', bytes);
-    final cached = _sourceCache.remove(key);
-    if (cached != null) {
-      _sourceCache[key] = cached;
-      unawaited(_disposeSourceSafely(source));
-      return cached;
-    }
-    _sourceCache[key] = source;
-    return source;
-  }
-
-  SoundHandle _scheduleLoop(AudioSource source, _ClockSegment segment) {
-    final handle = _bus.playScheduled(source, segment.startAt);
-    _engine.setLooping(handle, true);
-    _engine.setLoopPoint(handle, Duration.zero);
-    _engine.setLoopEndPoint(handle, null);
-    return handle;
-  }
-
-  _BeatBoundary _transitionBoundary(Duration now) {
-    final pending = _pendingSegment;
-    if (pending != null && now < pending.startAt) {
-      return _BeatBoundary(pending.startAt, pending.startBeatIndex);
-    }
-    final active = _activeSegment;
-    if (active == null) {
-      return _BeatBoundary(now + _scheduleLead, 0);
-    }
-    var boundary = active.nextBeatAfter(now);
-    while (boundary.atTime - now < _scheduleLead) {
-      boundary = active.nextBeatAfter(boundary.atTime);
-    }
-    return boundary;
-  }
-
-  void _promotePendingIfDue(Duration now) {
-    final pending = _pendingSegment;
-    if (pending == null || now < pending.startAt) return;
-    final oldSource = _activeSource;
-    if (oldSource != null && oldSource != _pendingSource) {
-      _retiredSources.add(
-        _RetiredSource(oldSource, pending.startAt + _retirementGrace),
-      );
-    }
-    _activeHandle = _pendingHandle;
-    _activeSource = _pendingSource;
-    _activeSegment = pending;
-    _pendingHandle = null;
-    _pendingSource = null;
-    _pendingSegment = null;
-  }
-
-  void _cancelPendingLoop() {
-    final handle = _pendingHandle;
-    _pendingHandle = null;
-    _pendingSource = null;
-    _pendingSegment = null;
-    if (handle != null) unawaited(_stopHandle(handle));
-  }
-
-  Future<void> _stopHandles() async {
-    final handles = <SoundHandle>{?_activeHandle, ?_pendingHandle};
-    _activeHandle = null;
-    _pendingHandle = null;
-    _activeSource = null;
-    _pendingSource = null;
-    _pendingSegment = null;
-    for (final handle in handles) {
-      await _stopHandle(handle);
-    }
-  }
-
-  Future<void> _stopHandle(SoundHandle handle) async {
-    try {
-      await _engine.stop(handle);
-    } catch (error) {
-      debugPrint('Unable to stop metronome voice: $error');
+    if (source != null) {
+      try {
+        await _engine.disposeSource(source);
+      } catch (error) {
+        debugPrint('Unable to dispose reference tone source: $error');
+      }
     }
   }
 
   void _setBusVolume(double volume) {
     final handle = _bus.soundHandle;
     if (handle != null) _engine.setVolume(handle, volume);
-  }
-
-  void _cleanupSources() {
-    if (!_engine.isInitialized) return;
-    final now = _engine.getEngineTime();
-    _retiredSources.removeWhere((entry) => entry.safeAfter <= now);
-    final protectedSources = <AudioSource>{
-      ?_activeSource,
-      ?_pendingSource,
-      for (final entry in _retiredSources) entry.source,
-    };
-    while (_sourceCache.length > _maxCachedSources) {
-      String? removableKey;
-      for (final entry in _sourceCache.entries) {
-        if (!protectedSources.contains(entry.value)) {
-          removableKey = entry.key;
-          break;
-        }
-      }
-      if (removableKey == null) break;
-      final source = _sourceCache.remove(removableKey)!;
-      unawaited(_disposeSourceSafely(source));
-    }
-  }
-
-  Future<void> _disposeSourceSafely(AudioSource source) async {
-    try {
-      await _engine.disposeSource(source);
-    } catch (error) {
-      debugPrint('Unable to dispose metronome source: $error');
-    }
   }
 
   void _broadcast({required bool playing}) {
@@ -492,121 +444,71 @@ class _MetronomeAudioHandler extends background_audio.BaseAudioHandler {
   }
 }
 
-class _ClockSegment {
-  const _ClockSegment({
-    required this.bpm,
-    required this.startAt,
-    required this.startBeatIndex,
-  });
-
-  final int bpm;
-  final Duration startAt;
-  final int startBeatIndex;
-
-  MetronomeClockSnapshot snapshot(Duration now, int generation) {
-    final elapsedMicros = math.max(0, (now - startAt).inMicroseconds);
-    final elapsedSamples =
-        elapsedMicros *
-        MetronomeWave.sampleRate ~/
-        Duration.microsecondsPerSecond;
-    final totalSamples = MetronomeWave.totalSamplesForBpm(bpm);
-    final completedBars = elapsedSamples ~/ totalSamples;
-    final sampleInBar = elapsedSamples % totalSamples;
-    final offsets = MetronomeWave.beatSampleOffsets(bpm);
-    var beatInBar = 0;
-    for (var index = 1; index < offsets.length; index++) {
-      if (offsets[index] > sampleInBar) break;
-      beatInBar = index;
-    }
-    final beatIndex =
-        startBeatIndex + (completedBars * MetronomeWave.beatCount) + beatInBar;
-    final phaseSamples = sampleInBar - offsets[beatInBar];
-    return MetronomeClockSnapshot(
-      generation: generation,
-      bpm: bpm,
-      engineTime: now,
-      beatIndex: beatIndex,
-      barPosition: beatIndex % MetronomeWave.beatCount,
-      phase: Duration(
-        microseconds:
-            phaseSamples *
-            Duration.microsecondsPerSecond ~/
-            MetronomeWave.sampleRate,
-      ),
-    );
-  }
-
-  _BeatBoundary nextBeatAfter(Duration now) {
-    if (now < startAt) return _BeatBoundary(startAt, startBeatIndex);
-    final elapsedMicros = (now - startAt).inMicroseconds;
-    final elapsedSamples =
-        elapsedMicros *
-        MetronomeWave.sampleRate ~/
-        Duration.microsecondsPerSecond;
-    final totalSamples = MetronomeWave.totalSamplesForBpm(bpm);
-    final completedBars = elapsedSamples ~/ totalSamples;
-    final sampleInBar = elapsedSamples % totalSamples;
-    final offsets = MetronomeWave.beatSampleOffsets(bpm);
-    var nextBeatInBar = offsets.indexWhere((offset) => offset > sampleInBar);
-    var absoluteBeatOffset = completedBars * MetronomeWave.beatCount;
-    var absoluteSample = completedBars * totalSamples;
-    if (nextBeatInBar == -1) {
-      nextBeatInBar = 0;
-      absoluteBeatOffset += MetronomeWave.beatCount;
-      absoluteSample += totalSamples;
-    } else {
-      absoluteBeatOffset += nextBeatInBar;
-      absoluteSample += offsets[nextBeatInBar];
-    }
-    return _BeatBoundary(
-      startAt +
-          Duration(
-            microseconds:
-                (absoluteSample *
-                        Duration.microsecondsPerSecond /
-                        MetronomeWave.sampleRate)
-                    .round(),
-          ),
-      startBeatIndex + absoluteBeatOffset,
-    );
-  }
-}
-
-class _BeatBoundary {
-  const _BeatBoundary(this.atTime, this.beatIndex);
-
-  final Duration atTime;
-  final int beatIndex;
-}
-
-class _RetiredSource {
-  const _RetiredSource(this.source, this.safeAfter);
-
-  final AudioSource source;
-  final Duration safeAfter;
-}
-
 @visibleForTesting
 class MetronomeWave {
   static const int sampleRate = 48000;
   static const int channelCount = 1;
   static const int bitsPerSample = 16;
+  static const int minBpm = 30;
+  static const int maxBpm = 252;
   static const int beatCount = 4;
 
+  /// Synthesizes a single crisp percussive click (~25 ms).
+  ///
+  /// Woodblock/rimshot harmonic profile (1500 Hz + 3000 Hz) with exponential decay,
+  /// matching the classic acoustic click of the Yamaha TDM-710 series.
+  static Uint8List createClick() {
+    final sampleCount = (sampleRate * 0.025).round(); // 25 ms
+    final samples = Int16List(sampleCount);
+
+    for (var i = 0; i < sampleCount; i++) {
+      final time = i / sampleRate;
+      final envelope = math.exp(-150 * time);
+      final fundamental = math.sin(2 * math.pi * 1500.0 * time);
+      final harmonic = 0.35 * math.sin(2 * math.pi * 3000.0 * time);
+      final value = 0.95 * envelope * (fundamental + harmonic);
+      samples[i] = (value.clamp(-1.0, 1.0) * 32767).round();
+    }
+
+    return _writeWave(samples);
+  }
+
+  /// Synthesizes a pure sine reference tone for ear tuning (Sound Out mode).
+  ///
+  /// The duration is locked to an exact integer number of cycles to guarantee
+  /// a seamless zero-crossing loop without clicks.
+  static Uint8List createTone(int hz, {double durationSeconds = 1.0}) {
+    final safeHz = hz.clamp(410, 480);
+    final cycles = (safeHz * durationSeconds).round();
+    final sampleCount = (cycles * sampleRate / safeHz).round();
+    final samples = Int16List(sampleCount);
+
+    for (var i = 0; i < sampleCount; i++) {
+      final time = i / sampleRate;
+      final value = 0.70 * math.sin(2 * math.pi * safeHz * time);
+      samples[i] = (value.clamp(-1.0, 1.0) * 32767).round();
+    }
+
+    return _writeWave(samples);
+  }
+
   static int totalSamplesForBpm(int bpm) {
-    return (sampleRate * 60 * beatCount / bpm).round();
+    final safeBpm = bpm.clamp(minBpm, maxBpm).toInt();
+    return (sampleRate * 60 * beatCount / safeBpm).round();
   }
 
   static List<int> beatSampleOffsets(int bpm) {
+    final safeBpm = bpm.clamp(minBpm, maxBpm).toInt();
     return List<int>.generate(
       beatCount,
-      (beat) => (sampleRate * 60 * beat / bpm).round(),
+      (beat) => (sampleRate * 60 * beat / safeBpm).round(),
       growable: false,
     );
   }
 
+  /// Generates a multi-beat wave for legacy tests and 4-beat pattern compatibility.
   static Uint8List create(int bpm, {int startingBeat = 0}) {
-    final safeBpm = bpm.clamp(40, 240).toInt();
+    final safeBpm = bpm.clamp(minBpm, maxBpm).toInt();
     final totalSamples = totalSamplesForBpm(safeBpm);
     final samples = Int16List(totalSamples);
     final clickSamples = (sampleRate * 0.04).round();

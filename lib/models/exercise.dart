@@ -29,7 +29,7 @@ class Exercise {
     name: json['name'] as String,
     targetBpm: (json['targetBpm'] as num? ?? 120)
         .toInt()
-        .clamp(40, 240)
+        .clamp(30, 252)
         .toInt(),
     articulation: json['articulation'] as String? ?? 'Staccato',
     musicSheetPieceId: json['musicSheetPieceId'] as String?,

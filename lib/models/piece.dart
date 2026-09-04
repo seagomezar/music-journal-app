@@ -56,7 +56,7 @@ class Piece {
       pdfPath: json['pdfPath'] as String?,
       targetBpm: (json['targetBpm'] as num? ?? 120)
           .toInt()
-          .clamp(40, 240)
+          .clamp(30, 252)
           .toInt(),
       measuresTotal: total,
       measuresCompleted: completed,

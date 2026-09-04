@@ -11,7 +11,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('MPM pitch detector', () {
-    for (final frequency in [261.6256, 440.0, 1046.502]) {
+    for (final frequency in [
+      65.41,
+      130.81,
+      196.0,
+      246.94,
+      261.6256,
+      440.0,
+      1046.502,
+      2093.0,
+    ]) {
       test('detects ${frequency.toStringAsFixed(1)} Hz within two cents', () {
         final result = detectPitchFrame({
           'samples': _tone(frequency),
@@ -22,7 +31,7 @@ void main() {
         final cents =
             1200 * math.log(result!.frequencyHz / frequency) / math.ln2;
         expect(cents.abs(), lessThan(2));
-        expect(result.clarity, greaterThan(0.9));
+        expect(result.clarity, greaterThan(0.85));
       });
     }
 

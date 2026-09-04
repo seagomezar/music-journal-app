@@ -180,6 +180,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   bool _isTunerVisible = true;
   int _tunerReferenceHz;
   int _tunerToleranceCents;
+  bool _isTunerFocusMode = false;
   PitchReading? _pitchReading;
   FluteDynamicReading? _dynamicReading;
   final Map<String, ExercisePitchSummary> _exercisePitchSummaries = {};
@@ -221,6 +222,8 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   double get metronomeVolume => _metronomeVolume;
   bool get isMetronomeSoundSuppressed => _metronomeSoundSuppressed;
   bool get isTunerVisible => _isTunerVisible;
+  bool get isTunerFocusMode => _isTunerFocusMode;
+  bool get isSoundOutPlaying => _metronomeAudio.isReferenceTonePlaying;
   int get tunerReferenceHz => _tunerReferenceHz;
   int get tunerToleranceCents => _tunerToleranceCents;
   PitchReading? get pitchReading => _pitchReading;
@@ -418,6 +421,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _timer?.cancel();
     _resumeMetronomeAfterSessionPause = _metronomeOn;
     _stopMetronome();
+    unawaited(_metronomeAudio.stopReferenceTone());
     unawaited(stopPitchCapture());
     unawaited(_applyScreenAwakePreferenceSafely());
     notifyListeners();
@@ -495,7 +499,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       _finalizeActiveExercise(markCompleted: true);
     }
 
-    final bpm = targetBpm.clamp(40, 240).toInt();
+    final bpm = targetBpm.clamp(30, 252).toInt();
     _activeExerciseId = id;
     _activeExerciseStartedAtMilliseconds = _activeStopwatch.elapsedMilliseconds;
     _exerciseDurationMilliseconds.putIfAbsent(id, () => 0);
@@ -518,7 +522,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   }
 
   void setExerciseBpm(String id, int bpm) {
-    final nextBpm = bpm.clamp(40, 240).toInt();
+    final nextBpm = bpm.clamp(30, 252).toInt();
     _exercisePracticedBpms[id] = nextBpm;
     final routine = _activeRoutine;
     if (routine != null) {
@@ -584,12 +588,32 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     notifyListeners();
   }
 
+  void toggleTunerFocusMode() {
+    _isTunerFocusMode = !_isTunerFocusMode;
+    notifyListeners();
+  }
+
+  Future<void> toggleSoundOut() async {
+    if (isSoundOutPlaying) {
+      await _metronomeAudio.stopReferenceTone();
+    } else {
+      if (isPitchListening) {
+        await stopPitchCapture();
+      }
+      await _metronomeAudio.playReferenceTone(_tunerReferenceHz);
+    }
+    notifyListeners();
+  }
+
   Future<void> setTunerReferenceHz(int value) async {
     if (isPitchListening) return;
-    final next = value.clamp(420, 460);
+    final next = value.clamp(410, 480);
     if (next == _tunerReferenceHz) return;
     final previous = _tunerReferenceHz;
     _tunerReferenceHz = next;
+    if (isSoundOutPlaying) {
+      unawaited(_metronomeAudio.playReferenceTone(next));
+    }
     notifyListeners();
     try {
       await _persistTunerReference?.call(next);
@@ -620,6 +644,9 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       return false;
     }
     if (trackExercise && _activeExerciseId == null) return false;
+    if (isSoundOutPlaying) {
+      await _metronomeAudio.stopReferenceTone();
+    }
     await stopPitchCapture();
     try {
       await _pitchTracking.start(
@@ -813,17 +840,17 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     if (_metronomeOn) {
       _stopMetronome();
     } else {
-      _metronomeBpm = defaultBpm.clamp(40, 240).toInt();
+      _metronomeBpm = defaultBpm.clamp(30, 252).toInt();
       _startMetronome();
     }
   }
 
   void setMetronomeBpm(int bpm) {
-    _metronomeBpm = bpm.clamp(40, 240).toInt();
+    _metronomeBpm = bpm.clamp(30, 252).toInt();
     if (_metronomeOn) {
       _metronomeTempoTimer?.cancel();
       _metronomeTempoTimer = Timer(
-        const Duration(milliseconds: 120),
+        const Duration(milliseconds: 60),
         () => unawaited(_setMetronomeTempoSafely()),
       );
     }
@@ -971,6 +998,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
   Future<void> _stopMetronomeAudioSafely() async {
     try {
+      await _metronomeAudio.stopReferenceTone();
       await _metronomeAudio.stop();
     } catch (error) {
       debugPrint('Unable to stop metronome audio: $error');

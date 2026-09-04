@@ -113,7 +113,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
     required int delta,
   }) async {
     final previousBpm = practiceProvider.metronomeBpm;
-    final nextBpm = (previousBpm + delta).clamp(40, 240);
+    final nextBpm = (previousBpm + delta).clamp(30, 252);
     if (nextBpm == previousBpm || _isSavingExerciseTempo) return;
 
     final exerciseId = practiceProvider.activeExerciseId;
@@ -590,7 +590,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                     IconButton.filledTonal(
                       key: const ValueKey('decrease_metronome_tempo'),
                       tooltip: context.translate('decrease_tempo'),
-                      onPressed: practiceProv.metronomeBpm <= 40
+                      onPressed: practiceProv.metronomeBpm <= 30
                           ? null
                           : () => _adjustMetronomeTempo(
                               context: context,
@@ -619,7 +619,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                     IconButton.filledTonal(
                       key: const ValueKey('increase_metronome_tempo'),
                       tooltip: context.translate('increase_tempo'),
-                      onPressed: practiceProv.metronomeBpm >= 240
+                      onPressed: practiceProv.metronomeBpm >= 252
                           ? null
                           : () => _adjustMetronomeTempo(
                               context: context,
@@ -1381,8 +1381,8 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                                   key: ValueKey(
                                                     'exercise_tempo_${exercise.id}',
                                                   ),
-                                                  min: 40,
-                                                  max: 240,
+                                                  min: 30,
+                                                  max: 252,
                                                   activeColor:
                                                       AppTheme.accentColor(
                                                         context,
@@ -1550,7 +1550,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                           onPressed:
                                               _isSavingExerciseTempo ||
                                                   practiceProv.metronomeBpm <=
-                                                      40
+                                                      30
                                               ? null
                                               : () => _adjustMetronomeTempo(
                                                   context: context,
@@ -1565,8 +1565,8 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                         ),
                                         Expanded(
                                           child: Slider(
-                                            min: 40,
-                                            max: 240,
+                                            min: 30,
+                                            max: 252,
                                             activeColor: AppTheme.accentColor(
                                               context,
                                             ),
@@ -1645,7 +1645,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                                           onPressed:
                                               _isSavingExerciseTempo ||
                                                   practiceProv.metronomeBpm >=
-                                                      240
+                                                      252
                                               ? null
                                               : () => _adjustMetronomeTempo(
                                                   context: context,

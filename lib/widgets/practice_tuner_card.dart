@@ -103,7 +103,7 @@ class PracticeTunerCard extends StatelessWidget {
                 key: const ValueKey('decrease_tuner_reference'),
                 tooltip: context.translate('decrease_tuner_reference'),
                 onPressed:
-                    controlsEnabled && practiceProvider.tunerReferenceHz > 420
+                    controlsEnabled && practiceProvider.tunerReferenceHz > 410
                     ? () => practiceProvider.setTunerReferenceHz(
                         practiceProvider.tunerReferenceHz - 1,
                       )
@@ -111,7 +111,7 @@ class PracticeTunerCard extends StatelessWidget {
                 icon: const Icon(Icons.remove_rounded),
               ),
               SizedBox(
-                width: 150,
+                width: 140,
                 child: Text(
                   'A4 = ${practiceProvider.tunerReferenceHz} Hz',
                   textAlign: TextAlign.center,
@@ -125,12 +125,33 @@ class PracticeTunerCard extends StatelessWidget {
                 key: const ValueKey('increase_tuner_reference'),
                 tooltip: context.translate('increase_tuner_reference'),
                 onPressed:
-                    controlsEnabled && practiceProvider.tunerReferenceHz < 460
+                    controlsEnabled && practiceProvider.tunerReferenceHz < 480
                     ? () => practiceProvider.setTunerReferenceHz(
                         practiceProvider.tunerReferenceHz + 1,
                       )
                     : null,
                 icon: const Icon(Icons.add_rounded),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                key: const ValueKey('toggle_sound_out'),
+                tooltip: practiceProvider.isSoundOutPlaying
+                    ? context.translate('stop_sound_out')
+                    : context.translate('sound_out'),
+                onPressed: practiceProvider.isPaused
+                    ? null
+                    : () => practiceProvider.toggleSoundOut(),
+                style: practiceProvider.isSoundOutPlaying
+                    ? IconButton.styleFrom(
+                        backgroundColor: Colors.amberAccent.shade700,
+                        foregroundColor: Colors.black,
+                      )
+                    : null,
+                icon: Icon(
+                  practiceProvider.isSoundOutPlaying
+                      ? Icons.volume_up_rounded
+                      : Icons.volume_up_outlined,
+                ),
               ),
             ],
           ),
@@ -156,6 +177,25 @@ class PracticeTunerCard extends StatelessWidget {
                             practiceProvider.setTunerToleranceCents(tolerance)
                       : null,
                 ),
+              FilterChip(
+                key: const ValueKey('toggle_tuner_focus_mode'),
+                avatar: Icon(
+                  practiceProvider.isTunerFocusMode
+                      ? Icons.center_focus_strong_rounded
+                      : Icons.center_focus_weak_rounded,
+                  size: 16,
+                ),
+                label: Text(
+                  context.translate(
+                    practiceProvider.isTunerFocusMode
+                        ? 'focus_mode'
+                        : 'normal_scale',
+                  ),
+                  style: const TextStyle(fontSize: 11),
+                ),
+                selected: practiceProvider.isTunerFocusMode,
+                onSelected: (_) => practiceProvider.toggleTunerFocusMode(),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -183,7 +223,11 @@ class PracticeTunerCard extends StatelessWidget {
                   style: TextStyle(color: AppTheme.textSecondaryColor(context)),
                 ),
                 const SizedBox(height: 12),
-                _PitchMeter(cents: cents, color: indicatorColor),
+                _PitchMeter(
+                  cents: cents,
+                  color: indicatorColor,
+                  isFocusMode: practiceProvider.isTunerFocusMode,
+                ),
                 const SizedBox(height: 16),
                 Divider(
                   height: 1,
@@ -264,30 +308,94 @@ class PracticeTunerCard extends StatelessWidget {
 }
 
 class _PitchMeter extends StatelessWidget {
-  const _PitchMeter({required this.cents, required this.color});
+  const _PitchMeter({
+    required this.cents,
+    required this.color,
+    this.isFocusMode = false,
+  });
 
   final double cents;
   final Color color;
+  final bool isFocusMode;
 
   @override
   Widget build(BuildContext context) {
+    final maxCents = isFocusMode ? 25.0 : 50.0;
+
     return Column(
       children: [
         SizedBox(
-          height: 28,
+          height: 32,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final center = constraints.maxWidth / 2;
+              final span = center - 10;
               final position =
-                  center + cents.clamp(-50.0, 50.0) / 50 * (center - 8);
+                  center + (cents.clamp(-maxCents, maxCents) / maxCents) * span;
+
+              // Pure Major Third: -13.7 cents
+              // Pure Minor Third: +15.6 cents
+              final majorThirdX = center + (-13.7 / maxCents) * span;
+              final minorThirdX = center + (15.6 / maxCents) * span;
+
               return Stack(
+                clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
+                  // Horizontal bar
                   Container(height: 3, color: AppTheme.borderColor(context)),
+                  // Center tick (0 cents)
                   Positioned(
                     left: center - 1,
                     child: Container(width: 2, height: 18, color: Colors.green),
                   ),
+                  // Pure Major Third marker (-13.7 cents)
+                  Positioned(
+                    left: majorThirdX - 5,
+                    top: 2,
+                    child: Tooltip(
+                      message: '-13.7¢ (Pure M3)',
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.arrow_drop_down,
+                            size: 11,
+                            color: Colors.lightBlueAccent.shade200,
+                          ),
+                          Container(
+                            width: 1.5,
+                            height: 6,
+                            color: Colors.lightBlueAccent.shade200,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Pure Minor Third marker (+15.6 cents)
+                  Positioned(
+                    left: minorThirdX - 5,
+                    top: 2,
+                    child: Tooltip(
+                      message: '+15.6¢ (Pure m3)',
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.arrow_drop_down,
+                            size: 11,
+                            color: Colors.purpleAccent.shade100,
+                          ),
+                          Container(
+                            width: 1.5,
+                            height: 6,
+                            color: Colors.purpleAccent.shade100,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Needle
                   Positioned(
                     left: position - 5,
                     child: Container(
@@ -304,12 +412,45 @@ class _PitchMeter extends StatelessWidget {
             },
           ),
         ),
+        const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            Text('♭  −50¢', style: TextStyle(fontSize: 10)),
-            Text('0', style: TextStyle(fontSize: 10)),
-            Text('+50¢  ♯', style: TextStyle(fontSize: 10)),
+          children: [
+            Text(
+              '♭  −${maxCents.toInt()}¢',
+              style: const TextStyle(fontSize: 10),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '▼ M3 (-13.7¢)',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.lightBlueAccent.shade200,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  '0',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '▼ m3 (+15.6¢)',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.purpleAccent.shade100,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              '+${maxCents.toInt()}¢  ♯',
+              style: const TextStyle(fontSize: 10),
+            ),
           ],
         ),
       ],

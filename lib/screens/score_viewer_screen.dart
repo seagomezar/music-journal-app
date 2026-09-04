@@ -1714,7 +1714,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
                 Row(
                   children: [
                     IconButton(
-                      onPressed: provider.metronomeBpm > 40
+                      onPressed: provider.metronomeBpm > 30
                           ? () {
                               provider.setMetronomeBpm(
                                 provider.metronomeBpm - 1,
@@ -1726,8 +1726,8 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
                     ),
                     Expanded(
                       child: Slider(
-                        min: 40,
-                        max: 240,
+                        min: 30,
+                        max: 252,
                         value: provider.metronomeBpm.toDouble(),
                         onChanged: (value) {
                           provider.setMetronomeBpm(value.round());
@@ -1736,7 +1736,7 @@ class _ScoreViewerScreenState extends State<ScoreViewerScreen>
                       ),
                     ),
                     IconButton(
-                      onPressed: provider.metronomeBpm < 240
+                      onPressed: provider.metronomeBpm < 252
                           ? () {
                               provider.setMetronomeBpm(
                                 provider.metronomeBpm + 1,

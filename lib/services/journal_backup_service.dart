@@ -360,8 +360,8 @@ class JournalBackupService {
       targetBpm: _integer(
         map['targetBpm'],
         '$path.targetBpm',
-        min: 40,
-        max: 240,
+        min: 30,
+        max: 252,
       ),
       articulation: _string(
         map['articulation'],
@@ -456,8 +456,8 @@ class JournalBackupService {
             practicedBpm: _integer(
               result['practicedBpm'],
               '$resultPath.practicedBpm',
-              min: 40,
-              max: 240,
+              min: 30,
+              max: 252,
             ),
             pitchSummary: schemaVersion >= 3
                 ? _parsePitchSummary(

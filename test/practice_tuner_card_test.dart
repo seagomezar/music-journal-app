@@ -6,6 +6,7 @@ import 'package:flute/models/routine.dart';
 import 'package:flute/providers/localization_provider.dart';
 import 'package:flute/providers/practice_provider.dart';
 import 'package:flute/services/capture_lifecycle_service.dart';
+import 'package:flute/services/metronome_audio_service.dart';
 import 'package:flute/services/pitch_tracking_service.dart';
 import 'package:flute/widgets/practice_tuner_card.dart';
 import 'package:flutter/material.dart';
@@ -97,6 +98,86 @@ void main() {
     provider.dispose();
     await tester.pump();
   });
+
+  testWidgets('tuner card toggles Focus mode (±25¢) and pure third markers', (
+    tester,
+  ) async {
+    final input = _FakeInput();
+    final provider = PracticeProvider(
+      pitchTrackingService: PitchTrackingService(
+        audioInput: input,
+        captureLifecycle: NoopAudioCaptureLifecycleController(),
+      ),
+    )..startSession(null);
+    await _pumpTuner(tester, provider);
+
+    // Initial wide scale ±50¢
+    expect(find.text('Wide (±50¢)'), findsOneWidget);
+    expect(find.text('♭  −50¢'), findsOneWidget);
+    expect(find.text('+50¢  ♯'), findsOneWidget);
+    expect(find.text('▼ M3 (-13.7¢)'), findsOneWidget);
+    expect(find.text('▼ m3 (+15.6¢)'), findsOneWidget);
+
+    // Toggle to Focus mode
+    await tester.tap(find.byKey(const ValueKey('toggle_tuner_focus_mode')));
+    await tester.pumpAndSettle();
+    expect(provider.isTunerFocusMode, true);
+    expect(find.text('Focus (±25¢)'), findsOneWidget);
+    expect(find.text('♭  −25¢'), findsOneWidget);
+    expect(find.text('+25¢  ♯'), findsOneWidget);
+
+    provider.dispose();
+    await tester.pump();
+  });
+
+  testWidgets('tuner card toggles reference tone (Sound Out)', (tester) async {
+    final input = _FakeInput();
+    final fakeMetronome = _FakeMetronomeAudio();
+    final provider = PracticeProvider(
+      metronomeAudioController: fakeMetronome,
+      pitchTrackingService: PitchTrackingService(
+        audioInput: input,
+        captureLifecycle: NoopAudioCaptureLifecycleController(),
+      ),
+    )..startSession(null);
+    await _pumpTuner(tester, provider);
+
+    final soundOutBtn = find.byKey(const ValueKey('toggle_sound_out'));
+    expect(soundOutBtn, findsOneWidget);
+    expect(fakeMetronome.playedHz, isNull);
+
+    // Tap to play reference tone
+    await tester.tap(soundOutBtn);
+    await tester.pumpAndSettle();
+    expect(fakeMetronome.playedHz, 440);
+
+    // Tap to stop reference tone
+    await tester.tap(soundOutBtn);
+    await tester.pumpAndSettle();
+    expect(fakeMetronome.isReferenceTonePlaying, false);
+
+    provider.dispose();
+    await tester.pump();
+  });
+}
+
+class _FakeMetronomeAudio extends NoopMetronomeAudioController {
+  int? playedHz;
+  bool _tonePlaying = false;
+
+  @override
+  bool get isReferenceTonePlaying => _tonePlaying;
+
+  @override
+  Future<void> playReferenceTone(int hz) async {
+    playedHz = hz;
+    _tonePlaying = true;
+  }
+
+  @override
+  Future<void> stopReferenceTone() async {
+    _tonePlaying = false;
+  }
 }
 
 Future<void> _pumpTuner(

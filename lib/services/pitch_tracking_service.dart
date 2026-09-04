@@ -61,7 +61,7 @@ class PitchTrackingService {
 
   static const sampleRate = 48000;
   static const frameSize = 2048;
-  static const _minimumClarity = 0.80;
+  static const _minimumClarity = 0.65;
   static const _noteNames = [
     'C',
     'C#',
@@ -138,7 +138,7 @@ class PitchTrackingService {
     }
 
     _mode = mode;
-    _referenceHz = referenceHz.clamp(420, 460);
+    _referenceHz = referenceHz.clamp(410, 480);
     _toleranceCents = toleranceCents.clamp(5, 20);
     _pendingSamples.clear();
     _pendingByte = null;
@@ -189,7 +189,7 @@ class PitchTrackingService {
       _pendingSamples.removeRange(0, frameSize);
       final excluded = excludeFrame?.call() ?? false;
 
-      final dynamicReading = _processDynamicFrame(frame);
+      final dynamicReading = _processDynamicFrame(frame, isExcluded: excluded);
       if (_isListening) {
         onDynamicReading?.call(dynamicReading);
       }
@@ -204,30 +204,41 @@ class PitchTrackingService {
     }
   }
 
-  FluteDynamicReading _processDynamicFrame(Float64List frame) {
+  FluteDynamicReading _processDynamicFrame(
+    Float64List frame, {
+    bool isExcluded = false,
+  }) {
     var energy = 0.0;
     for (var i = 0; i < frame.length; i++) {
       energy += frame[i] * frame[i];
     }
     final rms = math.sqrt(energy / frame.length);
-    final rawDb = rms <= 0.00001
-        ? 0.0
-        : (20.0 * (math.log(rms) / math.ln10) +
-                  100.0 +
-                  _dynamicCalibrationOffsetDb)
-              .clamp(0.0, 120.0);
+    // Map phone microphone input range (-60 dBFS to -6 dBFS) to 30.0 dB - 100.0 dB SPL.
+    final double rawDb;
+    if (rms <= 0.001) {
+      rawDb = 30.0;
+    } else {
+      final dbfs = 20.0 * (math.log(rms) / math.ln10);
+      final normalized = ((dbfs + 60.0) / 54.0).clamp(0.0, 1.0);
+      rawDb = (30.0 + (normalized * 70.0) + _dynamicCalibrationOffsetDb).clamp(
+        30.0,
+        105.0,
+      );
+    }
 
-    final alpha = rawDb > _smoothedDecibels ? 0.35 : 0.12;
-    _smoothedDecibels = (_smoothedDecibels == 0.0)
-        ? rawDb
-        : (alpha * rawDb + (1.0 - alpha) * _smoothedDecibels);
+    if (!isExcluded) {
+      final alpha = rawDb > _smoothedDecibels ? 0.35 : 0.12;
+      _smoothedDecibels = (_smoothedDecibels == 0.0)
+          ? rawDb
+          : (alpha * rawDb + (1.0 - alpha) * _smoothedDecibels);
 
-    final now = DateTime.now();
-    if (rawDb >= _peakDecibels) {
-      _peakDecibels = rawDb;
-      _lastPeakTime = now;
-    } else if (now.difference(_lastPeakTime).inMilliseconds > 1500) {
-      _peakDecibels = math.max(rawDb, _peakDecibels - 1.2);
+      final now = DateTime.now();
+      if (rawDb >= _peakDecibels) {
+        _peakDecibels = rawDb;
+        _lastPeakTime = now;
+      } else if (now.difference(_lastPeakTime).inMilliseconds > 1500) {
+        _peakDecibels = math.max(rawDb, _peakDecibels - 1.2);
+      }
     }
 
     final fluteDynamic = FluteDynamic.fromDecibels(_smoothedDecibels);
@@ -251,8 +262,10 @@ class PitchTrackingService {
     });
     if (!_isListening) return;
     if (result == null || result.clarity < _minimumClarity) {
-      _recentMidiNotes.clear();
-      onReading?.call(null);
+      if (!excluded) {
+        _recentMidiNotes.clear();
+        onReading?.call(null);
+      }
       return;
     }
 
@@ -382,10 +395,11 @@ PitchDetectionResult? detectPitchFrame(Map<String, Object> input) {
     energy += samples[index] * samples[index];
   }
   final rms = math.sqrt(energy / samples.length);
-  if (rms < 0.0032) return null; // Approximately -50 dBFS.
+  if (rms < 0.001) return null; // Approximately -60 dBFS.
 
-  final minimumLag = (sampleRate / 2500).floor().clamp(2, samples.length - 2);
-  final maximumLag = (sampleRate / 220).ceil().clamp(
+  // Pitch range matching Yamaha TDM-710GL: C1 (30.5 Hz) to C8 (4200 Hz).
+  final minimumLag = (sampleRate / 4200).floor().clamp(2, samples.length - 2);
+  final maximumLag = (sampleRate / 30.5).ceil().clamp(
     minimumLag + 1,
     samples.length - 2,
   );
@@ -414,7 +428,7 @@ PitchDetectionResult? detectPitchFrame(Map<String, Object> input) {
   for (final lag in maxima.skip(1)) {
     if (nsdf[lag] > nsdf[strongest]) strongest = lag;
   }
-  final cutoff = nsdf[strongest] * 0.93;
+  final cutoff = nsdf[strongest] * 0.85;
   final selected = maxima.firstWhere(
     (lag) => nsdf[lag] >= cutoff,
     orElse: () => strongest,
