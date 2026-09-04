@@ -32,6 +32,8 @@
 	<string>Select sheet music PDF files and practice attachments from your photo library.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Scan sheet music scores or capture practice notes using the camera.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Location access is only referenced if you choose to attach photos or score documents that contain location metadata.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIApplicationSceneManifest</key>
