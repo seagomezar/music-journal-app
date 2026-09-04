@@ -19,14 +19,21 @@ AppWindowSizeClass appNavigationSizeClass(
     : AppWindowSizeClass.compact;
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  final int initialIndex;
+  const MainShell({super.key, this.initialIndex = 0});
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   final List<Widget> _views = [
     const DashboardView(),
