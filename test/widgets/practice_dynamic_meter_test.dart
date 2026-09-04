@@ -29,9 +29,7 @@ class _FakeInput implements PitchAudioInput {
 }
 
 void main() {
-  Widget buildTestableWidget({
-    required PracticeProvider practiceProvider,
-  }) {
+  Widget buildTestableWidget({required PracticeProvider practiceProvider}) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
@@ -48,9 +46,7 @@ void main() {
         supportedLocales: [Locale('es'), Locale('en')],
         locale: Locale('es'),
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: PracticeTunerCardTestWrapper(),
-          ),
+          body: SingleChildScrollView(child: PracticeTunerCardTestWrapper()),
         ),
       ),
     );

@@ -212,8 +212,10 @@ class PitchTrackingService {
     final rms = math.sqrt(energy / frame.length);
     final rawDb = rms <= 0.00001
         ? 0.0
-        : (20.0 * (math.log(rms) / math.ln10) + 100.0 + _dynamicCalibrationOffsetDb)
-            .clamp(0.0, 120.0);
+        : (20.0 * (math.log(rms) / math.ln10) +
+                  100.0 +
+                  _dynamicCalibrationOffsetDb)
+              .clamp(0.0, 120.0);
 
     final alpha = rawDb > _smoothedDecibels ? 0.35 : 0.12;
     _smoothedDecibels = (_smoothedDecibels == 0.0)

@@ -179,7 +179,10 @@ class FluteDynamicReading {
   double get normalizedLevel {
     const minScale = 40.0;
     const maxScale = 98.0;
-    return ((smoothedDecibels - minScale) / (maxScale - minScale)).clamp(0.0, 1.0);
+    return ((smoothedDecibels - minScale) / (maxScale - minScale)).clamp(
+      0.0,
+      1.0,
+    );
   }
 
   /// Normalized progress [0.0, 1.0] for the peak indicator.

@@ -342,8 +342,8 @@ class _DynamicMeter extends StatelessWidget {
 
     final dynamicText = activeDynamic == FluteDynamic.ambient
         ? (isListening
-            ? context.translate('dynamic_ambient')
-            : context.translate('dynamic_meter'))
+              ? context.translate('dynamic_ambient')
+              : context.translate('dynamic_meter'))
         : context.translate(activeDynamic.localizationKey);
 
     return Semantics(
@@ -403,7 +403,8 @@ class _DynamicMeter extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: isListening &&
+                      color:
+                          isListening &&
                               dynamicReading != null &&
                               dynamicReading!.isAudible
                           ? activeDynamic.color
@@ -443,8 +444,9 @@ class _DynamicMeter extends StatelessWidget {
                       width: barWidth,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: AppTheme.borderColor(context)
-                            .withValues(alpha: 0.3),
+                        color: AppTheme.borderColor(
+                          context,
+                        ).withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),
@@ -520,8 +522,9 @@ class _DynamicMeter extends StatelessWidget {
                         : FontWeight.w500,
                     color: activeDynamic == dyn
                         ? dyn.color
-                        : AppTheme.textSecondaryColor(context)
-                            .withValues(alpha: 0.6),
+                        : AppTheme.textSecondaryColor(
+                            context,
+                          ).withValues(alpha: 0.6),
                   ),
                 ),
             ],
