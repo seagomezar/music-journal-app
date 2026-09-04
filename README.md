@@ -18,6 +18,12 @@ Flute Practice Coach is a private, local-only practice journal for flutists. It 
 - No online account, advertising, or cloud journal data collection; the deployed web build may send optional aggregate usage events when configured
 - In-app privacy policy, support information, and permanent data erasure
 
+## Releases & Distribution
+
+Latest release binaries are available under [GitHub Releases](https://github.com/seagomezar/music-journal-app/releases):
+- **Android:** Download the standalone release APK (`flute-practice-coach-v1.0.0-build5.apk`) directly from [Releases](https://github.com/seagomezar/music-journal-app/releases/latest) for direct installation or sideloading.
+- **iOS:** Distributed via Apple TestFlight on App Store Connect.
+
 ## Architecture
 
 Flutter widgets consume `ChangeNotifier` providers. Providers coordinate Hive CE persistence, app-owned file storage, recording/playback, localization, and session state. The app manages user content locally and does not upload it. The deployed web build can send only aggregate app-launch, onboarding, and session-start events through Plausible when `PLAUSIBLE_DOMAIN` is configured; journal, profile, audio, and pitch data are never included.
