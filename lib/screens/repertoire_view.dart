@@ -992,9 +992,10 @@ class _RepertoireViewState extends State<RepertoireView> {
 
   Widget _buildEmptyState(BuildContext context, {required bool folder}) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
@@ -1084,71 +1085,72 @@ class _RepertoireViewState extends State<RepertoireView> {
             ? _buildEmptyState(context, folder: true)
             : repProv.pieces.isEmpty && repProv.folders.isEmpty
             ? _buildEmptyState(context, folder: false)
-            : Column(
-                children: [
+            : CustomScrollView(
+                slivers: [
                   if (selectedFolder == null && repProv.folders.isNotEmpty)
-                    SizedBox(
-                      height: 124,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: repProv.folders.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 12),
-                        itemBuilder: (context, index) => SizedBox(
-                          width: 290,
-                          child: _buildFolderCard(
-                            context,
-                            repProv.folders[index],
-                            repProv,
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: 124,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: repProv.folders.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 12),
+                          itemBuilder: (context, index) => SizedBox(
+                            width: 290,
+                            child: _buildFolderCard(
+                              context,
+                              repProv.folders[index],
+                              repProv,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   if (selectedFolder == null && visiblePieces.isNotEmpty)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                        child: Text(
-                          context.translate('unfiled'),
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                    SliverToBoxAdapter(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: Text(
+                            context.translate('unfiled'),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                     ),
-                  Expanded(
-                    child: visiblePieces.isEmpty
-                        ? const SizedBox.shrink()
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              final columns = constraints.maxWidth >= 960
-                                  ? 4
-                                  : constraints.maxWidth >= 640
-                                  ? 3
-                                  : 2;
-                              return GridView.builder(
-                                padding: const EdgeInsets.all(16),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: columns,
-                                      crossAxisSpacing: 14,
-                                      mainAxisSpacing: 14,
-                                      childAspectRatio: columns >= 3
-                                          ? 0.9
-                                          : 0.78,
-                                    ),
-                                itemCount: visiblePieces.length,
-                                itemBuilder: (context, index) {
-                                  return _buildPieceCard(
-                                    context,
-                                    visiblePieces[index],
-                                    repProv,
-                                  );
-                                },
+                  if (visiblePieces.isNotEmpty)
+                    SliverLayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = constraints.crossAxisExtent >= 960
+                            ? 4
+                            : constraints.crossAxisExtent >= 640
+                            ? 3
+                            : 2;
+                        return SliverPadding(
+                          padding: const EdgeInsets.all(16),
+                          sliver: SliverGrid.builder(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: columns,
+                                  crossAxisSpacing: 14,
+                                  mainAxisSpacing: 14,
+                                  childAspectRatio: columns >= 3 ? 0.9 : 0.78,
+                                ),
+                            itemCount: visiblePieces.length,
+                            itemBuilder: (context, index) {
+                              return _buildPieceCard(
+                                context,
+                                visiblePieces[index],
+                                repProv,
                               );
                             },
                           ),
-                  ),
+                        );
+                      },
+                    ),
                 ],
               ),
       ),

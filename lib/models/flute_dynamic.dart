@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Musical dynamic markings calibrated for the concert flute based on
-/// modern flute acoustics and pedagogy (Marcel Moyse, Michel Debost, Fletcher & Rossing).
-///
-/// At a typical music stand distance (~40-60 cm from the embouchure to the device mic),
-/// the flute produces an effective dynamic range of approximately 30-35 dB SPL above ambient noise.
+/// Heuristic musical dynamic markings on the app's relative input scale.
+/// These depend on microphone gain and distance and are not calibrated SPL.
 enum FluteDynamic {
   ambient,
   ppp,
@@ -64,7 +61,7 @@ enum FluteDynamic {
     }
   }
 
-  /// Lower bound in decibels (dB SPL equivalent).
+  /// Lower bound on the estimated, uncalibrated display scale.
   double get minDb {
     switch (this) {
       case FluteDynamic.ambient:
@@ -88,7 +85,7 @@ enum FluteDynamic {
     }
   }
 
-  /// Upper bound in decibels (dB SPL equivalent).
+  /// Upper bound on the estimated, uncalibrated display scale.
   double get maxDb {
     switch (this) {
       case FluteDynamic.ambient:

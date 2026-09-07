@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/database_service.dart';
+import 'improvement_translations.dart';
 
 class LocalizationProvider with ChangeNotifier {
   final DatabaseService _db = DatabaseService();
@@ -29,6 +30,9 @@ class LocalizationProvider with ChangeNotifier {
     notifyListeners();
     try {
       await _db.setPreferredLocale(langCode);
+      // Built-in content is resolved from the persisted locale by data
+      // providers. Refresh it even if the optimistic frame ran before I/O.
+      notifyListeners();
     } catch (_) {
       _localeCode = previousLocaleCode;
       notifyListeners();
@@ -49,6 +53,7 @@ class LocalizationProvider with ChangeNotifier {
 
   // --- ENGLISH DICTIONARY ---
   static const Map<String, String> _en = {
+    ...improvementEnglish,
     'app_title': 'Flute Practice Coach',
     'app_subtitle': 'Your private, focused practice journal',
     'local_profile_title': 'Set up your local profile',
@@ -137,8 +142,8 @@ class LocalizationProvider with ChangeNotifier {
     'pure_minor_third': 'Pure m3 (+15.6¢)',
     'dynamic_meter': 'Dynamic & Volume Meter',
     'dynamic_meter_subtitle':
-        'Real-time sound pressure and estimated flute dynamics.',
-    'decibels': 'dB SPL',
+        'Relative microphone input and estimated flute dynamics.',
+    'decibels': 'Relative level',
     'dynamic_ambient': 'Ambient / Rest',
     'dynamic_ppp': 'Pianississimo (ppp)',
     'dynamic_pp': 'Pianissimo (pp)',
@@ -505,6 +510,7 @@ class LocalizationProvider with ChangeNotifier {
 
   // --- SPANISH DICTIONARY ---
   static const Map<String, String> _es = {
+    ...improvementSpanish,
     'app_title': 'Flute Practice Coach',
     'app_subtitle': 'Tu diario de práctica privado y enfocado',
     'local_profile_title': 'Configura tu perfil local',
@@ -593,8 +599,8 @@ class LocalizationProvider with ChangeNotifier {
     'pure_minor_third': '3ª Menor Pura (+15.6¢)',
     'dynamic_meter': 'Medidor de Dinámica y Volumen',
     'dynamic_meter_subtitle':
-        'Nivel de decibeles y dinámica musical estimada para flauta.',
-    'decibels': 'dB SPL',
+        'Entrada relativa del micrófono y dinámica estimada para flauta.',
+    'decibels': 'Nivel relativo',
     'dynamic_ambient': 'Ambiente / Pausa',
     'dynamic_ppp': 'Pianississimo (ppp)',
     'dynamic_pp': 'Pianissimo (pp)',

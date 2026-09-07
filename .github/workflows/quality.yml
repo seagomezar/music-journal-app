@@ -1,0 +1,39 @@
+name: Shared quality checks
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.0
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter test --tags golden
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-failures-${{ github.workflow }}-${{ github.sha }}
+          path: test/failures/
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.0
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+      - run: flutter analyze
+      - run: flutter test --coverage --exclude-tags golden
+      - run: flutter test --platform chrome test/web_settings_interaction_test.dart test/routine_exercise_management_test.dart test/analytics_service_test.dart
+      - run: flutter test --platform chrome test/dashboard_locale_test.dart --plain-name "dashboard renders in the browser test runner"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.workflow }}-${{ github.sha }}
+          path: coverage/lcov.info

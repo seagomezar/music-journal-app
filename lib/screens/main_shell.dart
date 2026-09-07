@@ -9,6 +9,7 @@ import 'calendar_history_view.dart';
 import 'active_practice_view.dart';
 import '../theme/app_theme.dart';
 import '../widgets/adaptive_layout.dart';
+import '../widgets/data_recovery_banner.dart';
 
 @visibleForTesting
 AppWindowSizeClass appNavigationSizeClass(
@@ -62,69 +63,87 @@ class _MainShellState extends State<MainShell> {
     );
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          if (useTabletNavigation) ...[
-            NavigationRail(
-              extended: extendTabletNavigation,
-              minExtendedWidth: 220,
-              backgroundColor: AppTheme.surfaceColor(context),
-              selectedIndex: _currentIndex,
-              labelType: extendTabletNavigation
-                  ? NavigationRailLabelType.none
-                  : NavigationRailLabelType.all,
-              leading: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Tooltip(
-                  message: context.translate('app_title'),
-                  child: CircleAvatar(
-                    backgroundColor: AppTheme.primaryColor(context),
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    child: Icon(Icons.music_note_rounded),
+          const DataRecoveryBanner(),
+          Expanded(
+            child: Row(
+              children: [
+                if (useTabletNavigation) ...[
+                  NavigationRail(
+                    extended: extendTabletNavigation,
+                    minExtendedWidth: 220,
+                    backgroundColor: AppTheme.surfaceColor(context),
+                    selectedIndex: _currentIndex,
+                    labelType: extendTabletNavigation
+                        ? NavigationRailLabelType.none
+                        : NavigationRailLabelType.all,
+                    leading: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Tooltip(
+                        message: context.translate('app_title'),
+                        child: CircleAvatar(
+                          backgroundColor: AppTheme.primaryColor(context),
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary,
+                          child: Icon(Icons.music_note_rounded),
+                        ),
+                      ),
+                    ),
+                    onDestinationSelected: _selectDestination,
+                    destinations: [
+                      NavigationRailDestination(
+                        icon: const Icon(Icons.dashboard_outlined),
+                        selectedIcon: const Icon(Icons.dashboard_rounded),
+                        label: Text(
+                          localizationProv.translate('dashboard_nav'),
+                        ),
+                      ),
+                      NavigationRailDestination(
+                        icon: const Icon(
+                          Icons.playlist_add_check_circle_outlined,
+                        ),
+                        selectedIcon: const Icon(
+                          Icons.playlist_add_check_circle,
+                        ),
+                        label: Text(localizationProv.translate('routines')),
+                      ),
+                      NavigationRailDestination(
+                        icon: const Icon(Icons.library_music_outlined),
+                        selectedIcon: const Icon(Icons.library_music),
+                        label: Text(localizationProv.translate('repertoire')),
+                      ),
+                      NavigationRailDestination(
+                        icon: const Icon(Icons.calendar_month_outlined),
+                        selectedIcon: const Icon(Icons.calendar_month),
+                        label: Text(localizationProv.translate('history')),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-              onDestinationSelected: _selectDestination,
-              destinations: [
-                NavigationRailDestination(
-                  icon: const Icon(Icons.dashboard_outlined),
-                  selectedIcon: const Icon(Icons.dashboard_rounded),
-                  label: Text(localizationProv.translate('dashboard_nav')),
-                ),
-                NavigationRailDestination(
-                  icon: const Icon(Icons.playlist_add_check_circle_outlined),
-                  selectedIcon: const Icon(Icons.playlist_add_check_circle),
-                  label: Text(localizationProv.translate('routines')),
-                ),
-                NavigationRailDestination(
-                  icon: const Icon(Icons.library_music_outlined),
-                  selectedIcon: const Icon(Icons.library_music),
-                  label: Text(localizationProv.translate('repertoire')),
-                ),
-                NavigationRailDestination(
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  selectedIcon: const Icon(Icons.calendar_month),
-                  label: Text(localizationProv.translate('history')),
+                  VerticalDivider(
+                    width: 1,
+                    color: AppTheme.borderColor(context),
+                  ),
+                ],
+                Expanded(
+                  key: const ValueKey('main_shell_content'),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final contentWidth = constraints.maxWidth > 1120
+                          ? 1120.0
+                          : constraints.maxWidth;
+                      return Center(
+                        child: SizedBox(
+                          width: contentWidth,
+                          height: constraints.maxHeight,
+                          child: content,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
-            ),
-            VerticalDivider(width: 1, color: AppTheme.borderColor(context)),
-          ],
-          Expanded(
-            key: const ValueKey('main_shell_content'),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final contentWidth = constraints.maxWidth > 1120
-                    ? 1120.0
-                    : constraints.maxWidth;
-                return Center(
-                  child: SizedBox(
-                    width: contentWidth,
-                    height: constraints.maxHeight,
-                    child: content,
-                  ),
-                );
-              },
             ),
           ),
         ],

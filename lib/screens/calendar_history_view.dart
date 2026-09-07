@@ -12,6 +12,7 @@ import '../services/audio_service.dart';
 import '../services/local_file_availability.dart';
 import '../theme/app_theme.dart';
 import 'manual_session_screen.dart';
+import 'practice_insights_screen.dart';
 import '../widgets/recording_list.dart';
 import '../widgets/adaptive_layout.dart';
 
@@ -174,11 +175,13 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
     }
   }
 
-  Future<void> _openManualSession() async {
+  Future<void> _openManualSession([SessionRecord? session]) async {
     final loggedDate = await Navigator.of(context).push<DateTime>(
       MaterialPageRoute(
-        builder: (_) =>
-            ManualSessionScreen(initialDate: _selectedDay ?? _focusedDay),
+        builder: (_) => ManualSessionScreen(
+          initialDate: _selectedDay ?? _focusedDay,
+          session: session,
+        ),
       ),
     );
     if (loggedDate == null || !mounted) return;
@@ -191,7 +194,13 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
       _focusedDay = _selectedDay!;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.translate('manual_session_saved'))),
+      SnackBar(
+        content: Text(
+          context.translate(
+            session == null ? 'manual_session_saved' : 'session_updated',
+          ),
+        ),
+      ),
     );
   }
 
@@ -308,6 +317,15 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
 
     return Scaffold(
       appBar: AppBar(
+        actions: [
+          IconButton(
+            tooltip: context.translate('practice_insights'),
+            icon: const Icon(Icons.insights),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PracticeInsightsScreen()),
+            ),
+          ),
+        ],
         title: Text(
           context.translate('practice_history_title'),
           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -454,6 +472,14 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                               fontSize: 11,
                                             ),
                                           ),
+                                        ),
+                                        IconButton(
+                                          tooltip: context.translate(
+                                            'edit_session',
+                                          ),
+                                          icon: const Icon(Icons.edit_outlined),
+                                          onPressed: () =>
+                                              _openManualSession(session),
                                         ),
                                         IconButton(
                                           tooltip: context.translate(

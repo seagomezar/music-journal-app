@@ -73,7 +73,7 @@ void main() {
     expect(find.text('f'), findsOneWidget);
     expect(find.text('ff'), findsOneWidget);
     expect(find.text('fff'), findsOneWidget);
-    expect(find.text('— dB SPL'), findsOneWidget);
+    expect(find.text('- / 100'), findsOneWidget);
 
     provider.dispose();
   });

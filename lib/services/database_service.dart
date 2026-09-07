@@ -11,6 +11,8 @@ import '../models/practice_appearance_preferences.dart';
 import '../models/pdf_annotation.dart';
 import '../models/score_view_preferences.dart';
 import 'file_storage_service.dart';
+import 'durable_batch_service.dart';
+import 'seed_localization.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 
 class DatabaseService {
@@ -39,24 +41,119 @@ class DatabaseService {
   late Box _pdfAnnotationsBox;
   late Box _scoreViewPreferencesBox;
   late Box _sessionsBox;
+  late Box _recoveryBox;
+  late DurableBatchService _batch;
+  final FileStorageService _storage = FileStorageService();
+  final ValueNotifier<Set<String>> damagedRecords = ValueNotifier({});
+  final ValueNotifier<bool> needsRecovery = ValueNotifier(false);
+  List<SessionRecord>? _sessionCache;
+
+  Map<String, Box> get _boxes => {
+    'profile': _profileBox,
+    'routines': _routinesBox,
+    'repertoire': _repertoireBox,
+    'folders': _repertoireFoldersBox,
+    'annotations': _pdfAnnotationsBox,
+    'scorePreferences': _scoreViewPreferencesBox,
+    'sessions': _sessionsBox,
+  };
+
+  bool get isInitialized => _isInitialized && _profileBox.isOpen;
 
   bool _isInitialized = false;
+  String _generation = '';
+  String? _recoveryGeneration;
+
+  Future<void> initializeRecoveryDatabase() async {
+    _isInitialized = false;
+    final bootstrap = await Hive.openBox('flute_bootstrap');
+    final retained = (bootstrap.get('retained_generations') as List? ?? [])
+        .cast<String>();
+    _recoveryGeneration = '_recovered_${DateTime.now().microsecondsSinceEpoch}';
+    await bootstrap.put(
+      'retained_generations',
+      {...retained, _generation, _recoveryGeneration!}.toList(),
+    );
+    await bootstrap.flush();
+    await init();
+  }
+
+  Future<void> activateRecoveryDatabase() async {
+    final bootstrap = await Hive.openBox('flute_bootstrap');
+    await bootstrap.put('generation', _generation);
+    await bootstrap.flush();
+    _recoveryGeneration = null;
+  }
+
+  void abandonRecoveryDatabase() {
+    _recoveryGeneration = null;
+    _isInitialized = false;
+  }
+
+  Future<void> scheduleMediaCleanup(Iterable<String> paths) async {
+    final previous = (_recoveryBox.get('mediaCleanup') as List? ?? [])
+        .cast<String>();
+    await _recoveryBox.put(
+      'mediaCleanup',
+      {...previous, ...paths.map(_storage.portablePath)}.toList(),
+    );
+    await _recoveryBox.flush();
+  }
+
+  Future<void> retryMediaCleanup() async {
+    final pending = (_recoveryBox.get('mediaCleanup') as List? ?? [])
+        .cast<String>();
+    if (pending.isEmpty) return;
+    final referenced = <String>{
+      for (final session in getSessions())
+        for (final recording in session.recordings)
+          _storage.portablePath(recording.storagePath),
+      for (final piece in getPieces())
+        if (piece.pdfPath != null) _storage.portablePath(piece.pdfPath!),
+    };
+    if (damagedRecords.value.isNotEmpty) return;
+    final remaining = <String>[];
+    for (final path in pending) {
+      if (referenced.contains(path)) continue;
+      try {
+        await _storage.deleteManagedFile(path);
+      } catch (_) {
+        remaining.add(path);
+      }
+    }
+    await _recoveryBox.put('mediaCleanup', remaining);
+  }
 
   Future<void> init() async {
-    if (_isInitialized) return;
+    if (isInitialized) return;
     await Hive.initFlutter();
+    await _storage.initialize();
+    final bootstrap = await Hive.openBox('flute_bootstrap');
+    _generation =
+        _recoveryGeneration ??
+        bootstrap.get('generation', defaultValue: '') as String;
 
-    _profileBox = await Hive.openBox('flute_profile');
-    _routinesBox = await Hive.openBox('flute_routines');
-    _repertoireBox = await Hive.openBox('flute_repertoire');
-    _repertoireFoldersBox = await Hive.openBox('flute_repertoire_folders');
-    _pdfAnnotationsBox = await Hive.openBox('flute_pdf_annotations');
-    _scoreViewPreferencesBox = await Hive.openBox(
-      'flute_score_view_preferences',
+    _profileBox = await Hive.openBox('flute_profile$_generation');
+    _routinesBox = await Hive.openBox('flute_routines$_generation');
+    _repertoireBox = await Hive.openBox('flute_repertoire$_generation');
+    _repertoireFoldersBox = await Hive.openBox(
+      'flute_repertoire_folders$_generation',
     );
-    _sessionsBox = await Hive.openBox('flute_sessions');
+    _pdfAnnotationsBox = await Hive.openBox(
+      'flute_pdf_annotations$_generation',
+    );
+    _scoreViewPreferencesBox = await Hive.openBox(
+      'flute_score_view_preferences$_generation',
+    );
+    _sessionsBox = await Hive.openBox('flute_sessions$_generation');
 
-    _isInitialized = true;
+    _recoveryBox = await Hive.openBox('flute_recovery$_generation');
+    _batch = DurableBatchService(_recoveryBox, {
+      ..._boxes,
+      'recovery': _recoveryBox,
+    });
+    await _batch.recover();
+    _sessionCache = null;
 
     final seedVersion = _profileBox.get(_seedVersionKey) as int? ?? 0;
     if (seedVersion < _currentSeedVersion) {
@@ -65,6 +162,112 @@ class DatabaseService {
       }
       await _profileBox.put(_seedVersionKey, _currentSeedVersion);
     }
+    _isInitialized = true;
+    // Keep the recovery screen mounted while a fresh generation is restored.
+    // main clears the signal after activation and recreates its providers.
+    if (_recoveryGeneration == null) needsRecovery.value = false;
+    try {
+      await retryMediaCleanup();
+    } catch (error) {
+      debugPrint('Media cleanup deferred: $error');
+    }
+  }
+
+  void _reportDamage(String type, Object error) {
+    damagedRecords.value = {...damagedRecords.value, type};
+    debugPrint('Unable to load $type: $error');
+  }
+
+  dynamic _mapMedia(dynamic value, {required bool portable}) {
+    if (value is List) {
+      return value.map((v) => _mapMedia(v, portable: portable)).toList();
+    }
+    if (value is Map) {
+      return value.map(
+        (key, item) => MapEntry(
+          key.toString(),
+          const {
+                    'pdfPath',
+                    'sourcePath',
+                    'storagePath',
+                    'audioFilePath',
+                    'pendingRecordingPath',
+                  }.contains(key) &&
+                  item is String
+              ? (portable
+                    ? _storage.portablePath(item)
+                    : _storage.resolveStoredPath(item))
+              : _mapMedia(item, portable: portable),
+        ),
+      );
+    }
+    return value;
+  }
+
+  Map<String, Map<String, dynamic>> exportSnapshot() => {
+    for (final entry in _boxes.entries)
+      entry.key: Map<String, dynamic>.from(entry.value.toMap()),
+  };
+
+  Future<void> restoreSnapshot(
+    Map<String, Map<String, dynamic>> snapshot,
+  ) async {
+    await _applyBatch(
+      snapshot,
+      deletions: {
+        'recovery': ['sessionDraft'],
+        for (final entry in _boxes.entries)
+          entry.key: entry.value.keys
+              .cast<String>()
+              .where((key) => !snapshot[entry.key]!.containsKey(key))
+              .toList(),
+      },
+    );
+    _sessionCache = null;
+    damagedRecords.value = {};
+  }
+
+  Future<void> _applyBatch(
+    Map<String, Map<String, dynamic>> writes, {
+    Map<String, List<String>> deletions = const {},
+  }) async {
+    try {
+      await _batch.apply(writes, deletions: deletions);
+    } catch (_) {
+      _sessionCache = null;
+      if (_recoveryBox.containsKey('pending')) {
+        _isInitialized = false;
+        needsRecovery.value = true;
+      }
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic>? readSessionDraft() {
+    final raw = _recoveryBox.get('sessionDraft');
+    if (raw == null) return null;
+    try {
+      final draft = Map<String, dynamic>.from(
+        _mapMedia(jsonDecode(raw as String), portable: false) as Map,
+      );
+      if (_sessionsBox.containsKey(draft['sessionId'])) return null;
+      return draft;
+    } catch (error) {
+      _reportDamage('session draft', error);
+      return null;
+    }
+  }
+
+  Future<void> writeSessionDraft(Map<String, dynamic>? draft) async {
+    if (draft == null) {
+      await _recoveryBox.delete('sessionDraft');
+    } else {
+      await _recoveryBox.put(
+        'sessionDraft',
+        jsonEncode(_mapMedia(draft, portable: true)),
+      );
+    }
+    await _recoveryBox.flush();
   }
 
   Future<void> _seedInitialData() async {
@@ -140,7 +343,7 @@ class DatabaseService {
       final decoded = jsonDecode(raw as String);
       return UserProfile.fromJson(decoded as Map<String, dynamic>);
     } catch (e) {
-      debugPrint('Error decoding user profile: $e');
+      _reportDamage('profile', e);
       return null;
     }
   }
@@ -160,9 +363,14 @@ class DatabaseService {
     for (final raw in _routinesBox.values) {
       try {
         final decoded = jsonDecode(raw as String);
-        routines.add(Routine.fromJson(decoded as Map<String, dynamic>));
+        routines.add(
+          localizeSeedRoutine(
+            Routine.fromJson(decoded as Map<String, dynamic>),
+            getPreferredLocale(),
+          ),
+        );
       } catch (error) {
-        debugPrint('Skipping invalid routine record: $error');
+        _reportDamage('routines', error);
       }
     }
     return routines;
@@ -183,16 +391,22 @@ class DatabaseService {
     for (final raw in _repertoireBox.values) {
       try {
         final decoded = jsonDecode(raw as String);
-        pieces.add(Piece.fromJson(decoded as Map<String, dynamic>));
+        pieces.add(
+          Piece.fromJson(
+            Map<String, dynamic>.from(
+              _mapMedia(decoded, portable: false) as Map,
+            ),
+          ),
+        );
       } catch (error) {
-        debugPrint('Skipping invalid repertoire record: $error');
+        _reportDamage('repertoire', error);
       }
     }
     return pieces;
   }
 
   Future<void> savePiece(Piece piece) async {
-    final raw = jsonEncode(piece.toJson());
+    final raw = jsonEncode(_mapMedia(piece.toJson(), portable: true));
     await _repertoireBox.put(piece.id, raw);
   }
 
@@ -228,10 +442,10 @@ class DatabaseService {
     try {
       final decoded = jsonDecode(raw as String);
       return PdfAnnotationDocument.fromJson(
-        Map<String, dynamic>.from(decoded as Map),
+        Map<String, dynamic>.from(_mapMedia(decoded, portable: false) as Map),
       );
     } catch (error) {
-      debugPrint('Skipping invalid PDF annotation record: $error');
+      _reportDamage('PDF annotations', error);
       return null;
     }
   }
@@ -243,7 +457,7 @@ class DatabaseService {
     }
     await _pdfAnnotationsBox.put(
       document.pieceId,
-      jsonEncode(document.toJson()),
+      jsonEncode(_mapMedia(document.toJson(), portable: true)),
     );
   }
 
@@ -257,10 +471,12 @@ class DatabaseService {
     if (raw == null) return null;
     try {
       return ScoreViewPreferences.fromJson(
-        Map<String, dynamic>.from(jsonDecode(raw as String) as Map),
+        Map<String, dynamic>.from(
+          _mapMedia(jsonDecode(raw as String), portable: false) as Map,
+        ),
       );
     } catch (error) {
-      debugPrint('Skipping invalid score view preference record: $error');
+      _reportDamage('score display preferences', error);
       return null;
     }
   }
@@ -270,7 +486,7 @@ class DatabaseService {
   ) async {
     await _scoreViewPreferencesBox.put(
       preferences.pieceId,
-      jsonEncode(preferences.toJson()),
+      jsonEncode(_mapMedia(preferences.toJson(), portable: true)),
     );
   }
 
@@ -285,7 +501,7 @@ class DatabaseService {
         final decoded = jsonDecode(raw as String);
         folders.add(RepertoireFolder.fromJson(decoded as Map<String, dynamic>));
       } catch (error) {
-        debugPrint('Skipping invalid repertoire folder record: $error');
+        _reportDamage('repertoire folders', error);
       }
     }
     return folders;
@@ -301,61 +517,64 @@ class DatabaseService {
 
   // --- SESSIONS ---
   List<SessionRecord> getSessions() {
+    if (_sessionCache != null) return _sessionCache!;
     final sessions = <SessionRecord>[];
     for (final raw in _sessionsBox.values) {
       try {
         final decoded = jsonDecode(raw as String);
-        sessions.add(SessionRecord.fromJson(decoded as Map<String, dynamic>));
+        sessions.add(
+          SessionRecord.fromJson(
+            Map<String, dynamic>.from(
+              _mapMedia(decoded, portable: false) as Map,
+            ),
+          ),
+        );
       } catch (error) {
-        debugPrint('Skipping invalid session record: $error');
+        _reportDamage('sessions', error);
       }
     }
     // Sort by startTime descending (most recent first)
     sessions.sort((a, b) => b.startTime.compareTo(a.startTime));
-    return sessions;
+    return _sessionCache = List.unmodifiable(sessions);
   }
 
   Future<void> saveSession(SessionRecord session) async {
-    final raw = jsonEncode(session.toJson());
+    final raw = jsonEncode(_mapMedia(session.toJson(), portable: true));
     await _sessionsBox.put(session.id, raw);
+    _sessionCache = null;
   }
 
   Future<void> deleteSession(String id) async {
     await _sessionsBox.delete(id);
+    _sessionCache = null;
   }
 
   Future<void> mergeJournalData({
     required List<Routine> routines,
     required List<SessionRecord> sessions,
   }) async {
-    final previousRoutines = Map<dynamic, dynamic>.from(_routinesBox.toMap());
-    final previousSessions = Map<dynamic, dynamic>.from(_sessionsBox.toMap());
-    final routineWrites = <dynamic, dynamic>{
+    final routineWrites = <String, dynamic>{
       for (final routine in routines) routine.id: jsonEncode(routine.toJson()),
     };
-    final sessionWrites = <dynamic, dynamic>{
+    final sessionWrites = <String, dynamic>{
       for (final session in sessions) session.id: jsonEncode(session.toJson()),
     };
 
-    try {
-      await _routinesBox.putAll(routineWrites);
-      await _sessionsBox.putAll(sessionWrites);
-    } catch (error) {
-      try {
-        await _routinesBox.clear();
-        await _routinesBox.putAll(previousRoutines);
-        await _sessionsBox.clear();
-        await _sessionsBox.putAll(previousSessions);
-      } catch (rollbackError) {
-        debugPrint('Journal import rollback failed: $rollbackError');
-      }
-      rethrow;
-    }
+    await _applyBatch({'routines': routineWrites, 'sessions': sessionWrites});
+    _sessionCache = null;
   }
 
   // --- LOCALIZATION ---
+  T _preference<T>(String key, T fallback) {
+    final value = _profileBox.get(key, defaultValue: fallback);
+    if (value is T && (value is! num || value.isFinite)) return value;
+    _reportDamage('preferences', FormatException('Invalid $key'));
+    return fallback;
+  }
+
   String getPreferredLocale() {
-    return _profileBox.get('preferred_locale', defaultValue: 'en') as String;
+    final locale = _preference('preferred_locale', 'en');
+    return const {'en', 'es'}.contains(locale) ? locale : 'en';
   }
 
   Future<void> setPreferredLocale(String locale) async {
@@ -363,7 +582,7 @@ class DatabaseService {
   }
 
   bool getKeepScreenAwake() {
-    return _profileBox.get(_keepScreenAwakeKey, defaultValue: false) as bool;
+    return _preference(_keepScreenAwakeKey, false);
   }
 
   Future<void> setKeepScreenAwake(bool enabled) async {
@@ -371,7 +590,7 @@ class DatabaseService {
   }
 
   bool getMetronomeSoundEnabled() {
-    return _profileBox.get(_metronomeSoundKey, defaultValue: true) as bool;
+    return _preference(_metronomeSoundKey, true);
   }
 
   Future<void> setMetronomeSoundEnabled(bool enabled) async {
@@ -379,8 +598,10 @@ class DatabaseService {
   }
 
   double getMetronomeVolume() {
-    final value = _profileBox.get(_metronomeVolumeKey, defaultValue: 0.7);
-    return (value as num).toDouble().clamp(0.0, 1.0);
+    return _preference<num>(
+      _metronomeVolumeKey,
+      0.7,
+    ).toDouble().clamp(0.0, 1.0);
   }
 
   Future<void> setMetronomeVolume(double volume) async {
@@ -388,8 +609,7 @@ class DatabaseService {
   }
 
   int getTunerReferenceHz() {
-    final value = _profileBox.get(_tunerReferenceKey, defaultValue: 440);
-    return (value as num).toInt().clamp(420, 460);
+    return _preference<num>(_tunerReferenceKey, 440).toInt().clamp(420, 460);
   }
 
   Future<void> setTunerReferenceHz(int referenceHz) async {
@@ -397,8 +617,7 @@ class DatabaseService {
   }
 
   int getTunerToleranceCents() {
-    final value = _profileBox.get(_tunerToleranceKey, defaultValue: 10);
-    final tolerance = (value as num).toInt();
+    final tolerance = _preference<num>(_tunerToleranceKey, 10).toInt();
     return const {5, 10, 20}.contains(tolerance) ? tolerance : 10;
   }
 
@@ -439,37 +658,35 @@ class DatabaseService {
     await _profileBox.put(_themeModeKey, mode.name);
   }
 
-  bool getHapticsEnabled() =>
-      _profileBox.get(_hapticsKey, defaultValue: true) as bool;
+  bool getHapticsEnabled() => _preference(_hapticsKey, true);
 
   Future<void> setHapticsEnabled(bool enabled) async {
     await _profileBox.put(_hapticsKey, enabled);
   }
 
-  bool getSoundCuesEnabled() =>
-      _profileBox.get(_soundCuesKey, defaultValue: true) as bool;
+  bool getSoundCuesEnabled() => _preference(_soundCuesKey, true);
 
   Future<void> setSoundCuesEnabled(bool enabled) async {
     await _profileBox.put(_soundCuesKey, enabled);
   }
 
-  bool getReducedMotion() =>
-      _profileBox.get(_reducedMotionKey, defaultValue: false) as bool;
+  bool getReducedMotion() => _preference(_reducedMotionKey, false);
 
   Future<void> setReducedMotion(bool enabled) async {
     await _profileBox.put(_reducedMotionKey, enabled);
   }
 
-  bool getShowCelebrations() =>
-      _profileBox.get(_showCelebrationsKey, defaultValue: true) as bool;
+  bool getShowCelebrations() => _preference(_showCelebrationsKey, true);
 
   Future<void> setShowCelebrations(bool enabled) async {
     await _profileBox.put(_showCelebrationsKey, enabled);
   }
 
   double getPerformanceBrightness() {
-    final value = _profileBox.get(_performanceBrightnessKey, defaultValue: 1.0);
-    return (value as num).toDouble().clamp(0.1, 1.0);
+    return _preference<num>(
+      _performanceBrightnessKey,
+      1.0,
+    ).toDouble().clamp(0.1, 1.0);
   }
 
   Future<void> setPerformanceBrightness(double brightness) async {
@@ -480,6 +697,31 @@ class DatabaseService {
   }
 
   Future<void> clearAllUserData() async {
+    final bootstrap = await Hive.openBox('flute_bootstrap');
+    final retained = (bootstrap.get('retained_generations') as List? ?? [])
+        .cast<String>();
+    for (final generation in retained) {
+      if (generation == _generation ||
+          (generation.isNotEmpty &&
+              !RegExp(r'^_recovered_[0-9]+$').hasMatch(generation))) {
+        continue;
+      }
+      for (final prefix in const [
+        'flute_profile',
+        'flute_routines',
+        'flute_repertoire',
+        'flute_repertoire_folders',
+        'flute_pdf_annotations',
+        'flute_score_view_preferences',
+        'flute_sessions',
+        'flute_recovery',
+      ]) {
+        await Hive.deleteBoxFromDisk('$prefix$generation');
+      }
+    }
+    await bootstrap.delete('retained_generations');
+    _sessionCache = null;
+    damagedRecords.value = {};
     final preferredLocale = getPreferredLocale();
     await Future.wait([
       _profileBox.clear(),
@@ -489,6 +731,7 @@ class DatabaseService {
       _pdfAnnotationsBox.clear(),
       _scoreViewPreferencesBox.clear(),
       _sessionsBox.clear(),
+      _recoveryBox.clear(),
       FileStorageService().deleteAllManagedFiles(),
     ]);
     await _profileBox.put(_seedVersionKey, _currentSeedVersion);

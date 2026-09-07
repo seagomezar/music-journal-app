@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import '../models/routine.dart';
 import '../services/database_service.dart';
+import '../services/seed_localization.dart';
 
 class RoutineProvider with ChangeNotifier {
   final DatabaseService _db = DatabaseService();
   List<Routine> _routines = [];
   bool _isLoading = false;
 
-  List<Routine> get routines => _routines;
+  List<Routine> get routines => List.unmodifiable(
+    _routines.map(
+      (routine) => localizeSeedRoutine(routine, _db.getPreferredLocale()),
+    ),
+  );
   bool get isLoading => _isLoading;
 
   Future<void> loadRoutines() async {

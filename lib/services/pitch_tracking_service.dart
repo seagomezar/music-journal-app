@@ -84,6 +84,10 @@ class PitchTrackingService {
   final List<int> _recentMidiNotes = [];
   StreamSubscription<Uint8List>? _subscription;
   Future<void> _analysisQueue = Future.value();
+  static const maxPendingFrames = 3;
+  int _pendingAnalysisFrames = 0;
+  int droppedFrames = 0;
+  int get pendingAnalysisFrames => _pendingAnalysisFrames;
   Future<void> _captureOperationQueue = Future<void>.value();
   ValueChanged<PitchReading?>? onReading;
   ValueChanged<FluteDynamicReading?>? onDynamicReading;
@@ -194,13 +198,24 @@ class PitchTrackingService {
         onDynamicReading?.call(dynamicReading);
       }
 
-      _analysisQueue = _analysisQueue.then(
-        (_) => _analyzeFrame(
-          frame,
-          dynamicReading: dynamicReading,
-          excluded: excluded,
-        ),
-      );
+      if (_pendingAnalysisFrames >= maxPendingFrames) {
+        droppedFrames++;
+        continue;
+      }
+      _pendingAnalysisFrames++;
+      _analysisQueue = _analysisQueue.then((_) async {
+        try {
+          await _analyzeFrame(
+            frame,
+            dynamicReading: dynamicReading,
+            excluded: excluded,
+          );
+        } catch (error) {
+          debugPrint('Pitch frame analysis failed: $error');
+        } finally {
+          _pendingAnalysisFrames--;
+        }
+      });
     }
   }
 
@@ -213,7 +228,7 @@ class PitchTrackingService {
       energy += frame[i] * frame[i];
     }
     final rms = math.sqrt(energy / frame.length);
-    // Map phone microphone input range (-60 dBFS to -6 dBFS) to 30.0 dB - 100.0 dB SPL.
+    // A relative display scale only. Device gain is not calibrated to SPL.
     final double rawDb;
     if (rms <= 0.001) {
       rawDb = 30.0;

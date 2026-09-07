@@ -10,6 +10,29 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('a burst of PCM cannot build an unbounded analysis backlog', () async {
+    final input = _FakePitchAudioInput();
+    final tracker = PitchTrackingService(
+      audioInput: input,
+      captureLifecycle: _FakeCaptureLifecycleController(),
+    );
+    await tracker.start(
+      mode: PitchCaptureMode.tuning,
+      referenceHz: 440,
+      toleranceCents: 10,
+    );
+    final reading = _stableReading(tracker);
+    input.add(_pcm16([for (var i = 0; i < 100; i++) ..._tone(440)]));
+    await reading;
+    expect(
+      tracker.pendingAnalysisFrames,
+      lessThanOrEqualTo(PitchTrackingService.maxPendingFrames),
+    );
+    expect(tracker.droppedFrames, 97);
+    await tracker.dispose();
+    expect(tracker.pendingAnalysisFrames, 0);
+  });
+
   group('MPM pitch detector', () {
     for (final frequency in [
       65.41,

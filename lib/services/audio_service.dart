@@ -39,6 +39,7 @@ class AudioService {
   bool get isRecording => _isRecording;
   bool get isPlaying => _isPlaying;
   String? get lastRecordedPath => _lastRecordedPath;
+  String? get pendingRecordingPath => _pendingRecordingPath;
 
   void _setPlaying(bool value) {
     if (_isPlaying == value) return;

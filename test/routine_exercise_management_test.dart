@@ -111,8 +111,14 @@ Future<void> _pumpRoutineScreen(
 }) async {
   tester.view.physicalSize = viewportSize;
   tester.view.devicePixelRatio = 1;
+  // Synthetic logical viewports must not inherit the native phone's
+  // portrait safe-area pixels at a different device pixel ratio.
+  tester.view.padding = FakeViewPadding.zero;
+  tester.view.viewPadding = FakeViewPadding.zero;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.view.resetPadding);
+  addTearDown(tester.view.resetViewPadding);
 
   await tester.pumpWidget(
     MultiProvider(

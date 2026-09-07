@@ -15,17 +15,23 @@ import 'providers/localization_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/main_shell.dart';
 import 'screens/splash_screen.dart';
+import 'screens/startup_recovery_screen.dart';
 import 'theme/app_theme.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AnalyticsService.track('app_launch');
 
   // Initialize Local Offline Database
   final dbService = DatabaseService();
-  await dbService.init();
+  try {
+    await dbService.init();
+  } catch (error) {
+    debugPrint('Journal initialization failed: $error');
+    runApp(StartupRecoveryScreen(onRetry: main));
+    return;
+  }
 
   final metronomeAudioService = MetronomeAudioService();
   final screenAwakeCoordinator = ScreenAwakeCoordinator.instance;
@@ -43,9 +49,14 @@ void main() async {
   // Initialize Date Formatting for Calendar
   await initializeDateFormatting('es', null);
   await initializeDateFormatting('en', null);
+  AnalyticsService.track('app_launch');
+  dbService.needsRecovery.value = false;
 
   runApp(
     MultiProvider(
+      // A successful recovery must recreate providers against the recovered
+      // database, not retain state from the previous runApp tree.
+      key: UniqueKey(),
       providers: [
         ChangeNotifierProvider(create: (_) => LocalizationProvider()),
         ChangeNotifierProvider(
@@ -56,6 +67,11 @@ void main() async {
         ChangeNotifierProvider(create: (_) => HistoryProvider()),
         ChangeNotifierProvider(
           create: (_) => PracticeProvider(
+            persistDraft: dbService.writeSessionDraft,
+            recoveredDraft: dbService.readSessionDraft(),
+            recordingName: (number) => dbService.getPreferredLocale() == 'es'
+                ? 'Grabación $number'
+                : 'Recording $number',
             metronomeAudioController: metronomeAudioService,
             screenAwakeController: screenAwakeCoordinator,
             keepScreenAwake: dbService.getKeepScreenAwake(),
@@ -83,7 +99,12 @@ void main() async {
           ),
         ),
       ],
-      child: const MyApp(),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: dbService.needsRecovery,
+        builder: (context, needsRecovery, _) => needsRecovery
+            ? StartupRecoveryScreen(onRetry: main)
+            : const MyApp(),
+      ),
     ),
   );
 }
@@ -93,12 +114,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final practiceProvider = context.watch<PracticeProvider>();
+    final themeMode = context.select<PracticeProvider, ThemeMode>(
+      (p) => p.themeMode,
+    );
     return MaterialApp(
       title: context.translate('app_title'),
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: practiceProvider.themeMode,
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       locale: Locale(context.watch<LocalizationProvider>().localeCode),
       supportedLocales: const [Locale('en'), Locale('es')],

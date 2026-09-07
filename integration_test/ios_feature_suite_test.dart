@@ -61,11 +61,14 @@ void main() {
         flush: true,
       );
 
-      final storage = FileStorageService(rootOverride: temporaryDirectory);
+      // Use the same managed root as the database, which resolves portable
+      // score references against the current application's support directory.
+      final storage = FileStorageService();
       final importedPath = await storage.importPdf(
         sourceFile.path,
         originalName: 'Imported iOS Score.pdf',
       );
+      addTearDown(() => storage.deleteManagedFile(importedPath));
       expect(await storage.isManagedPath(importedPath), isTrue);
       expect(await File(importedPath).exists(), isTrue);
 

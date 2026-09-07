@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import '../models/session_record.dart';
 import '../models/session_recording.dart';
 import '../services/database_service.dart';
-import '../services/file_storage_service.dart';
+import '../models/history_summary.dart';
 
 class HistoryProvider with ChangeNotifier {
   final DatabaseService _db = DatabaseService();
-  final FileStorageService _storage = FileStorageService();
   List<SessionRecord> _sessions = [];
   bool _isLoading = false;
+  HistorySummary? _summary;
+  HistorySummary get summary => _summary ??= HistorySummary(_sessions);
 
   List<SessionRecord> get sessions => _sessions;
   bool get isLoading => _isLoading;
@@ -18,6 +19,7 @@ class HistoryProvider with ChangeNotifier {
     notifyListeners();
     try {
       _sessions = _db.getSessions();
+      _summary = null;
     } catch (e) {
       debugPrint('Error loading sessions: $e');
     } finally {
@@ -45,12 +47,14 @@ class HistoryProvider with ChangeNotifier {
           break;
         }
       }
-      for (final recording
-          in session?.recordings ?? const <SessionRecording>[]) {
-        await _storage.deleteManagedFile(recording.storagePath);
-      }
+      await _db.scheduleMediaCleanup(
+        (session?.recordings ?? const <SessionRecording>[]).map(
+          (r) => r.storagePath,
+        ),
+      );
       await _db.deleteSession(id);
       await loadSessions();
+      await _db.retryMediaCleanup();
     } catch (e) {
       debugPrint('Error deleting session: $e');
       rethrow;
@@ -83,11 +87,12 @@ class HistoryProvider with ChangeNotifier {
   ) async {
     final session = _sessionById(sessionId);
     if (session == null) return;
-    await _storage.deleteManagedFile(recording.storagePath);
     final updatedRecordings = session.recordings
         .where((item) => item.id != recording.id)
         .toList();
+    await _db.scheduleMediaCleanup([recording.storagePath]);
     await saveSession(session.copyWith(recordings: updatedRecordings));
+    await _db.retryMediaCleanup();
   }
 
   SessionRecord? _sessionById(String id) {
@@ -99,20 +104,7 @@ class HistoryProvider with ChangeNotifier {
 
   // Group sessions by day
   Map<DateTime, List<SessionRecord>> get sessionsByDay {
-    final Map<DateTime, List<SessionRecord>> data = {};
-    for (final session in _sessions) {
-      final localStartTime = session.localStartTime;
-      final dateOnly = DateTime(
-        localStartTime.year,
-        localStartTime.month,
-        localStartTime.day,
-      );
-      if (!data.containsKey(dateOnly)) {
-        data[dateOnly] = [];
-      }
-      data[dateOnly]!.add(session);
-    }
-    return data;
+    return summary.byDay;
   }
 
   List<SessionRecord> getSessionsForDay(DateTime day) {
@@ -124,75 +116,43 @@ class HistoryProvider with ChangeNotifier {
   int get totalSessionsCount => _sessions.length;
 
   int get totalMinutesPracticed {
-    final totalSeconds = _sessions.fold<int>(
-      0,
-      (sum, item) => sum + item.totalDurationInSeconds,
-    );
-    return totalSeconds ~/ 60;
+    return summary.totalSeconds ~/ 60;
   }
 
   int get totalExercisesCompleted {
-    return _sessions.fold<int>(
-      0,
-      (sum, item) => sum + item.completedExercises.length,
-    );
+    return summary.exerciseCount;
   }
 
   int get thisWeekMinutesPracticed {
     final now = DateTime.now();
     // Find start of week (Monday)
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final startOfWeekDate = DateTime(
-      startOfWeek.year,
-      startOfWeek.month,
-      startOfWeek.day,
+      now.year,
+      now.month,
+      now.day - (now.weekday - 1),
     );
-
-    final weeklySessions = _sessions.where(
-      (s) => !s.localStartTime.isBefore(startOfWeekDate),
-    );
-    final totalSeconds = weeklySessions.fold<int>(
-      0,
-      (sum, item) => sum + item.totalDurationInSeconds,
-    );
+    var totalSeconds = 0;
+    for (var offset = 0; offset < 7; offset++) {
+      final day = DateTime(
+        startOfWeekDate.year,
+        startOfWeekDate.month,
+        startOfWeekDate.day + offset,
+      );
+      totalSeconds += summary.secondsByDay[day] ?? 0;
+    }
     return totalSeconds ~/ 60;
   }
 
   int get currentStreak {
-    if (_sessions.isEmpty) return 0;
-
-    final sortedDates = _sessions
-        .map((s) {
-          final localStartTime = s.localStartTime;
-          return DateTime.utc(
-            localStartTime.year,
-            localStartTime.month,
-            localStartTime.day,
-          );
-        })
-        .toSet()
-        .toList();
-    sortedDates.sort(
-      (a, b) => b.compareTo(a),
-    ); // Descending order (today first)
-
     final today = DateTime.now();
-    final todayDate = DateTime.utc(today.year, today.month, today.day);
-    final yesterdayDate = todayDate.subtract(const Duration(days: 1));
-
-    // If the most recent practice was not today or yesterday, streak is broken (0)
-    if (sortedDates.first != todayDate && sortedDates.first != yesterdayDate) {
-      return 0;
+    var day = DateTime(today.year, today.month, today.day);
+    if (!summary.byDay.containsKey(day)) {
+      day = DateTime(day.year, day.month, day.day - 1);
     }
-
-    int streak = 1;
-    for (int i = 0; i < sortedDates.length - 1; i++) {
-      final diff = sortedDates[i].difference(sortedDates[i + 1]).inDays;
-      if (diff == 1) {
-        streak++;
-      } else if (diff > 1) {
-        break; // Streak broken
-      }
+    var streak = 0;
+    while (summary.byDay.containsKey(day)) {
+      streak++;
+      day = DateTime(day.year, day.month, day.day - 1);
     }
     return streak;
   }

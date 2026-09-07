@@ -7,6 +7,17 @@ import '../theme/app_theme.dart';
 
 class PracticeTunerCard extends StatelessWidget {
   const PracticeTunerCard({super.key, required this.practiceProvider});
+  final PracticeProvider practiceProvider;
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: practiceProvider.audioReadings,
+    builder: (context, _, _) =>
+        _PracticeTunerContent(practiceProvider: practiceProvider),
+  );
+}
+
+class _PracticeTunerContent extends StatelessWidget {
+  const _PracticeTunerContent({required this.practiceProvider});
 
   final PracticeProvider practiceProvider;
 
@@ -200,7 +211,7 @@ class PracticeTunerCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Semantics(
-            liveRegion: true,
+            liveRegion: false,
             label: reading == null
                 ? context.translate('play_a_note')
                 : '${reading.displayNote}, ${reading.cents.toStringAsFixed(1)} cents',
@@ -354,7 +365,7 @@ class _PitchMeter extends StatelessWidget {
                     left: majorThirdX - 5,
                     top: 2,
                     child: Tooltip(
-                      message: '-13.7¢ (Pure M3)',
+                      message: context.translate('pure_major_third'),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -377,7 +388,7 @@ class _PitchMeter extends StatelessWidget {
                     left: minorThirdX - 5,
                     top: 2,
                     child: Tooltip(
-                      message: '+15.6¢ (Pure m3)',
+                      message: context.translate('pure_minor_third'),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -413,15 +424,19 @@ class _PitchMeter extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
           children: [
             Text(
               '♭  −${maxCents.toInt()}¢',
               style: const TextStyle(fontSize: 10),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
               children: [
                 Text(
                   '▼ M3 (-13.7¢)',
@@ -472,12 +487,6 @@ class _DynamicMeter extends StatelessWidget {
     final activeDynamic = isListening && dynamicReading != null
         ? dynamicReading!.dynamic
         : FluteDynamic.ambient;
-    final decibels = isListening && dynamicReading != null
-        ? dynamicReading!.smoothedDecibels
-        : 0.0;
-    final peakDecibels = isListening && dynamicReading != null
-        ? dynamicReading!.peakDecibels
-        : 0.0;
     final normalized = dynamicReading?.normalizedLevel ?? 0.0;
     final normalizedPeak = dynamicReading?.normalizedPeak ?? 0.0;
 
@@ -488,9 +497,9 @@ class _DynamicMeter extends StatelessWidget {
         : context.translate(activeDynamic.localizationKey);
 
     return Semantics(
-      liveRegion: true,
+      liveRegion: false,
       label: isListening && dynamicReading != null && dynamicReading!.isAudible
-          ? '${activeDynamic.symbol}, ${decibels.toStringAsFixed(1)} dB'
+          ? '${activeDynamic.symbol}, ${context.translate('relative_level')}'
           : context.translate('dynamic_meter'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -539,8 +548,8 @@ class _DynamicMeter extends StatelessWidget {
                 children: [
                   Text(
                     isListening && dynamicReading != null
-                        ? '${decibels.toStringAsFixed(1)} dB SPL'
-                        : '— dB SPL',
+                        ? '${(normalized * 100).round()} / 100'
+                        : '- / 100',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -557,7 +566,7 @@ class _DynamicMeter extends StatelessWidget {
                       dynamicReading != null &&
                       dynamicReading!.isAudible)
                     Text(
-                      '${context.translate('dynamic_peak')}: ${peakDecibels.toStringAsFixed(1)} dB',
+                      '${context.translate('dynamic_peak')}: ${(normalizedPeak * 100).round()} / 100',
                       style: TextStyle(
                         fontSize: 9,
                         color: AppTheme.textSecondaryColor(context),
@@ -569,7 +578,12 @@ class _DynamicMeter extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // VU Meter Bar
+          Text(
+            context.translate('dynamic_estimate'),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          // Relative input meter
           SizedBox(
             height: 12,
             child: LayoutBuilder(
@@ -639,8 +653,10 @@ class _DynamicMeter extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           // Dynamic symbols row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 12,
+            runSpacing: 8,
             children: [
               for (final dyn in const [
                 FluteDynamic.ppp,

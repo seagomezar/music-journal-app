@@ -34,8 +34,7 @@ import 'package:pdf_document/pdf_document.dart' as pdf;
 import 'package:provider/provider.dart';
 
 const _surfaceKey = ValueKey('ipad_evidence_surface');
-const _outputDir =
-    '/Users/sebas/.gemini/antigravity/brain/cfdf2788-bb3e-466b-8267-cccfc5748335';
+const _outputDir = String.fromEnvironment('FLUTE_EVIDENCE_DIR');
 
 Future<void> _capture(WidgetTester tester, String filename) async {
   await tester.pump();
@@ -48,7 +47,9 @@ Future<void> _capture(WidgetTester tester, String filename) async {
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
     if (bytes == null) return;
     final dir = Directory(_outputDir);
-    final targetDir = dir.existsSync() ? dir : Directory.systemTemp;
+    final targetDir = _outputDir.isNotEmpty && dir.existsSync()
+        ? dir
+        : Directory.systemTemp;
     final file = File('${targetDir.path}/$filename.png');
     await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
   });

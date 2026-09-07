@@ -157,18 +157,28 @@ class SessionRecord {
   String? get audioFilePath =>
       recordings.isEmpty ? null : recordings.first.storagePath;
 
-  SessionRecord copyWith({List<SessionRecording>? recordings}) {
+  SessionRecord copyWith({
+    List<SessionRecording>? recordings,
+    DateTime? startTime,
+    DateTime? endTime,
+    int? totalDurationInSeconds,
+    String? notes,
+    List<SessionPieceRecord>? rehearsedPieces,
+  }) {
     return SessionRecord(
       id: id,
-      startTime: startTime,
-      endTime: endTime,
-      startUtcOffsetMinutes: startUtcOffsetMinutes,
-      endUtcOffsetMinutes: endUtcOffsetMinutes,
-      totalDurationInSeconds: totalDurationInSeconds,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      startUtcOffsetMinutes:
+          startTime?.timeZoneOffset.inMinutes ?? startUtcOffsetMinutes,
+      endUtcOffsetMinutes:
+          endTime?.timeZoneOffset.inMinutes ?? endUtcOffsetMinutes,
+      totalDurationInSeconds:
+          totalDurationInSeconds ?? this.totalDurationInSeconds,
       completedExercises: completedExercises,
       exerciseResults: exerciseResults,
-      rehearsedPieces: rehearsedPieces,
-      notes: notes,
+      rehearsedPieces: rehearsedPieces ?? this.rehearsedPieces,
+      notes: notes ?? this.notes,
       recordings: recordings ?? this.recordings,
     );
   }

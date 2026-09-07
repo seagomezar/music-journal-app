@@ -73,7 +73,10 @@ class JournalBackupService {
       'routines': routines.map(_routineJson).toList(),
       'sessions': sessions.map(_sessionJson).toList(),
     };
-    return const JsonEncoder.withIndent('  ').convert(document);
+    final source = const JsonEncoder.withIndent('  ').convert(document);
+    // Never report an export as successful if this app cannot import it.
+    parseBytes(Uint8List.fromList(utf8.encode(source)));
+    return source;
   }
 
   JournalBackupData parseBytes(Uint8List bytes) {

@@ -12,9 +12,14 @@ import '../theme/app_theme.dart';
 import '../widgets/adaptive_layout.dart';
 
 class ManualSessionScreen extends StatefulWidget {
-  const ManualSessionScreen({super.key, required this.initialDate});
+  const ManualSessionScreen({
+    super.key,
+    required this.initialDate,
+    this.session,
+  });
 
   final DateTime initialDate;
+  final SessionRecord? session;
 
   @override
   State<ManualSessionScreen> createState() => _ManualSessionScreenState();
@@ -46,6 +51,17 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
             18,
           );
     _startTime = TimeOfDay.fromDateTime(defaultStart);
+    final existing = widget.session;
+    if (existing != null) {
+      final local = existing.localStartTime;
+      _selectedDate = DateTime(local.year, local.month, local.day);
+      _startTime = TimeOfDay.fromDateTime(local);
+      _durationController.text = (existing.totalDurationInSeconds / 60)
+          .ceil()
+          .clamp(1, 1440)
+          .toString();
+      _notesController.text = existing.notes;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<RoutineProvider>().loadRoutines();
@@ -108,8 +124,18 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
       _startTime.minute,
     );
     final end = start.add(Duration(minutes: durationMinutes));
+    final existing = widget.session;
+    final timingUnchanged =
+        existing != null &&
+        start.year == existing.localStartTime.year &&
+        start.month == existing.localStartTime.month &&
+        start.day == existing.localStartTime.day &&
+        start.hour == existing.localStartTime.hour &&
+        start.minute == existing.localStartTime.minute &&
+        durationMinutes ==
+            (existing.totalDurationInSeconds / 60).ceil().clamp(1, 1440);
     final now = DateTime.now();
-    if (start.isAfter(now) || end.isAfter(now)) {
+    if (!timingUnchanged && (start.isAfter(now) || end.isAfter(now))) {
       setState(() => _timeError = context.translate('manual_session_future'));
       return;
     }
@@ -130,15 +156,22 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
       }
     }
 
-    final session = SessionRecord(
-      id: 'session_${const Uuid().v7()}',
-      startTime: start,
-      endTime: end,
-      totalDurationInSeconds: durationMinutes * 60,
-      completedExercises: selectedExercises,
-      rehearsedPieces: const [],
-      notes: _notesController.text.trim(),
-    );
+    final session =
+        existing?.copyWith(
+          startTime: timingUnchanged ? null : start,
+          endTime: timingUnchanged ? null : end,
+          totalDurationInSeconds: timingUnchanged ? null : durationMinutes * 60,
+          notes: _notesController.text.trim(),
+        ) ??
+        SessionRecord(
+          id: 'session_${const Uuid().v7()}',
+          startTime: start,
+          endTime: end,
+          totalDurationInSeconds: durationMinutes * 60,
+          completedExercises: selectedExercises,
+          rehearsedPieces: const [],
+          notes: _notesController.text.trim(),
+        );
 
     try {
       await context.read<HistoryProvider>().saveSession(session);
@@ -158,7 +191,13 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
     final localeCode = context.watch<LocalizationProvider>().localeCode;
     final routines = context.watch<RoutineProvider>().routines;
     return Scaffold(
-      appBar: AppBar(title: Text(context.translate('log_past_session'))),
+      appBar: AppBar(
+        title: Text(
+          context.translate(
+            widget.session == null ? 'log_past_session' : 'edit_session',
+          ),
+        ),
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Center(
@@ -190,7 +229,11 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
               padding: const EdgeInsets.all(20),
               children: [
                 Text(
-                  context.translate('manual_session_description'),
+                  context.translate(
+                    widget.session == null
+                        ? 'manual_session_description'
+                        : 'edit_session_description',
+                  ),
                   style: TextStyle(color: AppTheme.textSecondaryColor(context)),
                 ),
                 const SizedBox(height: 20),
@@ -249,6 +292,26 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
                     if (duration == null || duration < 1 || duration > 1440) {
                       return context.translate('invalid_manual_duration');
                     }
+                    final session = widget.session;
+                    if (session != null &&
+                        duration !=
+                            (session.totalDurationInSeconds / 60).ceil().clamp(
+                              1,
+                              1440,
+                            )) {
+                      final exerciseSeconds = session.exerciseResults.fold<int>(
+                        0,
+                        (total, result) => total + result.durationInSeconds,
+                      );
+                      final pieceSeconds = session.rehearsedPieces.fold<int>(
+                        0,
+                        (total, result) => total + result.durationInSeconds,
+                      );
+                      if (duration * 60 < exerciseSeconds ||
+                          duration * 60 < pieceSeconds) {
+                        return context.translate('duration_below_tracked');
+                      }
+                    }
                     return null;
                   },
                   onChanged: (_) {
@@ -267,9 +330,10 @@ class _ManualSessionScreenState extends State<ManualSessionScreen> {
                     prefixIcon: const Icon(Icons.notes_rounded),
                   ),
                 ),
-                if (routines.any(
-                  (routine) => routine.exercises.isNotEmpty,
-                )) ...[
+                if (widget.session == null &&
+                    routines.any(
+                      (routine) => routine.exercises.isNotEmpty,
+                    )) ...[
                   const SizedBox(height: 8),
                   Text(
                     context.translate('completed_exercises_optional'),

@@ -27,7 +27,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/identifier" },
         "name": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "targetBpm": { "type": "integer", "minimum": 40, "maximum": 240 },
+        "targetBpm": { "type": "integer", "minimum": 30, "maximum": 252 },
         "articulation": { "type": "string", "minLength": 1, "maxLength": 100 }
       }
     },
@@ -50,7 +50,7 @@
       "properties": {
         "exercise": { "$ref": "#/$defs/exercise" },
         "durationInSeconds": { "type": "integer", "minimum": 0, "maximum": 86400 },
-        "practicedBpm": { "type": "integer", "minimum": 40, "maximum": 240 },
+        "practicedBpm": { "type": "integer", "minimum": 30, "maximum": 252 },
         "pitchSummary": { "$ref": "#/$defs/pitchSummary" }
       }
     },

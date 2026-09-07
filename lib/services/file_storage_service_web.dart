@@ -12,6 +12,20 @@ class FileStorageService {
   Box<Uint8List>? _recordingBox;
   static final _playbackUrls = <String, String>{};
   static final _playbackUrlUsers = <String, int>{};
+  Future<void> initialize() async {}
+  String portablePath(String path) => path;
+  String resolveStoredPath(String path) => path;
+  Future<Uint8List> readMedia(String path) async {
+    final bytes = (await _recordings()).get(_keyFor(path));
+    if (bytes == null) throw StateError('Media is missing.');
+    return bytes;
+  }
+
+  Future<void> writeMedia(String path, Uint8List bytes) async {
+    final box = await _recordings();
+    await box.put(_keyFor(path), bytes);
+    await box.flush();
+  }
 
   Future<Box<Uint8List>> _recordings() async {
     return _recordingBox ??= await Hive.openBox<Uint8List>(
@@ -43,7 +57,9 @@ class FileStorageService {
   }
 
   Future<String> playableRecordingPath(String path) async {
-    if (!path.startsWith(_recordingPrefix)) return path;
+    if (!path.startsWith(_recordingPrefix) && !path.startsWith('media://')) {
+      return path;
+    }
     final existing = _playbackUrls[path];
     if (existing != null) {
       _playbackUrlUsers[path] = (_playbackUrlUsers[path] ?? 0) + 1;
@@ -76,10 +92,10 @@ class FileStorageService {
   }
 
   Future<bool> isManagedPath(String path) async =>
-      path.startsWith(_recordingPrefix);
+      path.startsWith(_recordingPrefix) || path.startsWith('media://');
 
   Future<void> deleteManagedFile(String? path) async {
-    if (path == null || !path.startsWith(_recordingPrefix)) return;
+    if (path == null || !await isManagedPath(path)) return;
     await (await _recordings()).delete(_keyFor(path));
     final url = _playbackUrls.remove(path);
     _playbackUrlUsers.remove(path);
@@ -96,5 +112,11 @@ class FileStorageService {
     _playbackUrlUsers.clear();
   }
 
-  String _keyFor(String path) => path.substring(_recordingPrefix.length);
+  String _keyFor(String path) {
+    if (path.startsWith(_recordingPrefix)) {
+      return path.substring(_recordingPrefix.length);
+    }
+    if (path.startsWith('media://') && !path.contains('..')) return path;
+    throw const FormatException('Invalid media identifier.');
+  }
 }

@@ -5,6 +5,7 @@ import '../models/piece.dart';
 import '../models/repertoire_folder.dart';
 import '../services/database_service.dart';
 import '../services/file_storage_service.dart';
+import '../services/seed_localization.dart';
 
 class RepertoireProvider with ChangeNotifier {
   final DatabaseService _db = DatabaseService();
@@ -13,7 +14,9 @@ class RepertoireProvider with ChangeNotifier {
   List<RepertoireFolder> _folders = [];
   bool _isLoading = false;
 
-  List<Piece> get pieces => List.unmodifiable(_pieces);
+  List<Piece> get pieces => List.unmodifiable(
+    _pieces.map((piece) => localizeSeedPiece(piece, _db.getPreferredLocale())),
+  );
   List<RepertoireFolder> get folders => List.unmodifiable(_folders);
   bool get isLoading => _isLoading;
 
@@ -44,7 +47,7 @@ class RepertoireProvider with ChangeNotifier {
 
   List<Piece> piecesInFolder(String? folderId) {
     return List.unmodifiable(
-      _pieces.where((piece) => piece.folderId == folderId),
+      pieces.where((piece) => piece.folderId == folderId),
     );
   }
 
@@ -184,8 +187,11 @@ class RepertoireProvider with ChangeNotifier {
           break;
         }
       }
+      if (piece?.pdfPath != null) {
+        await _db.scheduleMediaCleanup([piece!.pdfPath!]);
+      }
       await _db.deletePiece(id);
-      await _storage.deleteManagedFile(piece?.pdfPath);
+      await _db.retryMediaCleanup();
       await loadPieces();
     } catch (e) {
       debugPrint('Error deleting piece: $e');

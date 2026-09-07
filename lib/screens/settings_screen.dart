@@ -14,6 +14,8 @@ import '../providers/routine_provider.dart';
 import '../models/practice_appearance_preferences.dart';
 import '../services/database_service.dart';
 import '../services/journal_backup_service.dart';
+import '../services/full_backup_service.dart';
+import '../providers/repertoire_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/adaptive_layout.dart';
 import 'recording_library_screen.dart';
@@ -28,6 +30,99 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final JournalBackupService _backupService = JournalBackupService();
   bool _isTransferring = false;
+
+  Future<void> _fullBackup({required bool restore}) async {
+    if (_isTransferring || !_canTransfer()) return;
+    setState(() => _isTransferring = true);
+    try {
+      final service = FullBackupService();
+      if (restore) {
+        final selected = await FilePicker.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['zip'],
+          withData: true,
+        );
+        if (selected == null) return;
+        final bytes = selected.files.single.bytes;
+        if (bytes == null) {
+          throw const FormatException('Unable to read backup.');
+        }
+        final backup = service.parse(bytes);
+        if (!mounted) return;
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(context.translate('restore_full_backup')),
+            content: Text(
+              context.translate('full_backup_preview', [
+                backup.sessionCount.toString(),
+                backup.pieceCount.toString(),
+                backup.media.length.toString(),
+              ]),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(context.translate('cancel')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(context.translate('restore_full_backup')),
+              ),
+            ],
+          ),
+        );
+        if (confirm != true) return;
+        await service.restore(DatabaseService(), backup);
+        if (!mounted) return;
+        await context.read<AuthProvider>().checkAuthStatus();
+        if (!mounted) return;
+        await context.read<RoutineProvider>().loadRoutines();
+        if (!mounted) return;
+        await context.read<RepertoireProvider>().loadPieces();
+        if (!mounted) return;
+        await context.read<HistoryProvider>().loadSessions();
+        if (!mounted) return;
+        await context.read<LocalizationProvider>().setLocale(
+          DatabaseService().getPreferredLocale(),
+        );
+        if (!mounted) return;
+        context.read<PracticeProvider>().reloadPreferences(DatabaseService());
+      } else {
+        final bytes = await service.create(DatabaseService());
+        if (!mounted) return;
+        final saved = await FilePicker.saveFile(
+          dialogTitle: context.translate('full_backup'),
+          fileName:
+              'flute-full-${DateTime.now().toIso8601String().substring(0, 10)}.zip',
+          type: FileType.custom,
+          allowedExtensions: ['zip'],
+          bytes: bytes,
+        );
+        if (saved == null && !kIsWeb) return;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.translate(
+                restore ? 'full_backup_restored' : 'backup_exported',
+              ),
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      debugPrint('Full backup failed: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.translate('full_backup_error'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isTransferring = false);
+    }
+  }
 
   Future<void> _eraseAllData(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -482,6 +577,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.download_rounded),
+                title: Text(context.translate('full_backup')),
+                subtitle: Text(context.translate('full_backup_description')),
+                onTap: _isTransferring
+                    ? null
+                    : () => _fullBackup(restore: false),
+              ),
+              ListTile(
+                leading: const Icon(Icons.restore),
+                title: Text(context.translate('restore_full_backup')),
+                onTap: _isTransferring
+                    ? null
+                    : () => _fullBackup(restore: true),
+              ),
+              ListTile(
+                leading: const Icon(Icons.download_rounded),
                 title: Text(context.translate('export_journal')),
                 subtitle: Text(context.translate('export_journal_subtitle')),
                 trailing: _isTransferring
@@ -656,7 +766,7 @@ const _privacyEn = <(String, String)>[
   ),
   (
     'Sharing and retention',
-    'The app does not transmit your journal, PDFs, or recordings to us. The deployed web version sends only the aggregate events described above when analytics are enabled. If you export a journal backup, the operating system saves the file where you choose. Exported backups contain routines, session history, and notes, are not encrypted, and exclude recordings and PDFs. App-managed data remains until you delete individual content, erase all data in Settings, or uninstall the app.',
+    'The app does not transmit your journal, PDFs, or recordings to us. The deployed web version sends only the aggregate events described above when analytics are enabled. Backups are saved where you choose and are not encrypted. Lightweight JSON exports contain routines, history and notes but exclude media. Full ZIP backups also include your profile, settings, repertoire, folders, recordings, PDF scores, annotations and score preferences. Unfinished sessions are saved locally for recovery. Recovery copies of damaged databases remain until you erase all data or uninstall the app. Files exported outside the app must be deleted separately.',
   ),
   (
     'Your choices',
@@ -684,7 +794,7 @@ const _privacyEs = <(String, String)>[
   ),
   (
     'Uso compartido y conservación',
-    'La app no nos transmite tu diario, archivos PDF ni grabaciones. La versión web publicada solo envía los eventos agregados descritos arriba cuando se activa la analítica. Si exportas una copia del diario, el sistema operativo guarda el archivo donde elijas. Las copias contienen rutinas, historial y notas, no están cifradas y excluyen grabaciones y archivos PDF. Los datos permanecen hasta que elimines el contenido, borres todos los datos o desinstales la app.',
+    'La app no nos transmite tu diario, PDF ni grabaciones. La versión web publicada solo envía los eventos agregados descritos arriba cuando se activa la analítica. Las copias se guardan donde elijas y no están cifradas. El JSON ligero incluye rutinas, historial y notas, sin medios. El ZIP completo también incluye perfil, ajustes, repertorio, carpetas, grabaciones, PDF, anotaciones y preferencias de partituras. Las sesiones sin terminar se guardan localmente para recuperación. Las copias de bases dañadas se conservan hasta borrar todos los datos o desinstalar la app. Debes eliminar por separado los archivos exportados fuera de la app.',
   ),
   (
     'Tus opciones',
@@ -716,7 +826,7 @@ const _termsEn = <(String, String)>[
   ),
   (
     'Local data and backups',
-    'The app has no account or developer-operated cloud sync. Settings can export routines and practice history to a user-controlled, unencrypted file and merge a compatible file into the journal. Exports exclude recordings and PDFs. You are responsible for protecting and deleting exported files. Deleting content, erasing app data, uninstalling the app, losing your device, or device failure may permanently remove content that was not exported. We cannot restore data we never received.',
+    'The app has no account or developer-operated cloud sync. Settings offers lightweight JSON exports that merge routines and history without media, and full ZIP backups containing saved journal data, profile, settings, repertoire and media. Restoring a full backup replaces the current journal and settings. Backups are not encrypted. Save an unfinished session before creating a full backup. You are responsible for protecting and deleting exported files. Deleting content, erasing app data, uninstalling the app, losing your device, or device failure may permanently remove content that was not exported. We cannot restore data we never received.',
   ),
   (
     'Educational purpose and availability',
@@ -752,7 +862,7 @@ const _termsEs = <(String, String)>[
   ),
   (
     'Datos locales y copias de seguridad',
-    'La app no tiene cuenta ni sincronización en la nube operada por nosotros. Ajustes permite exportar rutinas e historial a un archivo sin cifrar bajo tu control e integrar un archivo compatible. Las copias excluyen grabaciones y PDF. Eres responsable de proteger y eliminar los archivos exportados. El contenido no exportado puede perderse al borrar datos, desinstalar la app, perder el dispositivo o por una falla. No podemos recuperar datos que nunca recibimos.',
+    'La app no tiene cuenta ni sincronización en la nube operada por nosotros. Ajustes ofrece JSON ligeros para integrar rutinas e historial sin medios y ZIP completos con el diario guardado, perfil, ajustes, repertorio y medios. Restaurar un ZIP completo reemplaza el diario y los ajustes actuales. Las copias no están cifradas. Guarda la sesión activa antes de crear una copia completa. Eres responsable de proteger y eliminar los archivos exportados. El contenido no exportado puede perderse al borrar datos, desinstalar la app, perder el dispositivo o por una falla. No podemos recuperar datos que nunca recibimos.',
   ),
   (
     'Finalidad educativa y disponibilidad',

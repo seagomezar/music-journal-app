@@ -8,12 +8,16 @@ Flute Practice Coach is a private, local-only practice journal for flutists. It 
 
 ## Features
 
-- Custom technical routines with exercises you can create, edit, delete, reorder, set to 40–240 BPM, and attach to scores
+- Custom technical routines with exercises you can create, edit, delete, reorder, set to 30–252 BPM, and attach to scores
 - Folder-organized repertoire with app-managed PDF scores on mobile, persistent annotations, annotated export, saved display options, and performance mode
 - Practice timer, visual metronome, notes, calendar, goals, and streaks
 - Manual logging for practice completed on a past date
+- Edit saved session notes, dates, and duration while preserving recordings and exercise results
+- Recover unfinished sessions after relaunch, paused until you resume
+- Compare tempo and intonation across sessions from History > Practice progress
 - Optional self-evaluation recordings with multiple takes and playback, rename, and delete controls; stored locally on mobile and in browser storage on web
 - Versioned JSON export/import for routines and practice history (media excluded)
+- Full ZIP backup and restore for profile, settings, repertoire, folders, PDFs, annotations, recordings, routines, and history (up to 256 MB)
 - English and Spanish interface
 - No online account, advertising, or cloud journal data collection; the deployed web build may send optional aggregate usage events when configured
 - In-app privacy policy, support information, and permanent data erasure
@@ -28,7 +32,19 @@ Latest release binaries are available under [GitHub Releases](https://github.com
 
 Flutter widgets consume `ChangeNotifier` providers. Providers coordinate Hive CE persistence, app-owned file storage, recording/playback, localization, and session state. The app manages user content locally and does not upload it. The deployed web build can send only aggregate app-launch, onboarding, and session-start events through Plausible when `PLAUSIBLE_DOMAIN` is configured; journal, profile, audio, and pitch data are never included.
 
+Session checkpoints are stored locally and restored in a paused state; an interrupted recording may be incomplete.
+Cross-box imports use a durable undo log, replayed before opening the journal after an interruption.
+Media references are portable identifiers resolved against the current storage location.
+The input meter shows relative microphone level and estimated dynamics, not calibrated sound pressure.
+
+Full backups contain private content and are not encrypted.
+Restoring a full backup replaces the current journal and settings after a preview and confirmation; export the current journal first if you want to retain it.
+Lightweight JSON exports merge into existing data and are limited to 20 MB; oversized or otherwise non-importable exports are rejected before download.
+The startup recovery screen can restore into a fresh database while retaining the original database files until you choose Erase all data.
+
 ## Development
+
+See the [gap remediation and verification report](docs/improvement-status.md) for implemented improvements, test evidence, and remaining release checks.
 
 The project is pinned to Flutter 3.44.0 in `.flutter-version` and requires Dart 3.11.5 or later.
 
@@ -96,7 +112,9 @@ flutter build appbundle --release --build-name=1.0.0 --build-number=1
 flutter build ios --release --no-codesign
 ```
 
-The GitHub workflow runs formatting, analysis, tests, an unsigned Android preview, an unsigned iOS build check, and a WASM web build. Signed Android store bundles are created only by a manually dispatched workflow with permanent signing secrets and explicit version/build inputs.
+Shared quality checks run formatting, analysis, host tests, Chrome interaction tests, and selected visual baselines before Pages deployment or mobile preview builds.
+Platform journeys additionally run on Android and iOS simulators; native audio is skipped in the deterministic smoke journey and remains a physical-device release check.
+Signed Android store bundles are created only by a manually dispatched workflow with permanent signing secrets and explicit version/build inputs.
 
 The Pages workflow publishes the static landing page and the Flutter web app at
 `/music-journal-app/app/`. Set the repository variable `PLAUSIBLE_DOMAIN` to

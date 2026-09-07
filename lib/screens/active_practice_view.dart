@@ -14,6 +14,7 @@ import '../models/practice_appearance_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/practice_tuner_card.dart';
 import '../widgets/recording_list.dart';
+import '../widgets/practice_recorder_panel.dart';
 import 'score_viewer_screen.dart';
 
 class ActivePracticeView extends StatefulWidget {
@@ -184,6 +185,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
     final existing = existingNotes.trim();
     if (draft.isEmpty) return existing;
     if (existing.isEmpty) return draft;
+    if (existing.contains(draft)) return existing;
     return '$existing\n\n$draft';
   }
 
@@ -233,6 +235,8 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                       const SizedBox(height: 16),
                       TextField(
                         controller: finishNotesController,
+                        onChanged: (value) =>
+                            practiceProv.notesController.text = value,
                         maxLines: 6,
                         decoration: InputDecoration(
                           labelText: context.translate('practice_notes'),
@@ -241,6 +245,34 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                               : 'e.g., Felt good. Repertoire passage on measure 15 needs cleaner double tonguing.',
                         ),
                       ),
+                      for (final piece in repProv.pieces.where(
+                        (p) => practiceProv.rehearsedPiecesDuration.containsKey(
+                          p.id,
+                        ),
+                      ))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: TextFormField(
+                            initialValue: practiceProv
+                                .measuresWorked(piece.id)
+                                .toString(),
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText:
+                                  '${piece.title}: ${context.translate('measures_worked')}',
+                            ),
+                            onChanged: (value) =>
+                                practiceProv.setMeasuresWorked(
+                                  piece.id,
+                                  (int.tryParse(value) ?? 0).clamp(
+                                    0,
+                                    piece.measuresTotal > 0
+                                        ? piece.measuresTotal
+                                        : 10000,
+                                  ),
+                                ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -286,7 +318,6 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                               sessionSaved = true;
                               Navigator.of(dialogContext).pop();
                             } catch (error) {
-                              practiceProv.notesController.text = originalNotes;
                               if (!dialogContext.mounted) return;
                               setDialogState(() => isSaving = false);
                               ScaffoldMessenger.of(dialogContext).showSnackBar(
@@ -373,126 +404,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
   Widget _buildFocusedRecorder(
     BuildContext context,
     PracticeProvider practiceProv,
-  ) {
-    final hasRecording = practiceProv.recordings.isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      child: AppTheme.glassCard(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              context.translate('self_recorder'),
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              context.translate('self_recorder_subtitle'),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (kIsWeb) ...[
-              const SizedBox(height: 8),
-              Text(
-                context.translate('recording_web_session_only'),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.accentColor(context),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            if (!practiceProv.isAudioRecorderActive)
-              OutlinedButton.icon(
-                onPressed: practiceProv.activateAudioRecorder,
-                icon: const Icon(Icons.mic_none_rounded),
-                label: Text(context.translate('open_self_recorder')),
-              )
-            else ...[
-              if (practiceProv.isRecording)
-                Text(
-                  context.translate('recording_audio'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.w700,
-                  ),
-                )
-              else if (practiceProv.isPlayingPlayback)
-                Text(
-                  context.translate('playing_back_audio'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppTheme.accentColor(context),
-                    fontWeight: FontWeight.w700,
-                  ),
-                )
-              else if (hasRecording)
-                Text(
-                  context.translateRecordingCount(
-                    practiceProv.recordings.length,
-                  ),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              const SizedBox(height: 12),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 12,
-                children: [
-                  if (!practiceProv.isRecording)
-                    IconButton.filled(
-                      tooltip: context.translate('start_recording'),
-                      onPressed: () async {
-                        final success = await practiceProv.startRecording();
-                        if (!success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(context.translate('mic_error')),
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.fiber_manual_record),
-                    ),
-                  if (practiceProv.isRecording)
-                    IconButton.filled(
-                      tooltip: context.translate('stop_recording'),
-                      onPressed: () => _handleRecordingAction(
-                        context,
-                        practiceProv.stopRecording,
-                      ),
-                      icon: const Icon(Icons.stop_rounded),
-                    ),
-                ],
-              ),
-              if (hasRecording) ...[
-                const SizedBox(height: 8),
-                RecordingList(
-                  recordings: practiceProv.recordings,
-                  playingPath: practiceProv.playingRecordingPath,
-                  isPlaying: practiceProv.isPlayingPlayback,
-                  compact: true,
-                  onPlay: (recording) => practiceProv.startPlayback(recording),
-                  onRename: (recording) =>
-                      practiceProv.renameRecording(recording, recording.name),
-                  onDelete: (recording) =>
-                      practiceProv.deleteRecording(recording),
-                ),
-              ],
-              TextButton(
-                onPressed: () => _handleRecordingAction(
-                  context,
-                  practiceProv.closeAudioRecorder,
-                ),
-                child: Text(context.translate('close_recorder')),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+  ) => PracticeRecorderPanel(practiceProv: practiceProv);
 
   Widget _buildFocusedPracticeBody({
     required BuildContext context,
@@ -840,7 +752,9 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
         ),
         body: SafeArea(
           child: AnimatedSwitcher(
-            duration: practiceProv.reducedMotion
+            duration:
+                practiceProv.reducedMotion ||
+                    MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : const Duration(milliseconds: 180),
             child: practiceProv.visualMode == PracticeVisualMode.focused

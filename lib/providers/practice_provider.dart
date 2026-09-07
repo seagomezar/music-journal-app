@@ -16,6 +16,10 @@ import '../services/capture_lifecycle_service.dart';
 import '../services/metronome_audio_service.dart';
 import '../services/pitch_tracking_service.dart';
 import '../services/screen_awake_service.dart';
+import '../services/session_draft_service.dart';
+import '../services/database_service.dart';
+
+part 'practice_session_recovery.dart';
 
 class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   static final AudioCaptureLifecycleController
@@ -40,6 +44,9 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     bool soundCuesEnabled = true,
     bool reducedMotion = false,
     bool showCelebrations = true,
+    Future<void> Function(Map<String, dynamic>?)? persistDraft,
+    Map<String, dynamic>? recoveredDraft,
+    String Function(int)? recordingName,
     Future<void> Function(bool)? persistKeepScreenAwake,
     Future<void> Function(bool)? persistMetronomeSound,
     Future<void> Function(double)? persistMetronomeVolume,
@@ -93,6 +100,15 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
        _persistSoundCues = persistSoundCues,
        _persistReducedMotion = persistReducedMotion,
        _persistShowCelebrations = persistShowCelebrations {
+    _recordingName = recordingName ?? (number) => 'Recording $number';
+    if (persistDraft != null) {
+      _draftService = SessionDraftService(
+        write: persistDraft,
+        snapshot: _draftSnapshot,
+      );
+      notesController.addListener(_scheduleDraft);
+    }
+    if (recoveredDraft != null) _restoreDraft(recoveredDraft);
     _audioService.onPlaybackChanged = (isPlaying) {
       if (_isDisposed) return;
       if (!isPlaying) _playingRecordingPath = null;
@@ -103,17 +119,57 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _pitchTracking.onReading = (reading) {
       if (_isDisposed) return;
       _pitchReading = reading;
-      notifyListeners();
+      audioReadings.value++;
     };
     _pitchTracking.onDynamicReading = (reading) {
       if (_isDisposed) return;
       _dynamicReading = reading;
-      notifyListeners();
+      audioReadings.value++;
     };
     WidgetsBinding.instance.addObserver(this);
   }
 
   final AudioService _audioService;
+  final ValueNotifier<int> audioReadings = ValueNotifier(0);
+  SessionDraftService? _draftService;
+  late final String Function(int) _recordingName;
+  String? _sessionId;
+  int _restoredElapsedMilliseconds = 0;
+  bool _hasRecoveredSession = false;
+  bool get hasRecoveredSession => _hasRecoveredSession;
+  bool get hasDraftSaveError => _draftService?.lastError != null;
+  void reloadPreferences(DatabaseService db) {
+    _keepScreenAwake = db.getKeepScreenAwake();
+    _metronomeSoundEnabled = db.getMetronomeSoundEnabled();
+    _metronomeVolume = db.getMetronomeVolume();
+    _tunerReferenceHz = db.getTunerReferenceHz();
+    _tunerToleranceCents = db.getTunerToleranceCents();
+    _visualMode = db.getPracticeVisualMode();
+    _themeMode = db.getThemeMode();
+    _hapticsEnabled = db.getHapticsEnabled();
+    _soundCuesEnabled = db.getSoundCuesEnabled();
+    _reducedMotion = db.getReducedMotion();
+    _showCelebrations = db.getShowCelebrations();
+    notifyListeners();
+  }
+
+  int get _elapsedMilliseconds =>
+      _restoredElapsedMilliseconds + _activeStopwatch.elapsedMilliseconds;
+
+  void _scheduleDraft() {
+    if (_isActive) _draftService?.schedule();
+  }
+
+  Future<void> checkpointSession() async {
+    await _draftService?.flush();
+  }
+
+  @override
+  void notifyListeners() {
+    _scheduleDraft();
+    super.notifyListeners();
+  }
+
   final PitchTrackingService _pitchTracking;
   final MetronomeAudioController _metronomeAudio;
   final ScreenAwakeController _screenAwake;
@@ -157,6 +213,13 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
   // Rehearsed pieces tracker (pieceId -> seconds)
   final Map<String, int> _rehearsedPiecesDuration = {};
+  final Map<String, int> _rehearsedMeasures = {};
+  int measuresWorked(String id) => _rehearsedMeasures[id] ?? 0;
+  void setMeasuresWorked(String id, int measures) {
+    _rehearsedMeasures[id] = measures.clamp(0, 10000);
+    _scheduleDraft();
+  }
+
   String? _activePieceId;
   String? _activePieceTitle;
 
@@ -362,6 +425,8 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       properties: {'routine': routine == null ? 'quick_start' : 'routine'},
     );
     _activeRoutine = routine;
+    _sessionId = 'session_${const Uuid().v7()}';
+    _restoredElapsedMilliseconds = 0;
     _startTime = DateTime.now();
     _isActive = true;
     _isPaused = false;
@@ -374,6 +439,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _activeExerciseStartedAtMilliseconds = null;
     _resumeMetronomeAfterSessionPause = false;
     _rehearsedPiecesDuration.clear();
+    _rehearsedMeasures.clear();
     _activePieceId = null;
     _activePieceTitle = null;
     _isAudioRecorderActive = false;
@@ -402,7 +468,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   }
 
   bool _syncElapsed() {
-    final elapsed = _activeStopwatch.elapsed.inSeconds;
+    final elapsed = _elapsedMilliseconds ~/ 1000;
     final delta = elapsed - _secondsElapsed;
     if (delta <= 0) return false;
     _secondsElapsed = elapsed;
@@ -429,6 +495,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
   Future<void> resumeSession() async {
     if (!_isActive || !_isPaused) return;
+    _hasRecoveredSession = false;
     _isPaused = false;
     _activeStopwatch.start();
     _startTimer();
@@ -487,8 +554,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     if (_activeExerciseId == id &&
         _activeExerciseStartedAtMilliseconds != null) {
       milliseconds +=
-          _activeStopwatch.elapsedMilliseconds -
-          _activeExerciseStartedAtMilliseconds!;
+          _elapsedMilliseconds - _activeExerciseStartedAtMilliseconds!;
     }
     return (milliseconds ~/ Duration.millisecondsPerSecond).clamp(0, 86400);
   }
@@ -501,7 +567,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
     final bpm = targetBpm.clamp(30, 252).toInt();
     _activeExerciseId = id;
-    _activeExerciseStartedAtMilliseconds = _activeStopwatch.elapsedMilliseconds;
+    _activeExerciseStartedAtMilliseconds = _elapsedMilliseconds;
     _exerciseDurationMilliseconds.putIfAbsent(id, () => 0);
     _exercisePracticedBpms[id] = bpm;
     _completedExerciseIds.remove(id);
@@ -547,7 +613,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     final id = _activeExerciseId;
     final startedAt = _activeExerciseStartedAtMilliseconds;
     if (id == null || startedAt == null) return;
-    final elapsed = _activeStopwatch.elapsedMilliseconds - startedAt;
+    final elapsed = _elapsedMilliseconds - startedAt;
     _exerciseDurationMilliseconds[id] =
         (_exerciseDurationMilliseconds[id] ?? 0) + elapsed.clamp(0, 86400000);
     if (markCompleted) _completedExerciseIds.add(id);
@@ -570,6 +636,14 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     await _setMetronomeSoundSuppressed(true);
     try {
       await _audioService.startRecording();
+      // A draft write failure must not disguise an active microphone as a
+      // failed recording start. Keep the recorder visible and show the draft
+      // persistence warning so the user can stop and save the take normally.
+      try {
+        await checkpointSession();
+      } catch (error) {
+        debugPrint('Recording started, but its checkpoint failed: $error');
+      }
       notifyListeners();
       return true;
     } catch (e) {
@@ -720,7 +794,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       _recordings.add(
         SessionRecording(
           id: 'recording_${const Uuid().v7()}',
-          name: 'Recording ${_nextRecordingNumber++}',
+          name: _recordingName(_nextRecordingNumber++),
           createdAt: DateTime.now(),
           storagePath: path,
         ),
@@ -1070,13 +1144,13 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
           pieceId: id,
           pieceTitle: piece.title,
           durationInSeconds: duration,
-          measuresWorked: 0,
+          measuresWorked: measuresWorked(id),
         ),
       );
     });
 
     final record = SessionRecord(
-      id: 'session_${const Uuid().v7()}',
+      id: _sessionId ?? 'session_${const Uuid().v7()}',
       startTime: startTime,
       endTime: endTime,
       totalDurationInSeconds: _secondsElapsed,
@@ -1093,6 +1167,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   void completeSession() {
     if (_showCelebrations) _providePracticeCue(strong: true);
     _resetSessionState();
+    unawaited(checkpointSession().catchError((Object _) {}));
     unawaited(_applyScreenAwakePreferenceSafely());
     notifyListeners();
   }
@@ -1106,12 +1181,16 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       await _deleteAllRecordings();
     } finally {
       _resetSessionState();
+      await checkpointSession();
       await _applyScreenAwakePreferenceSafely();
       notifyListeners();
     }
   }
 
   void _resetSessionState() {
+    _sessionId = null;
+    _hasRecoveredSession = false;
+    _restoredElapsedMilliseconds = 0;
     _isActive = false;
     _isPaused = false;
     _activeRoutine = null;
@@ -1124,6 +1203,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _activeExerciseStartedAtMilliseconds = null;
     _resumeMetronomeAfterSessionPause = false;
     _rehearsedPiecesDuration.clear();
+    _rehearsedMeasures.clear();
     _activePieceId = null;
     _activePieceTitle = null;
     _isAudioRecorderActive = false;
@@ -1161,6 +1241,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       _isInForeground = false;
       if (!_isActive) return;
       if (!_isPaused) _syncElapsed();
+      unawaited(checkpointSession().catchError((Object _) {}));
       _timer?.cancel();
       _stopMetronomeVisual();
       unawaited(_applyScreenAwakePreferenceSafely());
@@ -1173,6 +1254,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       _isInForeground = false;
       if (!_isActive) return;
       _syncElapsed();
+      unawaited(checkpointSession().catchError((Object _) {}));
       _timer?.cancel();
       _activeStopwatch.stop();
       _stopMetronome();
@@ -1185,6 +1267,11 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
 
   @override
   void dispose() {
+    if (_draftService != null && _isActive) {
+      unawaited(checkpointSession().catchError((Object _) {}));
+    }
+    notesController.removeListener(_scheduleDraft);
+    _draftService?.dispose();
     _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
@@ -1197,12 +1284,13 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     unawaited(_stopMetronomeAudioSafely());
     unawaited(_disableScreenAwakeSafely());
     unawaited(_pitchTracking.dispose());
-    if (_isActive) {
+    if (_isActive && _draftService == null) {
       unawaited(_deleteAllRecordings().whenComplete(_audioService.dispose));
     } else {
       unawaited(_audioService.dispose());
     }
     notesController.dispose();
+    audioReadings.dispose();
     super.dispose();
   }
 

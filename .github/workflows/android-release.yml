@@ -24,18 +24,7 @@ env:
 
 jobs:
   quality:
-    name: Format, analyze, and test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - run: flutter pub get --enforce-lockfile
-      - run: dart format --output=none --set-exit-if-changed lib test
-      - run: flutter analyze
-      - run: flutter test --coverage
+    uses: ./.github/workflows/quality.yml
 
   android-preview:
     name: Android release preview
