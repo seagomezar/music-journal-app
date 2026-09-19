@@ -279,10 +279,29 @@ Future<void> _pumpUntilFound(
 }
 
 Future<void> _scrollIntoView(WidgetTester tester, Finder finder) async {
+  if (finder.evaluate().isNotEmpty) {
+    try {
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      return;
+    } catch (_) {}
+  }
+  try {
+    await tester.scrollUntilVisible(
+      finder,
+      200,
+      scrollable: find.byType(Scrollable).last,
+      maxScrolls: 25,
+    );
+    await tester.pumpAndSettle();
+    return;
+  } catch (_) {}
+
   await tester.scrollUntilVisible(
     finder,
-    200,
+    -200,
     scrollable: find.byType(Scrollable).last,
+    maxScrolls: 25,
   );
   await tester.pumpAndSettle();
 }

@@ -215,9 +215,12 @@ class _DashboardViewState extends State<DashboardView> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              context.translate('weekly_progress'),
-                              style: Theme.of(context).textTheme.titleMedium,
+                            Expanded(
+                              child: Text(
+                                context.translate('weekly_progress'),
+                                style: Theme.of(context).textTheme.titleMedium,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             IconButton(
                               icon: Icon(
@@ -245,11 +248,14 @@ class _DashboardViewState extends State<DashboardView> {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              '/ $weeklyGoal ${context.translate('minutes')}',
-                              style: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.copyWith(fontSize: 15),
+                            Flexible(
+                              child: Text(
+                                '/ $weeklyGoal ${context.translate('minutes')}',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.copyWith(fontSize: 15),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),

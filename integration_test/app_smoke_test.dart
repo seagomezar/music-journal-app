@@ -381,9 +381,11 @@ Future<int> _pumpUntilAny(
 
 Future<void> _scrollIntoView(WidgetTester tester, Finder finder) async {
   if (finder.evaluate().isNotEmpty) {
-    await tester.ensureVisible(finder);
-    await tester.pumpAndSettle();
-    return;
+    try {
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      return;
+    } catch (_) {}
   }
 
   final scrollables = find.byType(Scrollable);
@@ -392,7 +394,26 @@ Future<void> _scrollIntoView(WidgetTester tester, Finder finder) async {
     findsWidgets,
     reason: 'The target is not built and there is no scrollable to reveal it.',
   );
-  await tester.scrollUntilVisible(finder, 240, scrollable: scrollables.last);
+
+  try {
+    await tester.scrollUntilVisible(
+      finder,
+      240,
+      scrollable: scrollables.last,
+      maxScrolls: 25,
+    );
+    await tester.pumpAndSettle();
+    return;
+  } catch (_) {
+    // Element may be above the current scroll offset.
+  }
+
+  await tester.scrollUntilVisible(
+    finder,
+    -240,
+    scrollable: scrollables.last,
+    maxScrolls: 25,
+  );
   await tester.pumpAndSettle();
 }
 
@@ -402,15 +423,36 @@ Future<void> _scrollIntoViewWithin(
   Finder scope,
 ) async {
   if (finder.evaluate().isNotEmpty) {
-    await tester.ensureVisible(finder);
-    await tester.pumpAndSettle();
-    return;
+    try {
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      return;
+    } catch (_) {}
   }
   final scrollables = find.descendant(
     of: scope,
     matching: find.byType(Scrollable),
   );
   expect(scrollables, findsWidgets);
-  await tester.scrollUntilVisible(finder, 240, scrollable: scrollables.last);
+
+  try {
+    await tester.scrollUntilVisible(
+      finder,
+      240,
+      scrollable: scrollables.last,
+      maxScrolls: 25,
+    );
+    await tester.pumpAndSettle();
+    return;
+  } catch (_) {
+    // Element may be above the current scroll offset.
+  }
+
+  await tester.scrollUntilVisible(
+    finder,
+    -240,
+    scrollable: scrollables.last,
+    maxScrolls: 25,
+  );
   await tester.pumpAndSettle();
 }
