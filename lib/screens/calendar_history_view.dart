@@ -207,9 +207,11 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
   Widget _buildCalendarPanel(
     BuildContext context,
     HistoryProvider historyProvider,
-    String localeCode,
-  ) {
+    String localeCode, [
+    double? availableHeight,
+  ]) {
     final viewportSize = MediaQuery.sizeOf(context);
+    final effectiveHeight = availableHeight ?? viewportSize.height;
     final compactLandscape =
         viewportSize.width > viewportSize.height && viewportSize.height < 600;
     return Padding(
@@ -224,9 +226,11 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
           calendarFormat: _calendarFormat,
           rowHeight: compactLandscape
               ? 24
-              : viewportSize.height <= 700
+              : effectiveHeight <= 500
               ? 28
-              : 52,
+              : effectiveHeight <= 680
+              ? 38
+              : 48,
           selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
           onDaySelected: (selectedDay, focusedDay) {
             setState(() {
@@ -316,6 +320,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
     );
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         actions: [
           IconButton(
@@ -350,6 +355,7 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
               context,
               historyProv,
               localeCode,
+              constraints.maxHeight,
             );
             final sessions = Column(
               children: [
@@ -410,9 +416,11 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                           ),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            8,
+                            16,
+                            compactLandscape ? 16 : 80,
                           ),
                           itemCount: selectedDaySessions.length,
                           itemBuilder: (context, index) {
@@ -790,7 +798,6 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                           },
                         ),
                 ),
-                SizedBox(height: compactLandscape ? 16 : 72),
               ],
             );
             if (compactLandscape || sizeClass.supportsTwoPaneContent) {

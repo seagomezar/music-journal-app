@@ -303,6 +303,7 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
                     onPressed: isSaving
                         ? null
                         : () async {
+                            FocusScope.of(dialogContext).unfocus();
                             setDialogState(() => isSaving = true);
                             try {
                               practiceProv.notesController.text =

@@ -107,8 +107,11 @@ class _PracticeTunerContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               IconButton.filledTonal(
                 key: const ValueKey('decrease_tuner_reference'),
@@ -121,8 +124,8 @@ class _PracticeTunerContent extends StatelessWidget {
                     : null,
                 icon: const Icon(Icons.remove_rounded),
               ),
-              SizedBox(
-                width: 140,
+              Container(
+                constraints: const BoxConstraints(minWidth: 96, maxWidth: 124),
                 child: Text(
                   'A4 = ${practiceProvider.tunerReferenceHz} Hz',
                   textAlign: TextAlign.center,
@@ -143,7 +146,6 @@ class _PracticeTunerContent extends StatelessWidget {
                     : null,
                 icon: const Icon(Icons.add_rounded),
               ),
-              const SizedBox(width: 8),
               IconButton.filledTonal(
                 key: const ValueKey('toggle_sound_out'),
                 tooltip: practiceProvider.isSoundOutPlaying
