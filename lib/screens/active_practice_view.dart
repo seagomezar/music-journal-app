@@ -153,32 +153,46 @@ class _ActivePracticeViewState extends State<ActivePracticeView> {
     PracticeProvider practiceProvider,
   ) {
     final routine = practiceProvider.activeRoutine;
-    if (routine == null) return '';
     final lines = <String>[];
-    for (final exercise in routine.exercises) {
-      final bpm = practiceProvider.exercisePracticedBpms[exercise.id];
-      if (bpm == null) continue;
-      final pitch = practiceProvider.exercisePitchSummaries[exercise.id];
-      lines.add(
-        pitch != null && pitch.hasEnoughData
-            ? context.translate('exercise_notes_draft_item_pitch', [
-                exercise.name,
-                bpm.toString(),
-                pitch.onPitchPercentage.round().toString(),
-                pitch.referenceHz.toString(),
-                pitch.toleranceCents.toString(),
-              ])
-            : context.translate('exercise_notes_draft_item', [
-                exercise.name,
-                bpm.toString(),
-              ]),
+    if (routine != null) {
+      for (final exercise in routine.exercises) {
+        final bpm = practiceProvider.exercisePracticedBpms[exercise.id];
+        if (bpm == null) continue;
+        final pitch = practiceProvider.exercisePitchSummaries[exercise.id];
+        lines.add(
+          pitch != null && pitch.hasEnoughData
+              ? context.translate('exercise_notes_draft_item_pitch', [
+                  exercise.name,
+                  bpm.toString(),
+                  pitch.onPitchPercentage.round().toString(),
+                  pitch.referenceHz.toString(),
+                  pitch.toleranceCents.toString(),
+                ])
+              : context.translate('exercise_notes_draft_item', [
+                  exercise.name,
+                  bpm.toString(),
+                ]),
+        );
+      }
+    }
+    final sections = <String>[];
+    if (lines.isNotEmpty) {
+      sections.add(
+        [context.translate('exercise_notes_draft_title'), ...lines].join('\n'),
       );
     }
-    if (lines.isEmpty) return '';
-    return [
-      context.translate('exercise_notes_draft_title'),
-      ...lines,
-    ].join('\n');
+    final sessionPitch = practiceProvider.sessionPitchSummary;
+    if (sessionPitch != null && sessionPitch.analyzedMilliseconds > 0) {
+      sections.add(
+        context.translate('session_tuning_draft_line', [
+          sessionPitch.onPitchPercentage.round().toString(),
+          _formatTime(sessionPitch.analyzedMilliseconds ~/ 1000),
+          sessionPitch.referenceHz.toString(),
+          sessionPitch.toleranceCents.toString(),
+        ]),
+      );
+    }
+    return sections.join('\n\n');
   }
 
   String _notesWithExerciseDraft(String existingNotes, String draft) {

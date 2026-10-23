@@ -51,6 +51,30 @@ class ExercisePitchSummary {
       ? 0
       : inTuneMilliseconds * 100 / analyzedMilliseconds;
 
+  ExercisePitchSummary merge(ExercisePitchSummary other) {
+    if (analyzedMilliseconds == 0 && trackingMilliseconds == 0) {
+      return other;
+    }
+    if (other.analyzedMilliseconds == 0 && other.trackingMilliseconds == 0) {
+      return this;
+    }
+    final mergedAnalyzed = (analyzedMilliseconds + other.analyzedMilliseconds)
+        .clamp(0, 86400000);
+    final mergedInTune = (inTuneMilliseconds + other.inTuneMilliseconds).clamp(
+      0,
+      mergedAnalyzed,
+    );
+    final mergedTracking = (trackingMilliseconds + other.trackingMilliseconds)
+        .clamp(mergedAnalyzed, 86400000);
+    return ExercisePitchSummary(
+      inTuneMilliseconds: mergedInTune,
+      analyzedMilliseconds: mergedAnalyzed,
+      trackingMilliseconds: mergedTracking,
+      referenceHz: other.referenceHz,
+      toleranceCents: other.toleranceCents,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'inTuneMilliseconds': inTuneMilliseconds,
     'analyzedMilliseconds': analyzedMilliseconds,

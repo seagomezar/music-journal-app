@@ -510,6 +510,72 @@ class _CalendarHistoryViewState extends State<CalendarHistoryView> {
                                       color: AppTheme.borderColor(context),
                                     ),
 
+                                    if (session.effectivePitchSummary != null &&
+                                        session
+                                                .effectivePitchSummary!
+                                                .analyzedMilliseconds >
+                                            0) ...[
+                                      Text(
+                                        context.translate(
+                                          'session_tuning_score_title',
+                                        ),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: AppTheme.accentColor(context),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.accentColor(
+                                            context,
+                                          ).withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: AppTheme.accentColor(
+                                              context,
+                                            ).withValues(alpha: 0.25),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          context.translate(
+                                            'session_tuning_score_format',
+                                            [
+                                              session
+                                                  .effectivePitchSummary!
+                                                  .onPitchPercentage
+                                                  .round()
+                                                  .toString(),
+                                              _formatDuration(
+                                                context,
+                                                session
+                                                        .effectivePitchSummary!
+                                                        .analyzedMilliseconds ~/
+                                                    1000,
+                                              ),
+                                              session
+                                                  .effectivePitchSummary!
+                                                  .referenceHz
+                                                  .toString(),
+                                              session
+                                                  .effectivePitchSummary!
+                                                  .toleranceCents
+                                                  .toString(),
+                                            ],
+                                          ),
+                                          style: const TextStyle(fontSize: 11),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+
                                     // Exercises Done
                                     if (session.completedExercises.isNotEmpty ||
                                         session.exerciseResults.isNotEmpty) ...[

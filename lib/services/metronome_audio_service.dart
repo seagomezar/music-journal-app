@@ -201,9 +201,14 @@ class _MetronomeAudioHandler extends background_audio.BaseAudioHandler {
     required this.onExternalPlayingChanged,
   }) : _engine = engine,
        _bus = engine.createMixingBus(name: 'metronome') {
-    _bus.playOnEngine(volume: _volume);
+    final handle = _bus.playOnEngine(volume: _busGainFor(_volume));
+    _engine.setPanAbsolute(handle, 1.0, 1.0);
     mediaItem.add(_mediaItemFor(_bpm));
   }
+
+  static const double _maxBusGain = 1.65;
+  static const double _clickVoiceGain = 1.65;
+  static const double _referenceToneVoiceGain = 1.25;
 
   final SoLoud _engine;
   final Bus _bus;
@@ -326,7 +331,7 @@ class _MetronomeAudioHandler extends background_audio.BaseAudioHandler {
     final now = _engine.getEngineTime();
     final horizon = now + const Duration(milliseconds: 140);
     while (_nextBeatTime <= horizon) {
-      _bus.playScheduled(source, _nextBeatTime);
+      _bus.playScheduled(source, _nextBeatTime, volume: _clickVoiceGain);
       _lastBeatTime = _nextBeatTime;
       _beatIndex++;
       _nextBeatTime += _interval;
@@ -380,7 +385,11 @@ class _MetronomeAudioHandler extends background_audio.BaseAudioHandler {
 
     final bytes = MetronomeWave.createTone(safeHz);
     final source = await _engine.loadMem('ref-tone-$safeHz.wav', bytes);
-    final handle = _bus.play(source, volume: 0.6, looping: true);
+    final handle = _bus.play(
+      source,
+      volume: _referenceToneVoiceGain,
+      looping: true,
+    );
     _referenceToneSource = source;
     _referenceToneHandle = handle;
     _referenceToneHz = safeHz;
@@ -409,9 +418,15 @@ class _MetronomeAudioHandler extends background_audio.BaseAudioHandler {
     }
   }
 
+  static double _busGainFor(double volume) =>
+      volume.clamp(0.0, 1.0) * _maxBusGain;
+
   void _setBusVolume(double volume) {
     final handle = _bus.soundHandle;
-    if (handle != null) _engine.setVolume(handle, volume);
+    if (handle != null) {
+      _engine.setPanAbsolute(handle, 1.0, 1.0);
+      _engine.setVolume(handle, _busGainFor(volume));
+    }
   }
 
   void _broadcast({required bool playing}) {
@@ -453,24 +468,37 @@ class MetronomeWave {
   static const int maxBpm = 252;
   static const int beatCount = 4;
 
-  /// Synthesizes a single crisp percussive click (~25 ms).
+  /// Synthesizes a high-presence percussive click (~38 ms) optimized to cut
+  /// through acoustic instruments (flute) on tablet/mobile speakers.
   ///
-  /// Woodblock/rimshot harmonic profile (1500 Hz + 3000 Hz) with exponential decay,
-  /// matching the classic acoustic click of the Yamaha TDM-710 series.
+  /// Combines a resonant woodblock body (980 Hz + 1560 Hz) with a crisp
+  /// high-frequency attack transient (2850 Hz + 4200 Hz) and soft saturation
+  /// to maximize perceived loudness (RMS/LUFS) without digital clipping.
   static Uint8List createClick() {
-    final sampleCount = (sampleRate * 0.025).round(); // 25 ms
+    final sampleCount = (sampleRate * 0.038).round(); // 38 ms (< 80 ms window)
     final samples = Int16List(sampleCount);
 
     for (var i = 0; i < sampleCount; i++) {
       final time = i / sampleRate;
-      final envelope = math.exp(-150 * time);
-      final fundamental = math.sin(2 * math.pi * 1500.0 * time);
-      final harmonic = 0.35 * math.sin(2 * math.pi * 3000.0 * time);
-      final value = 0.95 * envelope * (fundamental + harmonic);
-      samples[i] = (value.clamp(-1.0, 1.0) * 32767).round();
+      final bodyEnvelope = math.exp(-58 * time);
+      final transientEnvelope = math.exp(-155 * time);
+      final body =
+          0.72 * math.sin(2 * math.pi * 980.0 * time) +
+          0.88 * math.sin(2 * math.pi * 1560.0 * time);
+      final transient =
+          0.62 * math.sin(2 * math.pi * 2850.0 * time) +
+          0.32 * math.sin(2 * math.pi * 4200.0 * time);
+      final raw = bodyEnvelope * body + transientEnvelope * transient;
+      final saturated = _softClip(raw * 1.55);
+      samples[i] = (saturated.clamp(-1.0, 1.0) * 32767).round();
     }
 
     return _writeWave(samples);
+  }
+
+  static double _softClip(double x) {
+    final exp2x = math.exp(2 * x);
+    return (exp2x - 1) / (exp2x + 1);
   }
 
   /// Synthesizes a pure sine reference tone for ear tuning (Sound Out mode).
@@ -485,7 +513,7 @@ class MetronomeWave {
 
     for (var i = 0; i < sampleCount; i++) {
       final time = i / sampleRate;
-      final value = 0.70 * math.sin(2 * math.pi * safeHz * time);
+      final value = 0.90 * math.sin(2 * math.pi * safeHz * time);
       samples[i] = (value.clamp(-1.0, 1.0) * 32767).round();
     }
 

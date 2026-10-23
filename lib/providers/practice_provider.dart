@@ -247,6 +247,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   PitchReading? _pitchReading;
   FluteDynamicReading? _dynamicReading;
   final Map<String, ExercisePitchSummary> _exercisePitchSummaries = {};
+  ExercisePitchSummary? _sessionPitchSummary;
   Future<void>? _pendingPitchStop;
 
   // Notes
@@ -303,6 +304,19 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
   Map<String, ExercisePitchSummary> get exercisePitchSummaries =>
       Map.unmodifiable(_exercisePitchSummaries);
   ExercisePitchSummary? get livePitchSummary => _pitchTracking.currentSummary();
+  ExercisePitchSummary? get sessionPitchSummary {
+    var result = _sessionPitchSummary;
+    if (result == null && _exercisePitchSummaries.isNotEmpty) {
+      for (final item in _exercisePitchSummaries.values) {
+        result = result == null ? item : result.merge(item);
+      }
+    }
+    final live = _pitchTracking.currentSummary();
+    if (live != null && live.analyzedMilliseconds > 0) {
+      result = result == null ? live : result.merge(live);
+    }
+    return result;
+  }
 
   // Action methods
   Future<void> setVisualMode(PracticeVisualMode mode) async {
@@ -435,6 +449,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _exerciseDurationMilliseconds.clear();
     _exercisePracticedBpms.clear();
     _exercisePitchSummaries.clear();
+    _sessionPitchSummary = null;
     _activeExerciseId = null;
     _activeExerciseStartedAtMilliseconds = null;
     _resumeMetronomeAfterSessionPause = false;
@@ -775,8 +790,18 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
             ? _activeExerciseId
             : null);
     final summary = await _pitchTracking.stop();
-    if (trackedId != null && summary != null) {
-      _exercisePitchSummaries[trackedId] = summary;
+    if (summary != null) {
+      if (summary.analyzedMilliseconds > 0 || _sessionPitchSummary == null) {
+        _sessionPitchSummary = _sessionPitchSummary == null
+            ? summary
+            : _sessionPitchSummary!.merge(summary);
+      }
+      if (trackedId != null) {
+        final previous = _exercisePitchSummaries[trackedId];
+        _exercisePitchSummaries[trackedId] = previous == null
+            ? summary
+            : previous.merge(summary);
+      }
     }
     _pitchReading = null;
     _dynamicReading = null;
@@ -1159,6 +1184,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
       rehearsedPieces: rehearsedList,
       notes: notesController.text,
       recordings: List<SessionRecording>.from(_recordings),
+      pitchSummary: sessionPitchSummary,
     );
 
     return record;
@@ -1199,6 +1225,7 @@ class PracticeProvider with ChangeNotifier, WidgetsBindingObserver {
     _exerciseDurationMilliseconds.clear();
     _exercisePracticedBpms.clear();
     _exercisePitchSummaries.clear();
+    _sessionPitchSummary = null;
     _activeExerciseId = null;
     _activeExerciseStartedAtMilliseconds = null;
     _resumeMetronomeAfterSessionPause = false;

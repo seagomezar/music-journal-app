@@ -45,7 +45,7 @@ class _PracticeTunerContent extends StatelessWidget {
 
     final reading = practiceProvider.pitchReading;
     final dynamicReading = practiceProvider.dynamicReading;
-    final summary = practiceProvider.livePitchSummary;
+    final summary = practiceProvider.sessionPitchSummary;
     final hasExercise = practiceProvider.activeExerciseId != null;
     final isListening = practiceProvider.isPitchListening;
     final isTracking = practiceProvider.isTrackingPitch;
@@ -254,7 +254,8 @@ class _PracticeTunerContent extends StatelessWidget {
               ],
             ),
           ),
-          if (isTracking) ...[
+          if (isTracking ||
+              (summary != null && summary.analyzedMilliseconds > 0)) ...[
             const SizedBox(height: 12),
             Text(
               summary == null || summary.analyzedMilliseconds == 0

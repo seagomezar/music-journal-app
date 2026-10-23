@@ -13,22 +13,17 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    try? configureSharedAudioSession()
 
     let captureChannel = FlutterMethodChannel(
       name: "flute/capture_lifecycle",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
-    captureChannel.setMethodCallHandler { call, result in
+    captureChannel.setMethodCallHandler { [weak self] call, result in
       switch call.method {
       case "begin":
         do {
-          let session = AVAudioSession.sharedInstance()
-          try session.setCategory(
-            .playAndRecord,
-            mode: .measurement,
-            options: [.allowBluetooth, .defaultToSpeaker]
-          )
-          try session.setActive(true)
+          try self?.configureSharedAudioSession()
           result(nil)
         } catch {
           result(
@@ -41,13 +36,29 @@ import UIKit
         }
 
       case "end":
-        // Leave the shared audio session active so the background metronome is
-        // not interrupted when capture ends.
+        // Keep the shared audio session in default speaker mode so the
+        // background metronome retains full output volume after capture ends.
+        try? self?.configureSharedAudioSession()
         result(nil)
 
       default:
         result(FlutterMethodNotImplemented)
       }
     }
+  }
+
+  private func configureSharedAudioSession() throws {
+    let session = AVAudioSession.sharedInstance()
+    try session.setCategory(
+      .playAndRecord,
+      mode: .default,
+      options: [
+        .defaultToSpeaker,
+        .allowBluetooth,
+        .allowBluetoothA2DP,
+        .mixWithOthers,
+      ]
+    )
+    try session.setActive(true)
   }
 }

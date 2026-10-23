@@ -80,6 +80,23 @@ void main() {
       expect(String.fromCharCodes(clickWave.sublist(8, 12)), 'WAVE');
       expect(String.fromCharCodes(clickWave.sublist(12, 16)), 'fmt ');
       expect(String.fromCharCodes(clickWave.sublist(36, 40)), 'data');
+
+      final pcm = ByteData.sublistView(clickWave, 44);
+      final sampleCount = (clickWave.length - 44) ~/ 2;
+      // Click duration stays well within the 80 ms pitch-tracking exclusion window
+      expect(sampleCount / MetronomeWave.sampleRate, lessThan(0.080));
+
+      var peak = 0;
+      var sumSquares = 0.0;
+      for (var index = 0; index < sampleCount; index++) {
+        final sample = pcm.getInt16(index * 2, Endian.little).abs();
+        if (sample > peak) peak = sample;
+        final normalized = sample / 32767.0;
+        sumSquares += normalized * normalized;
+      }
+      final rms = math.sqrt(sumSquares / sampleCount);
+      expect(peak, greaterThan(30000));
+      expect(rms, greaterThan(0.28));
     });
 
     test('generates seamless reference tone for Sound Out mode', () {

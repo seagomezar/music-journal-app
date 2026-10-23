@@ -88,6 +88,7 @@ class SessionRecord {
   final List<SessionPieceRecord> rehearsedPieces;
   final String notes;
   final List<SessionRecording> recordings;
+  final ExercisePitchSummary? pitchSummary;
 
   SessionRecord({
     required this.id,
@@ -102,6 +103,7 @@ class SessionRecord {
     required this.notes,
     List<SessionRecording> recordings = const [],
     String? audioFilePath,
+    this.pitchSummary,
   }) : startUtcOffsetMinutes =
            startUtcOffsetMinutes ?? startTime.timeZoneOffset.inMinutes,
        endUtcOffsetMinutes =
@@ -120,6 +122,20 @@ class SessionRecord {
                  ),
                ],
        );
+
+  ExercisePitchSummary? get effectivePitchSummary {
+    if (pitchSummary != null && pitchSummary!.analyzedMilliseconds > 0) {
+      return pitchSummary;
+    }
+    ExercisePitchSummary? combined;
+    for (final result in exerciseResults) {
+      final summary = result.pitchSummary;
+      if (summary != null && summary.analyzedMilliseconds > 0) {
+        combined = combined == null ? summary : combined.merge(summary);
+      }
+    }
+    return combined ?? pitchSummary;
+  }
 
   DateTime get localStartTime => _wallTime(startTime, startUtcOffsetMinutes);
   DateTime get localEndTime => _wallTime(endTime, endUtcOffsetMinutes);
@@ -152,6 +168,7 @@ class SessionRecord {
     'rehearsedPieces': rehearsedPieces.map((p) => p.toJson()).toList(),
     'notes': notes,
     'recordings': recordings.map((recording) => recording.toJson()).toList(),
+    if (pitchSummary != null) 'pitchSummary': pitchSummary!.toJson(),
   };
 
   String? get audioFilePath =>
@@ -164,6 +181,7 @@ class SessionRecord {
     int? totalDurationInSeconds,
     String? notes,
     List<SessionPieceRecord>? rehearsedPieces,
+    ExercisePitchSummary? pitchSummary,
   }) {
     return SessionRecord(
       id: id,
@@ -180,6 +198,7 @@ class SessionRecord {
       rehearsedPieces: rehearsedPieces ?? this.rehearsedPieces,
       notes: notes ?? this.notes,
       recordings: recordings ?? this.recordings,
+      pitchSummary: pitchSummary ?? this.pitchSummary,
     );
   }
 
@@ -232,6 +251,11 @@ class SessionRecord {
               .toList() ??
           const [],
       audioFilePath: json['audioFilePath'] as String?,
+      pitchSummary: json['pitchSummary'] is Map
+          ? ExercisePitchSummary.fromJson(
+              Map<String, dynamic>.from(json['pitchSummary'] as Map),
+            )
+          : null,
     );
   }
 }

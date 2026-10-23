@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flute/models/pitch_tracking.dart';
+import 'package:flute/models/session_record.dart';
 import 'package:flute/services/capture_lifecycle_service.dart';
 import 'package:flute/services/pitch_tracking_service.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -228,6 +229,54 @@ void main() {
     expect(enough.hasEnoughData, true);
     expect(enough.onPitchPercentage, 75);
   });
+
+  test(
+    'tuning mode also records session pitch summary and merges runs',
+    () async {
+      final input = _FakePitchAudioInput();
+      final tracker = PitchTrackingService(audioInput: input);
+      final readingFuture = _stableReading(tracker);
+      await tracker.start(
+        mode: PitchCaptureMode.tuning,
+        referenceHz: 442,
+        toleranceCents: 10,
+      );
+      input.add(_pcm16([..._tone(442), ..._tone(442)]));
+      await readingFuture;
+      final firstRun = await tracker.stop();
+      expect(firstRun, isNotNull);
+      expect(firstRun!.analyzedMilliseconds, 43);
+      expect(firstRun.inTuneMilliseconds, 43);
+
+      const secondRun = ExercisePitchSummary(
+        inTuneMilliseconds: 1000,
+        analyzedMilliseconds: 2000,
+        trackingMilliseconds: 3000,
+        referenceHz: 442,
+        toleranceCents: 10,
+      );
+      final merged = firstRun.merge(secondRun);
+      expect(merged.analyzedMilliseconds, 2043);
+      expect(merged.inTuneMilliseconds, 1043);
+
+      final record = SessionRecord(
+        id: 'session-tuning',
+        startTime: DateTime.utc(2026, 10, 22, 12),
+        endTime: DateTime.utc(2026, 10, 22, 12, 15),
+        totalDurationInSeconds: 900,
+        completedExercises: const [],
+        rehearsedPieces: const [],
+        notes: '',
+        pitchSummary: merged,
+      );
+      final restored = SessionRecord.fromJson(record.toJson());
+      expect(restored.effectivePitchSummary, isNotNull);
+      expect(restored.effectivePitchSummary!.analyzedMilliseconds, 2043);
+      expect(restored.effectivePitchSummary!.inTuneMilliseconds, 1043);
+      expect(restored.effectivePitchSummary!.referenceHz, 442);
+      await tracker.dispose();
+    },
+  );
 }
 
 Float64List _tone(double frequency) {

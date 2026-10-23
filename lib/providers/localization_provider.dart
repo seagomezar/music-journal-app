@@ -177,6 +177,11 @@ class LocalizationProvider with ChangeNotifier {
     'exercise_notes_draft_item': '• {} — {} BPM',
     'exercise_notes_draft_item_pitch':
         '• {} — {} BPM — {}% on pitch (A4 {} Hz, ±{}¢)',
+    'session_tuning_score_title': 'Session Tuning Score:',
+    'session_tuning_score_format':
+        '{}% on pitch • {} analyzed • A4 {} Hz • ±{}¢',
+    'session_tuning_draft_line':
+        'Session tuning score: {}% on pitch ({} analyzed, A4 {} Hz, ±{}¢)',
     'keep_practicing': 'Keep Practicing',
     'save_finish': 'Save & Finish',
     'exit_practice_title': 'Exit Practice?',
@@ -633,6 +638,11 @@ class LocalizationProvider with ChangeNotifier {
     'exercise_notes_draft_item': '• {} — {} BPM',
     'exercise_notes_draft_item_pitch':
         '• {} — {} BPM — {}% afinado (La4 {} Hz, ±{}¢)',
+    'session_tuning_score_title': 'Score de Afinación de la Sesión:',
+    'session_tuning_score_format':
+        '{}% afinado • {} analizado • La4 {} Hz • ±{}¢',
+    'session_tuning_draft_line':
+        'Score de afinación de la sesión: {}% afinado ({} analizado, La4 {} Hz, ±{}¢)',
     'keep_practicing': 'Seguir Practicando',
     'save_finish': 'Guardar y Finalizar',
     'exit_practice_title': '¿Salir de la Práctica?',

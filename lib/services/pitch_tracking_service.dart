@@ -37,6 +37,14 @@ class RecordPitchAudioInput implements PitchAudioInput {
       echoCancel: false,
       noiseSuppress: false,
       streamBufferSize: PitchTrackingService.frameSize * 2,
+      iosConfig: IosRecordConfig(
+        categoryOptions: [
+          IosAudioCategoryOption.defaultToSpeaker,
+          IosAudioCategoryOption.allowBluetooth,
+          IosAudioCategoryOption.allowBluetoothA2DP,
+          IosAudioCategoryOption.mixWithOthers,
+        ],
+      ),
     ),
   );
 
@@ -149,9 +157,7 @@ class PitchTrackingService {
     _recentMidiNotes.clear();
     _inTuneSamples = 0;
     _analyzedSamples = 0;
-    _trackingStartedAt = mode == PitchCaptureMode.tracking
-        ? DateTime.now()
-        : null;
+    _trackingStartedAt = DateTime.now();
     try {
       await _captureLifecycle.begin(AudioCaptureKind.pitchTracking);
       _pitchCaptureActive = true;
@@ -296,7 +302,7 @@ class PitchTrackingService {
         _recentMidiNotes.every((note) => note == midiNote);
     final onPitch = cents.abs() <= _toleranceCents;
 
-    if (_mode == PitchCaptureMode.tracking && stable && !excluded) {
+    if (_mode != null && stable && !excluded) {
       _analyzedSamples += frameSize;
       if (onPitch) _inTuneSamples += frameSize;
     }
@@ -317,16 +323,25 @@ class PitchTrackingService {
   }
 
   ExercisePitchSummary? currentSummary() {
-    if (_mode != PitchCaptureMode.tracking || _trackingStartedAt == null) {
+    if (_mode == null || _trackingStartedAt == null) {
       return null;
     }
-    return ExercisePitchSummary(
-      inTuneMilliseconds: (_inTuneSamples * 1000 / sampleRate).round(),
-      analyzedMilliseconds: (_analyzedSamples * 1000 / sampleRate).round(),
-      trackingMilliseconds: DateTime.now()
+    final analyzedMs = (_analyzedSamples * 1000 / sampleRate).round();
+    final inTuneMs = (_inTuneSamples * 1000 / sampleRate).round().clamp(
+      0,
+      analyzedMs,
+    );
+    final trackingMs = math.max(
+      analyzedMs,
+      DateTime.now()
           .difference(_trackingStartedAt!)
           .inMilliseconds
           .clamp(0, 86400000),
+    );
+    return ExercisePitchSummary(
+      inTuneMilliseconds: inTuneMs,
+      analyzedMilliseconds: analyzedMs,
+      trackingMilliseconds: trackingMs,
       referenceHz: _referenceHz,
       toleranceCents: _toleranceCents,
     );

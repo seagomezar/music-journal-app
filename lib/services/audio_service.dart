@@ -78,7 +78,17 @@ class AudioService {
         }
       });
       await _recorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc),
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          iosConfig: IosRecordConfig(
+            categoryOptions: [
+              IosAudioCategoryOption.defaultToSpeaker,
+              IosAudioCategoryOption.allowBluetooth,
+              IosAudioCategoryOption.allowBluetoothA2DP,
+              IosAudioCategoryOption.mixWithOthers,
+            ],
+          ),
+        ),
         path: path,
       );
       _isRecording = true;

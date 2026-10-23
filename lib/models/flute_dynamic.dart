@@ -67,21 +67,21 @@ enum FluteDynamic {
       case FluteDynamic.ambient:
         return 0.0;
       case FluteDynamic.ppp:
-        return 38.0;
+        return 36.0;
       case FluteDynamic.pp:
-        return 46.0;
+        return 42.0;
       case FluteDynamic.p:
-        return 54.0;
+        return 48.0;
       case FluteDynamic.mp:
-        return 62.0;
+        return 54.0;
       case FluteDynamic.mf:
-        return 70.0;
+        return 60.0;
       case FluteDynamic.f:
-        return 78.0;
+        return 66.0;
       case FluteDynamic.ff:
-        return 86.0;
+        return 72.0;
       case FluteDynamic.fff:
-        return 94.0;
+        return 78.0;
     }
   }
 
@@ -89,23 +89,23 @@ enum FluteDynamic {
   double get maxDb {
     switch (this) {
       case FluteDynamic.ambient:
-        return 38.0;
+        return 36.0;
       case FluteDynamic.ppp:
-        return 46.0;
+        return 42.0;
       case FluteDynamic.pp:
-        return 54.0;
+        return 48.0;
       case FluteDynamic.p:
-        return 62.0;
+        return 54.0;
       case FluteDynamic.mp:
-        return 70.0;
+        return 60.0;
       case FluteDynamic.mf:
-        return 78.0;
+        return 66.0;
       case FluteDynamic.f:
-        return 86.0;
+        return 72.0;
       case FluteDynamic.ff:
-        return 94.0;
+        return 78.0;
       case FluteDynamic.fff:
-        return 110.0;
+        return 100.0;
     }
   }
 
@@ -135,14 +135,14 @@ enum FluteDynamic {
 
   /// Classifies a sound pressure level (in dB) into the flute dynamic scale.
   static FluteDynamic fromDecibels(double db) {
-    if (db < 38.0) return FluteDynamic.ambient;
-    if (db < 46.0) return FluteDynamic.ppp;
-    if (db < 54.0) return FluteDynamic.pp;
-    if (db < 62.0) return FluteDynamic.p;
-    if (db < 70.0) return FluteDynamic.mp;
-    if (db < 78.0) return FluteDynamic.mf;
-    if (db < 86.0) return FluteDynamic.f;
-    if (db < 94.0) return FluteDynamic.ff;
+    if (db < 36.0) return FluteDynamic.ambient;
+    if (db < 42.0) return FluteDynamic.ppp;
+    if (db < 48.0) return FluteDynamic.pp;
+    if (db < 54.0) return FluteDynamic.p;
+    if (db < 60.0) return FluteDynamic.mp;
+    if (db < 66.0) return FluteDynamic.mf;
+    if (db < 72.0) return FluteDynamic.f;
+    if (db < 78.0) return FluteDynamic.ff;
     return FluteDynamic.fff;
   }
 }
@@ -172,10 +172,10 @@ class FluteDynamicReading {
   /// Whether the flute sound is actively audible above room background noise.
   bool get isAudible => dynamic != FluteDynamic.ambient;
 
-  /// Normalized progress [0.0, 1.0] across the flute dynamic scale (30 dB to 100 dB).
+  /// Normalized progress [0.0, 1.0] across the flute dynamic scale (30 dB to 84 dB).
   double get normalizedLevel {
     const minScale = 30.0;
-    const maxScale = 100.0;
+    const maxScale = 84.0;
     return ((smoothedDecibels - minScale) / (maxScale - minScale)).clamp(
       0.0,
       1.0,
@@ -185,7 +185,7 @@ class FluteDynamicReading {
   /// Normalized progress [0.0, 1.0] for the peak indicator.
   double get normalizedPeak {
     const minScale = 30.0;
-    const maxScale = 100.0;
+    const maxScale = 84.0;
     return ((peakDecibels - minScale) / (maxScale - minScale)).clamp(0.0, 1.0);
   }
 }

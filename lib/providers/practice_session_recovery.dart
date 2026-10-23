@@ -23,6 +23,7 @@ extension _PracticeSessionRecovery on PracticeProvider {
         for (final entry in _exercisePitchSummaries.entries)
           entry.key: entry.value.toJson(),
       },
+      'sessionPitchSummary': sessionPitchSummary?.toJson(),
       'pieces': _rehearsedPiecesDuration,
       'measures': _rehearsedMeasures,
       'recordings': _recordings.map((r) => r.toJson()).toList(),
@@ -54,6 +55,11 @@ extension _PracticeSessionRecovery on PracticeProvider {
         _exercisePitchSummaries[entry.key
             as String] = ExercisePitchSummary.fromJson(
           Map<String, dynamic>.from(entry.value as Map),
+        );
+      }
+      if (draft['sessionPitchSummary'] is Map) {
+        _sessionPitchSummary = ExercisePitchSummary.fromJson(
+          Map<String, dynamic>.from(draft['sessionPitchSummary'] as Map),
         );
       }
       _rehearsedPiecesDuration.addAll(
